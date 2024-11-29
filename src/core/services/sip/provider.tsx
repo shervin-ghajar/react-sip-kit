@@ -1,12 +1,4 @@
-import { dayJs } from '../../../utils';
-import {
-  CallWaitingEnabled,
-  DoNotDisturbEnabled,
-  DoNotDisturbPolicy,
-  EnableVideoCalling,
-  TransportConnectionTimeout,
-} from './configs';
-import { Line } from './constructors';
+import { TransportConnectionTimeout } from './configs';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
   onTransportConnected,
@@ -16,16 +8,13 @@ import {
 import { useCallActions } from './hooks';
 // import { createAudioSession, handleSessionEvents } from './sipService';
 import { useSipStore } from './store';
-import { LineType, SipInvitationType, SipStoreStateType } from './store/types';
 import { LineObject, SipContextType, SipProviderProps, SipUserAgent } from './types';
-import { formatShortDuration } from './utils';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { Invitation, UserAgent, RegistererState, Registerer } from 'sip.js';
+import { UserAgent, RegistererState, Registerer } from 'sip.js';
 
 const SipContext = createContext<SipContextType | undefined>(undefined);
 
 const RegisterExpires = 300;
-let newLineNumber = 1;
 
 export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
   const { userAgent, setSipStore } = useSipStore();

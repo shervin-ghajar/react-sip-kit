@@ -1,4 +1,6 @@
+import { AudioBlobs } from '../constructors/audioBlobs';
 import { SipUserAgent } from '../types';
+import { Dayjs } from 'dayjs';
 import { Invitation, Session } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 
@@ -18,21 +20,28 @@ export interface SipStoreStateType {
   newLineNumber: number;
   SipUsername: string;
   SipDomain: string;
+  audioBlobs: AudioBlobs;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   addLine: (line: LineType) => void;
   addBuddy: (buddy: BuddyType) => void;
   // Getter
   findBuddyByDid: (did: string) => BuddyType | null;
-  findLineByNumber:()//TODO
+  findLineByNumber: (lineNum: LineType['LineNumber']) => LineType | null;
   getSession: (did: string) => SipSessionType | null;
+  getSessions: () => SipUserAgent['sessions'] | null;
   // Utils
   countSessions: (id: string) => number;
 }
 
-export interface SipInvitationType extends Omit<Invitation, 'incomingInviteRequest'> {
+export interface SipInvitationType
+  extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {
   data: Partial<SipSessionDataType>;
   incomingInviteRequest: IncomingInviteRequest;
+  sessionDescriptionHandler: Invitation['sessionDescriptionHandler'] & {
+    peerConnection: RTCPeerConnection;
+  };
+  isOnHold: boolean;
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
@@ -60,6 +69,20 @@ export interface SipSessionDataType {
   callTimer: number;
   earlyReject: boolean;
   withvideo: boolean;
+  reasonCode: number;
+  reasonText: string;
+  teardownComplete: boolean;
+  childsession: SipSessionType | null;
+  startTime: Dayjs;
+  started: boolean;
+  AudioSourceTrack: any; //TODO
+  earlyMedia: any; //TODO
+  ringerObj: { [key: string]: any } | null;
+  ConfbridgeChannels: Array<any>; //TODO
+  ConfbridgeEvents: Array<any>; //TODO
+  videoSourceDevice: string | null;
+  audioSourceDevice: string | null;
+  audioOutputDevice: string | null;
 }
 /* -------------------------------------------------------------------------- */
 export interface BuddyType {
