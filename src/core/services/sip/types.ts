@@ -1,5 +1,6 @@
-import { SipSessionType } from './store/types';
-import { UserAgent, Inviter, Registerer, Subscriber } from 'sip.js';
+import { UseCallActionReturnType } from './hooks/useCallActions/types';
+import { LineType, SipSessionType } from './store/types';
+import { UserAgent, Registerer, Subscriber } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
   isReRegister: boolean;
@@ -22,16 +23,6 @@ export interface SipUserAgent extends UserAgent {
   selfSub: Subscriber | null;
   voicemailSub: Subscriber | null;
 }
-
-export interface LineObject {
-  LineNumber: number;
-  BuddyObj: any;
-  SipSession?: Inviter;
-  SipDomain: string;
-  AudioSourceDevice: string | null;
-  VideoSourceDevice: string | null;
-}
-
 export interface SipProviderProps {
   children: React.ReactNode;
   config: SipConfig; // Config options for SIP.js UserAgent
@@ -75,14 +66,6 @@ export interface SipConfig {
   AutoDeleteDefault?: boolean; // Default auto-delete behavior for buddies (default false)
 }
 
-export interface SipContextType {
-  userAgent: UserAgent | null;
-  activeSessions: Map<number, LineObject>;
-  startAudioCall: (
-    lineObj: LineObject,
-    dialledNumber: string,
-    extraHeaders?: string[],
-  ) => Promise<void>;
-}
+export interface SipContextType extends Omit<UseCallActionReturnType, 'ReceiveCall'> {}
 
-export type CallbackFunction<T extends unknown> = (value: T) => void;
+export type CallbackFunction<T> = (value?: T) => void;

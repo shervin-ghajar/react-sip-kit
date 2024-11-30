@@ -1,58 +1,69 @@
-// // Incoming INVITE
-// function onInviteCancel(lineObj, response) {
-//   // Remote Party Canceled while ringing...
 import { dayJs } from '../../../../../utils';
 import { CallRecordingPolicy, MaxVideoBandwidth, RecordAllCalls } from '../../configs';
 import { teardownSession } from '../../methods/session';
-import { LineType } from '../../store/types';
-import { LineObject } from '../../types';
-import { formatShortDuration, utcDateNow } from '../../utils';
+import { useSipStore } from '../../store';
+import { LineType, SipSessionDescriptionHandler } from '../../store/types';
+import { CallbackFunction } from '../../types';
+import { formatShortDuration, getAudioOutputID, utcDateNow } from '../../utils';
+import { RTCRtpTransceiverType } from './types';
 import { Bye, Message } from 'sip.js';
-import { IncomingResponse } from 'sip.js/lib/core';
+import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
-//   // Check to see if this call has been completed elsewhere
-//   // https://github.com/InnovateAsterisk/Browser-Phone/issues/405
-//   const temp_cause = 0;
-//   const reason = response.headers['Reason'];
-//   if (reason !== undefined && reason.length > 0) {
-//     for (const i = 0; i < reason.length; i++) {
-//       const cause = reason[i].raw.toLowerCase().trim(); // Reason: Q.850 ;cause=16 ;text="Terminated"
-//       const items = cause.split(';');
-//       if (
-//         items.length >= 2 &&
-//         (items[0].trim() == 'sip' || items[0].trim() == 'q.850') &&
-//         items[1].includes('cause') &&
-//         cause.includes('call completed elsewhere')
-//       ) {
-//         temp_cause = parseInt(items[1].substring(items[1].indexOf('=') + 1).trim());
-//         // No sample provided for "token"
-//         break;
-//       }
-//     }
-//   }
+/* -------------------------------------------------------------------------- */
+// Incoming INVITE
+export function onInviteCancel(
+  lineObj: LineType,
+  response: IncomingRequestMessage,
+  callback?: CallbackFunction<any>,
+) {
+  console.log('onInviteCancel');
+  // Remote Party Canceled while ringing...
+  // Check to see if this call has been completed elsewhere
+  // https://github.com/InnovateAsterisk/Browser-Phone/issues/405
+  let temp_cause = 0;
+  const reason = response.headers['Reason'];
+  if (reason !== undefined && reason.length > 0) {
+    for (let i = 0; i < reason.length; i++) {
+      const cause = reason[i].raw.toLowerCase().trim(); // Reason: Q.850 ;cause=16 ;text="Terminated"
+      const items = cause.split(';');
+      if (
+        items.length >= 2 &&
+        (items[0].trim() == 'sip' || items[0].trim() == 'q.850') &&
+        items[1].includes('cause') &&
+        cause.includes('call completed elsewhere')
+      ) {
+        temp_cause = parseInt(items[1].substring(items[1].indexOf('=') + 1).trim());
+        // No sample provided for "token"
+        break;
+      }
+    }
+  }
+  const session = lineObj.SipSession;
+  if (!session) return;
+  session.data.terminateby = 'them';
+  session.data.reasonCode = temp_cause;
+  if (temp_cause == 0) {
+    session.data.reasonText = 'Call Cancelled';
+    console.log('Call canceled by remote party before answer');
+  } else {
+    session.data.reasonText = 'Call completed elsewhere';
+    console.log('Call completed elsewhere before answer');
+  }
 
-//   lineObj.SipSession.data.terminateby = 'them';
-//   lineObj.SipSession.data.reasonCode = temp_cause;
-//   if (temp_cause == 0) {
-//     lineObj.SipSession.data.reasonText = 'Call Cancelled';
-//     console.log('Call canceled by remote party before answer');
-//   } else {
-//     lineObj.SipSession.data.reasonText = 'Call completed elsewhere';
-//     console.log('Call completed elsewhere before answer');
-//   }
+  session.dispose().catch(function (error) {
+    console.log('Failed to dispose the cancel dialog', error);
+  });
 
-//   lineObj.SipSession.dispose().catch(function (error) {
-//     console.log('Failed to dispose the cancel dialog', error);
-//   });
-
-//   teardownSession(lineObj);
-// }
+  teardownSession(lineObj, callback);
+}
 // // Both Incoming an outgoing INVITE
 export function onInviteAccepted(
   lineObj: LineType,
   includeVideo: boolean,
   response?: IncomingResponse,
 ) {
+  console.log('onInviteCancel');
+
   // Call in progress
   const session = lineObj.SipSession;
   if (!session) return;
@@ -100,7 +111,7 @@ export function onInviteAccepted(
           console.log('Applying limit for Bandwidth to: ', MaxVideoBandwidth + 'kb per second');
 
           // Only going to try without re-negotiations
-          sender.setParameters(parameters).catch(function (e) {
+          sender.setParameters(parameters).catch(function (e: any) {
             console.warn('Cannot apply Bandwidth Limits', e);
           });
         }
@@ -174,89 +185,84 @@ export function onInviteAccepted(
   //   if (includeVideo && StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH
 }
 
-// // Outgoing INVITE
-// function onInviteTrying(lineObj, response) {
-//   $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
+// Outgoing INVITE
+export function onInviteTrying(lineObj: LineType, response: IncomingResponse) {
+  // $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
+}
+export function onInviteProgress(lineObj: LineType, response: IncomingResponse) {
+  const audioBlobs = useSipStore().audioBlobs;
+  console.log('Call Progress:', response.message.statusCode);
+  const session = lineObj.SipSession;
+  if (!session) return;
+  // Provisional 1xx
+  // response.message.reasonPhrase
+  if (response.message.statusCode == 180) {
+    // $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
 
-//   // Custom Web hook
-//   if (typeof web_hook_on_modify !== 'undefined') web_hook_on_modify('trying', lineObj.SipSession);
-// }
-// function onInviteProgress(lineObj, response) {
-//   console.log('Call Progress:', response.message.statusCode);
+    let soundFile = audioBlobs.EarlyMedia_European;
+    // if (UserLocale().indexOf('us') > -1) soundFile = audioBlobs.EarlyMedia_US; TODO #SH locale
+    // if (UserLocale().indexOf('gb') > -1) soundFile = audioBlobs.EarlyMedia_UK;
+    // if (UserLocale().indexOf('au') > -1) soundFile = audioBlobs.EarlyMedia_Australia;
+    // if (UserLocale().indexOf('jp') > -1) soundFile = audioBlobs.EarlyMedia_Japan;
 
-//   // Provisional 1xx
-//   // response.message.reasonPhrase
-//   if (response.message.statusCode == 180) {
-//     $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
+    // Play Early Media
+    console.log('Audio:', soundFile.url);
+    if (session.data.earlyMedia) {
+      // There is already early media playing
+      // onProgress can be called multiple times
+      // Don't add it again
+      console.log('Early Media already playing');
+    } else {
+      const earlyMedia = new Audio(soundFile.blob);
+      earlyMedia.preload = 'auto';
+      earlyMedia.loop = true;
+      earlyMedia.oncanplaythrough = function (e) {
+        if (typeof earlyMedia.sinkId !== 'undefined' && getAudioOutputID() != 'default') {
+          earlyMedia
+            .setSinkId(getAudioOutputID())
+            .then(function () {
+              console.log('Set sinkId to:', getAudioOutputID());
+            })
+            .catch(function (e) {
+              console.warn('Failed not apply setSinkId.', e);
+            });
+        }
+        earlyMedia
+          .play()
+          .then(function () {
+            // Audio Is Playing
+          })
+          .catch(function (e) {
+            console.warn('Unable to play audio file.', e);
+          });
+      };
+      session.data.earlyMedia = earlyMedia;
+    }
+  } else if (response.message.statusCode === 183) {
+    // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
+    // Add UI to allow DTMF
+    // $('#line-' + lineObj.LineNumber + '-early-dtmf').show();
+  } else {
+    // 181 = Call is Being Forwarded
+    // 182 = Call is queued (Busy server!)
+    // 199 = Call is Terminated (Early Dialog)
+    // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
+  }
+}
+export function onInviteRejected(lineObj: LineType, response: IncomingResponse) {
+  console.log('INVITE Rejected:', response.message.reasonPhrase);
+  const session = lineObj.SipSession;
+  if (!session) return;
+  session.data.terminateby = 'them';
+  session.data.reasonCode = response.message.statusCode;
+  session.data.reasonText = response.message.reasonPhrase;
 
-//     const soundFile = audioBlobs.EarlyMedia_European;
-//     if (UserLocale().indexOf('us') > -1) soundFile = audioBlobs.EarlyMedia_US;
-//     if (UserLocale().indexOf('gb') > -1) soundFile = audioBlobs.EarlyMedia_UK;
-//     if (UserLocale().indexOf('au') > -1) soundFile = audioBlobs.EarlyMedia_Australia;
-//     if (UserLocale().indexOf('jp') > -1) soundFile = audioBlobs.EarlyMedia_Japan;
-
-//     // Play Early Media
-//     console.log('Audio:', soundFile.url);
-//     if (lineObj.SipSession.data.earlyMedia) {
-//       // There is already early media playing
-//       // onProgress can be called multiple times
-//       // Don't add it again
-//       console.log('Early Media already playing');
-//     } else {
-//       const earlyMedia = new Audio(soundFile.blob);
-//       earlyMedia.preload = 'auto';
-//       earlyMedia.loop = true;
-//       earlyMedia.oncanplaythrough = function (e) {
-//         if (typeof earlyMedia.sinkId !== 'undefined' && getAudioOutputID() != 'default') {
-//           earlyMedia
-//             .setSinkId(getAudioOutputID())
-//             .then(function () {
-//               console.log('Set sinkId to:', getAudioOutputID());
-//             })
-//             .catch(function (e) {
-//               console.warn('Failed not apply setSinkId.', e);
-//             });
-//         }
-//         earlyMedia
-//           .play()
-//           .then(function () {
-//             // Audio Is Playing
-//           })
-//           .catch(function (e) {
-//             console.warn('Unable to play audio file.', e);
-//           });
-//       };
-//       lineObj.SipSession.data.earlyMedia = earlyMedia;
-//     }
-//   } else if (response.message.statusCode === 183) {
-//     $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
-
-//     // Add UI to allow DTMF
-//     $('#line-' + lineObj.LineNumber + '-early-dtmf').show();
-//   } else {
-//     // 181 = Call is Being Forwarded
-//     // 182 = Call is queued (Busy server!)
-//     // 199 = Call is Terminated (Early Dialog)
-
-//     $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
-//   }
-
-//   // Custom Web hook
-//   if (typeof web_hook_on_modify !== 'undefined') web_hook_on_modify('progress', lineObj.SipSession);
-// }
-// function onInviteRejected(lineObj, response) {
-//   console.log('INVITE Rejected:', response.message.reasonPhrase);
-
-//   lineObj.SipSession.data.terminateby = 'them';
-//   lineObj.SipSession.data.reasonCode = response.message.statusCode;
-//   lineObj.SipSession.data.reasonText = response.message.reasonPhrase;
-
-//   teardownSession(lineObj);
-// }
-// function onInviteRedirected(response) {
-//   console.log('onInviteRedirected', response);
-//   // Follow???
-// }
+  teardownSession(lineObj);
+}
+export function onInviteRedirected(lineObj: LineType, response: IncomingResponse) {
+  console.log('onInviteRedirected', response);
+  // Follow???
+}
 
 // // General Session delegates
 export function onSessionReceivedBye(lineObj: LineType, response: Bye) {
@@ -271,36 +277,37 @@ export function onSessionReceivedBye(lineObj: LineType, response: Bye) {
   teardownSession(lineObj);
 }
 
-// function onSessionReinvited(lineObj, response) {
-//   // This may be used to include video streams
-//   const sdp = response.body;
-
-//   // All the possible streams will get
-//   // Note, this will probably happen after the streams are added
-//   lineObj.SipSession.data.videoChannelNames = [];
-//   const videoSections = sdp.split('m=video');
-//   if (videoSections.length >= 1) {
-//     for (const m = 0; m < videoSections.length; m++) {
-//       if (videoSections[m].indexOf('a=mid:') > -1 && videoSections[m].indexOf('a=label:') > -1) {
-//         // We have a label for the media
-//         const lines = videoSections[m].split('\r\n');
-//         const channel = '';
-//         const mid = '';
-//         for (const i = 0; i < lines.length; i++) {
-//           if (lines[i].indexOf('a=label:') == 0) {
-//             channel = lines[i].replace('a=label:', '');
-//           }
-//           if (lines[i].indexOf('a=mid:') == 0) {
-//             mid = lines[i].replace('a=mid:', '');
-//           }
-//         }
-//         lineObj.SipSession.data.videoChannelNames.push({ mid: mid, channel: channel });
-//       }
-//     }
-//     console.log('videoChannelNames:', lineObj.SipSession.data.videoChannelNames);
-//     RedrawStage(lineObj.LineNumber, false);
-//   }
-// }
+export function onSessionReinvited(lineObj: LineType, response: IncomingRequestMessage) {
+  // This may be used to include video streams
+  const sdp = response.body;
+  const session = lineObj.SipSession;
+  if (!session) return;
+  // All the possible streams will get
+  // Note, this will probably happen after the streams are added
+  session.data.videoChannelNames = [];
+  const videoSections = sdp.split('m=video');
+  if (videoSections.length >= 1) {
+    for (let m = 0; m < videoSections.length; m++) {
+      if (videoSections[m].indexOf('a=mid:') > -1 && videoSections[m].indexOf('a=label:') > -1) {
+        // We have a label for the media
+        const lines = videoSections[m].split('\r\n');
+        let channel = '';
+        let mid = '';
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].indexOf('a=label:') == 0) {
+            channel = lines[i].replace('a=label:', '');
+          }
+          if (lines[i].indexOf('a=mid:') == 0) {
+            mid = lines[i].replace('a=mid:', '');
+          }
+        }
+        session.data.videoChannelNames.push({ mid: mid, channel: channel });
+      }
+    }
+    console.log('videoChannelNames:', session.data.videoChannelNames);
+    // RedrawStage(lineObj.LineNumber, false); TODO #SH
+  }
+}
 export function onSessionReceivedMessage(lineObj: LineType, response: Message) {
   const messageType =
     response.request.headers['Content-Type'].length >= 1
@@ -431,142 +438,140 @@ export function onSessionReceivedMessage(lineObj: LineType, response: Message) {
   }
 }
 
-// function onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, includeVideo) {
-//   if (sdh) {
-//     if (sdh.peerConnection) {
-//       // console.log(sdh);
-//       sdh.peerConnection.ontrack = function (event) {
-//         // console.log(event);
-//         onTrackAddedEvent(lineObj, includeVideo);
-//       };
-//       // sdh.peerConnectionDelegate = {
-//       //     ontrack: function(event){
-//       //         console.log(event);
-//       //         onTrackAddedEvent(lineObj, includeVideo);
-//       //     }
-//       // }
-//     } else {
-//       console.warn('onSessionDescriptionHandler fired without a peerConnection');
-//     }
-//   } else {
-//     console.warn('onSessionDescriptionHandler fired without a sessionDescriptionHandler');
-//   }
-// }
-// function onTrackAddedEvent(lineObj, includeVideo) {
-//   // Gets remote tracks
-//   const session = lineObj.SipSession;
-//   // TODO: look at detecting video, so that UI switches to audio/video automatically.
+export function onSessionDescriptionHandlerCreated(
+  lineObj: LineType,
+  sdh: SipSessionDescriptionHandler,
+  provisional: boolean,
+  includeVideo?: boolean,
+) {
+  if (sdh) {
+    if (sdh.peerConnection) {
+      // console.log(sdh);
+      sdh.peerConnection.ontrack = function (event) {
+        // console.log(event);
+        onTrackAddedEvent(lineObj, includeVideo);
+      };
+      // sdh.peerConnectionDelegate = {
+      //     ontrack: function(event){
+      //         console.log(event);
+      //         onTrackAddedEvent(lineObj, includeVideo);
+      //     }
+      // }
+    } else {
+      console.warn('onSessionDescriptionHandler fired without a peerConnection');
+    }
+  } else {
+    console.warn('onSessionDescriptionHandler fired without a sessionDescriptionHandler');
+  }
+}
+function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
+  // Gets remote tracks
+  const session = lineObj.SipSession;
+  if (!session) return;
+  // TODO: look at detecting video, so that UI switches to audio/video automatically.
 
-//   const pc = session.sessionDescriptionHandler.peerConnection;
+  const pc = session.sessionDescriptionHandler.peerConnection;
 
-//   const remoteAudioStream = new MediaStream();
-//   const remoteVideoStream = new MediaStream();
+  const remoteAudioStream = new MediaStream();
+  const remoteVideoStream = new MediaStream();
 
-//   pc.getTransceivers().forEach(function (transceiver) {
-//     // Add Media
-//     const receiver = transceiver.receiver;
-//     if (receiver.track) {
-//       if (receiver.track.kind == 'audio') {
-//         console.log('Adding Remote Audio Track');
-//         remoteAudioStream.addTrack(receiver.track);
-//       }
-//       if (includeVideo && receiver.track.kind == 'video') {
-//         if (transceiver.mid) {
-//           receiver.track.mid = transceiver.mid;
-//           console.log(
-//             'Adding Remote Video Track - ',
-//             receiver.track.readyState,
-//             'MID:',
-//             receiver.track.mid,
-//           );
-//           remoteVideoStream.addTrack(receiver.track);
-//         }
-//       }
-//     }
-//   });
+  pc.getTransceivers().forEach(function (transceiver) {
+    // Add Media
+    const receiver: RTCRtpTransceiverType = transceiver.receiver as any;
+    if (receiver.track) {
+      if (receiver.track.kind == 'audio') {
+        console.log('Adding Remote Audio Track');
+        remoteAudioStream.addTrack(receiver.track);
+      }
+      if (includeVideo && receiver.track.kind == 'video') {
+        if (transceiver.mid) {
+          receiver.track.mid = transceiver.mid;
+          console.log(
+            'Adding Remote Video Track - ',
+            receiver.track.readyState,
+            'MID:',
+            receiver.track.mid,
+          );
+          remoteVideoStream.addTrack(receiver.track);
+        }
+      }
+    }
+  });
 
-//   // Attach Audio
-//   if (remoteAudioStream.getAudioTracks().length >= 1) {
-//     const remoteAudio = $('#line-' + lineObj.LineNumber + '-remoteAudio').get(0);
-//     remoteAudio.srcObject = remoteAudioStream;
-//     remoteAudio.onloadedmetadata = function (e) {
-//       if (typeof remoteAudio.sinkId !== 'undefined') {
-//         remoteAudio
-//           .setSinkId(getAudioOutputID())
-//           .then(function () {
-//             console.log('sinkId applied: ' + getAudioOutputID());
-//           })
-//           .catch(function (e) {
-//             console.warn('Error using setSinkId: ', e);
-//           });
-//       }
-//       remoteAudio.play();
-//     };
-//   }
+  // Attach Audio
+  if (remoteAudioStream.getAudioTracks().length >= 1) {
+    // const remoteAudio = $('#line-' + lineObj.LineNumber + '-remoteAudio').get(0);
+    // remoteAudio.srcObject = remoteAudioStream;
+    // remoteAudio.onloadedmetadata = function () {
+    //   if (typeof remoteAudio.sinkId !== 'undefined') {
+    //     remoteAudio
+    //       .setSinkId(getAudioOutputID())
+    //       .then(function () {
+    //         console.log('sinkId applied: ' + getAudioOutputID());
+    //       })
+    //       .catch(function (e: any) {
+    //         console.warn('Error using setSinkId: ', e);
+    //       });
+    //   }
+    //   remoteAudio.play();
+    // };
+  }
 
-//   if (includeVideo) {
-//     // Single Or Multiple View
-//     $('#line-' + lineObj.LineNumber + '-remote-videos').empty();
-//     if (remoteVideoStream.getVideoTracks().length >= 1) {
-//       const remoteVideoStreamTracks = remoteVideoStream.getVideoTracks();
-//       remoteVideoStreamTracks.forEach(function (remoteVideoStreamTrack) {
-//         const thisRemoteVideoStream = new MediaStream();
-//         thisRemoteVideoStream.trackID = remoteVideoStreamTrack.id;
-//         thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-//         remoteVideoStreamTrack.onended = function () {
-//           console.log('Video Track Ended: ', this.mid);
-//           RedrawStage(lineObj.LineNumber, true);
-//         };
-//         thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-
-//         const wrapper = $('<span />', {
-//           class: 'VideoWrapper',
-//         });
-//         wrapper.css('width', '1px');
-//         wrapper.css('heigh', '1px');
-//         wrapper.hide();
-
-//         const callerID = $('<div />', {
-//           class: 'callerID',
-//         });
-//         wrapper.append(callerID);
-
-//         const Actions = $('<div />', {
-//           class: 'Actions',
-//         });
-//         wrapper.append(Actions);
-
-//         const videoEl = $('<video />', {
-//           id: remoteVideoStreamTrack.id,
-//           mid: remoteVideoStreamTrack.mid,
-//           muted: true,
-//           autoplay: true,
-//           playsinline: true,
-//           controls: false,
-//         });
-//         videoEl.hide();
-
-//         const videoObj = videoEl.get(0);
-//         videoObj.srcObject = thisRemoteVideoStream;
-//         videoObj.onloadedmetadata = function (e) {
-//           // videoObj.play();
-//           videoEl.show();
-//           videoEl.parent().show();
-//           console.log('Playing Video Stream MID:', thisRemoteVideoStream.mid);
-//           RedrawStage(lineObj.LineNumber, true);
-//         };
-//         wrapper.append(videoEl);
-
-//         $('#line-' + lineObj.LineNumber + '-remote-videos').append(wrapper);
-
-//         console.log('Added Video Element MID:', thisRemoteVideoStream.mid);
-//       });
-//     } else {
-//       console.log('No Video Streams');
-//       RedrawStage(lineObj.LineNumber, true);
-//     }
-//   }
-
-//   // Custom Web hook
-//   if (typeof web_hook_on_modify !== 'undefined') web_hook_on_modify('trackAdded', session);
-// }
+  if (includeVideo) {
+    // Single Or Multiple View
+    // $('#line-' + lineObj.LineNumber + '-remote-videos').empty();
+    // if (remoteVideoStream.getVideoTracks().length >= 1) {
+    //   const remoteVideoStreamTracks: RTCRtpTransceiverType =
+    //     remoteVideoStream.getVideoTracks() as any;
+    //   remoteVideoStreamTracks.forEach(function (remoteVideoStreamTrack) {
+    //     const thisRemoteVideoStream: MediaStream =
+    //       new MediaStream();
+    //     thisRemoteVideoStream.trackID = remoteVideoStreamTrack.id;
+    //     thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
+    //     remoteVideoStreamTrack.onended = function () {
+    //       console.log('Video Track Ended: ', this.mid);
+    //       RedrawStage(lineObj.LineNumber, true);
+    //     };
+    //     thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
+    //     const wrapper = $('<span />', {
+    //       class: 'VideoWrapper',
+    //     });
+    //     wrapper.css('width', '1px');
+    //     wrapper.css('heigh', '1px');
+    //     wrapper.hide();
+    //     const callerID = $('<div />', {
+    //       class: 'callerID',
+    //     });
+    //     wrapper.append(callerID);
+    //     const Actions = $('<div />', {
+    //       class: 'Actions',
+    //     });
+    //     wrapper.append(Actions);
+    //     const videoEl = $('<video />', {
+    //       id: remoteVideoStreamTrack.id,
+    //       mid: remoteVideoStreamTrack.mid,
+    //       muted: true,
+    //       autoplay: true,
+    //       playsinline: true,
+    //       controls: false,
+    //     });
+    //     videoEl.hide();
+    //     const videoObj = videoEl.get(0);
+    //     videoObj.srcObject = thisRemoteVideoStream;
+    //     videoObj.onloadedmetadata = function (e) {
+    //       // videoObj.play();
+    //       videoEl.show();
+    //       videoEl.parent().show();
+    //       console.log('Playing Video Stream MID:', thisRemoteVideoStream.mid);
+    //       RedrawStage(lineObj.LineNumber, true);
+    //     };
+    //     wrapper.append(videoEl);
+    //     $('#line-' + lineObj.LineNumber + '-remote-videos').append(wrapper);
+    //     console.log('Added Video Element MID:', thisRemoteVideoStream.mid);
+    //   });
+    // } else {
+    //   console.log('No Video Streams');
+    //   // RedrawStage(lineObj.LineNumber, true);
+    // }
+  }
+}

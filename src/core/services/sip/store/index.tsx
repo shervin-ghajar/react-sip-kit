@@ -1,14 +1,14 @@
-import { AudioBlobs } from '../constructors/audioBlobs';
+import { AudioBlobs } from '../constructors';
 import { BuddyType, LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create(
   persist<SipStoreStateType>(
     (set, get) => ({
-      userAgent: null,
+      userAgent: undefined,
       buddies: [],
       selectedBuddy: [],
       selectedLine: [],
@@ -25,8 +25,15 @@ export const useSipStore = create(
       audioBlobs: new AudioBlobs(),
       setSipStore: (newState: Partial<SipStoreStateType>) =>
         set((state) => ({ ...state, ...newState })),
+      setUserAgent: (userAgent: SipStoreStateType['userAgent']) =>
+        set((state) => ({ ...state, userAgent })),
       addLine: (newLine: LineType) =>
         set((state) => ({ ...state, lines: [...state.lines, newLine] })),
+      removeLine: (lineNumber: LineType['LineNumber']) => {
+        const lines = get().lines;
+        const filteredLines = lines.filter((line) => line.LineNumber !== lineNumber);
+        set((state) => ({ ...state, lines: filteredLines }));
+      },
       addBuddy: (newBuddy: BuddyType) =>
         set((state) => ({ ...state, buddies: [...state.buddies, newBuddy] })),
 
@@ -42,9 +49,11 @@ export const useSipStore = create(
           ) ?? null
         );
       },
+      findBuddyByIdentity: (identity: BuddyType['identity']) => {
+        return get().buddies.find((buddy) => buddy.identity === identity) ?? null;
+      },
       findLineByNumber: (lineNumber) => {
-        const line = get().lines.find((line) => line.LineNumber === lineNumber) ?? null;
-        return line;
+        return get().lines.find((line) => line.LineNumber === lineNumber) ?? null;
       },
       getSession: (buddyId) => {
         const { userAgent } = get();
@@ -85,6 +94,9 @@ export const useSipStore = create(
     }),
     {
       name: 'sip-store',
+      partialize: ({ userAgent, ...rest }) => ({
+        ...rest,
+      }),
     },
   ),
 );

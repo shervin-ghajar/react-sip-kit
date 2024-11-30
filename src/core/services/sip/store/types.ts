@@ -1,12 +1,12 @@
-import { AudioBlobs } from '../constructors/audioBlobs';
+import { AudioBlobs } from '../constructors';
 import { SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
-import { Invitation, Session } from 'sip.js';
+import { Invitation, Inviter, Session, SessionDescriptionHandler } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 export interface SipStoreStateType {
-  userAgent: SipUserAgent | null;
+  userAgent?: SipUserAgent;
   buddies: Array<BuddyType>;
   selectedBuddy: Array<any>;
   selectedLine: Array<any>;
@@ -23,10 +23,13 @@ export interface SipStoreStateType {
   audioBlobs: AudioBlobs;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
+  setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
   addLine: (line: LineType) => void;
+  removeLine: (lineNum: LineType['LineNumber']) => void;
   addBuddy: (buddy: BuddyType) => void;
   // Getter
   findBuddyByDid: (did: string) => BuddyType | null;
+  findBuddyByIdentity: (indentity: BuddyType['identity']) => BuddyType | null;
   findLineByNumber: (lineNum: LineType['LineNumber']) => LineType | null;
   getSession: (did: string) => SipSessionType | null;
   getSessions: () => SipUserAgent['sessions'] | null;
@@ -38,10 +41,20 @@ export interface SipInvitationType
   extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {
   data: Partial<SipSessionDataType>;
   incomingInviteRequest: IncomingInviteRequest;
-  sessionDescriptionHandler: Invitation['sessionDescriptionHandler'] & {
-    peerConnection: RTCPeerConnection;
-  };
+  sessionDescriptionHandler: SipSessionDescriptionHandler;
   isOnHold: boolean;
+  isInviter: false;
+}
+
+export interface SipInviterType extends Inviter {
+  data: Partial<SipSessionDataType>;
+  sessionDescriptionHandler: SipSessionDescriptionHandler;
+  isOnHold: boolean;
+  isInviter: true;
+}
+
+export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
+  peerConnection: RTCPeerConnection;
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
@@ -50,7 +63,7 @@ export interface LineType {
   DisplayNumber: string;
   IsSelected: boolean;
   BuddyObj: BuddyType | null;
-  SipSession: SipInvitationType | null;
+  SipSession: SipInvitationType | SipInviterType | null;
   LocalSoundMeter: any;
   RemoteSoundMeter: any;
 }
@@ -75,6 +88,8 @@ export interface SipSessionDataType {
   childsession: SipSessionType | null;
   startTime: Dayjs;
   started: boolean;
+  videoChannelNames: Array<Record<'mid' | 'channel', string>>;
+  dst: string;
   AudioSourceTrack: any; //TODO
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;

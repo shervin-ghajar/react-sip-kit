@@ -1,4 +1,5 @@
 import { hostingPrefix } from '../../configs';
+import { CallbackFunction } from '../../types';
 
 export const audioBlobs: Partial<
   Record<
@@ -78,4 +79,20 @@ export function preloadAudioFiles() {
     oReq.send();
   });
   // console.log(audioBlobs);
+}
+/* -------------------------------------------------------------------------- */
+// Detect Devices
+export function detectDevices(callback: CallbackFunction<MediaDeviceInfo[]>) {
+  navigator.mediaDevices
+    .enumerateDevices()
+    .then(function (deviceInfos) {
+      // deviceInfos will not have a populated lable unless to accept the permission
+      // during getUserMedia. This normally happens at startup/setup
+      // so from then on these devices will be with lables.
+
+      callback(deviceInfos);
+    })
+    .catch(function (e) {
+      console.error('Error enumerating devices', e);
+    });
 }

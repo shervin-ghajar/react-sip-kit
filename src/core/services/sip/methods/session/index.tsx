@@ -1,6 +1,8 @@
 import { LineType } from '../../store/types';
+import { CallbackFunction } from '../../types';
 
-export function teardownSession(lineObj: LineType) {
+/* -------------------------------------------------------------------------- */
+export function teardownSession(lineObj: LineType, callback?: CallbackFunction<any>) {
   if (lineObj == null || lineObj.SipSession == null) return;
 
   const session = lineObj.SipSession;
@@ -97,4 +99,5 @@ export function teardownSession(lineObj: LineType) {
   //   if (session.data.earlyReject != true) {
   //     UpdateUI();
   //   }
+  callback?.();
 }

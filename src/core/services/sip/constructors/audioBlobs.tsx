@@ -38,54 +38,54 @@ export class AudioBlobs implements AudioBlobsType {
   EarlyMedia_US: AudioBlobsType['EarlyMedia_US'];
 
   constructor() {
-    this.Alert = { file: 'Alert.mp3', url: hostingPrefix + 'media/Alert.mp3' };
+    this.Alert = { file: 'Alert.mp3', url: hostingPrefix + './src/assets/media/Alert.mp3' };
     this.Ringtone = {
       file: 'Ringtone_1.mp3',
-      url: hostingPrefix + 'media/Ringtone_1.mp3',
+      url: hostingPrefix + './src/assets/media/Ringtone_1.mp3',
     };
     this.speech_orig = {
       file: 'speech_orig.mp3',
-      url: hostingPrefix + 'media/speech_orig.mp3',
+      url: hostingPrefix + './src/assets/media/speech_orig.mp3',
     };
     this.Busy_UK = {
       file: 'Tone_Busy-UK.mp3',
-      url: hostingPrefix + 'media/Tone_Busy-UK.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_Busy-UK.mp3',
     };
     this.Busy_US = {
       file: 'Tone_Busy-US.mp3',
-      url: hostingPrefix + 'media/Tone_Busy-US.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_Busy-US.mp3',
     };
     this.CallWaiting = {
       file: 'Tone_CallWaiting.mp3',
-      url: hostingPrefix + 'media/Tone_CallWaiting.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_CallWaiting.mp3',
     };
     this.Congestion_UK = {
       file: 'Tone_Congestion-UK.mp3',
-      url: hostingPrefix + 'media/Tone_Congestion-UK.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_Congestion-UK.mp3',
     };
     this.Congestion_US = {
       file: 'Tone_Congestion-US.mp3',
-      url: hostingPrefix + 'media/Tone_Congestion-US.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_Congestion-US.mp3',
     };
     this.EarlyMedia_Australia = {
       file: 'Tone_EarlyMedia-Australia.mp3',
-      url: hostingPrefix + 'media/Tone_EarlyMedia-Australia.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-Australia.mp3',
     };
     this.EarlyMedia_European = {
       file: 'Tone_EarlyMedia-European.mp3',
-      url: hostingPrefix + 'media/Tone_EarlyMedia-European.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-European.mp3',
     };
     this.EarlyMedia_Japan = {
       file: 'Tone_EarlyMedia-Japan.mp3',
-      url: hostingPrefix + 'media/Tone_EarlyMedia-Japan.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-Japan.mp3',
     };
     this.EarlyMedia_UK = {
       file: 'Tone_EarlyMedia-UK.mp3',
-      url: hostingPrefix + 'media/Tone_EarlyMedia-UK.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-UK.mp3',
     };
     this.EarlyMedia_US = {
       file: 'Tone_EarlyMedia-US.mp3',
-      url: hostingPrefix + 'media/Tone_EarlyMedia-US.mp3',
+      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-US.mp3',
     };
   }
 }

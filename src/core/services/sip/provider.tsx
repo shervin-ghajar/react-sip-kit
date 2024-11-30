@@ -1,4 +1,4 @@
-import { TransportConnectionTimeout } from './configs';
+import { EnableVideoCalling, RegisterExpires, TransportConnectionTimeout } from './configs';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
   onTransportConnected,
@@ -6,23 +6,30 @@ import {
   onTransportDisconnected,
 } from './events/transport';
 import { useCallActions } from './hooks';
-// import { createAudioSession, handleSessionEvents } from './sipService';
-import { useSipStore } from './store';
-import { LineObject, SipContextType, SipProviderProps, SipUserAgent } from './types';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { detectDevices } from './methods/initialization';
+import { setSipStore, useSipStore } from './store';
+import { SipContextType, SipProviderProps, SipUserAgent } from './types';
+import React, { createContext, useCallback, useContext, useEffect } from 'react';
 import { UserAgent, RegistererState, Registerer } from 'sip.js';
 
 const SipContext = createContext<SipContextType | undefined>(undefined);
-
-const RegisterExpires = 300;
-
+let userAgent: SipUserAgent;
 export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
-  const { userAgent, setSipStore } = useSipStore();
-  const { ReceiveCall } = useCallActions({ config });
-
-  const [activeSessions, setActiveSessions] = useState<Map<number, LineObject>>(new Map());
+  const {
+    hasAudioDevice,
+    hasSpeakerDevice,
+    hasVideoDevice,
+    audioInputDevices,
+    videoInputDevices,
+    speakerDevices,
+  } = useSipStore();
+  const { ReceiveCall, ...rest } = useCallActions({ config });
 
   useEffect(() => {
+    initiateDetectedDevices();
+    window.setInterval(function () {
+      initiateDetectedDevices();
+    }, 10000);
     // Create user agent for SIP connection
     createUserAgent();
     return () => {
@@ -32,7 +39,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
 
   // Create user agent for SIP connection
   const createUserAgent = useCallback(() => {
-    const ua = new UserAgent({
+    let ua = new UserAgent({
       uri: UserAgent.makeURI(`sip:${config.username}@${config.domain}`),
       transportOptions: {
         server: `wss://${config.wssServer}:${config.webSocketPort}${config.serverPath}`,
@@ -46,7 +53,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       delegate: {
         onInvite: ReceiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
-      },
+      } as any,
     }) as SipUserAgent;
 
     // Setting custom properties and methods for userAgent
@@ -104,43 +111,60 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       }
     });
     ua.start();
+    Object.defineProperty(ua, '_key', {
+      enumerable: false,
+      value: 1,
+    });
     updateUserAgent(ua);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
+  // Detect devices
+  const initiateDetectedDevices = () => {
+    detectDevices((deviceInfos) => {
+      console.log({ deviceInfos });
+      if (!deviceInfos) return;
+      let tmpHasAudioDevice = hasAudioDevice;
+      let tmpAudioInputDevices = audioInputDevices;
+      let tmpHasSpeakerDevice = hasSpeakerDevice;
+      let tmpSpeakerDevices = speakerDevices;
+      let tmpHasVideoDevice = hasVideoDevice; // Safari and Firefox don't have these
+      let tmpVideoInputDevices = videoInputDevices;
+      for (let i = 0; i < deviceInfos.length; ++i) {
+        if (deviceInfos[i].kind === 'audioinput') {
+          tmpHasAudioDevice = true;
+          tmpAudioInputDevices.push(deviceInfos[i]);
+        } else if (deviceInfos[i].kind === 'audiooutput') {
+          tmpHasSpeakerDevice = true;
+          tmpSpeakerDevices.push(deviceInfos[i]);
+        } else if (deviceInfos[i].kind === 'videoinput') {
+          if (EnableVideoCalling == true) {
+            tmpHasVideoDevice = true;
+            tmpVideoInputDevices.push(deviceInfos[i]);
+          }
+        }
+      }
+      setSipStore({
+        hasAudioDevice: tmpHasAudioDevice,
+        audioInputDevices: tmpAudioInputDevices,
+        hasSpeakerDevice: tmpHasSpeakerDevice,
+        speakerDevices: tmpSpeakerDevices,
+        hasVideoDevice: tmpHasVideoDevice,
+        videoInputDevices: tmpVideoInputDevices,
+      });
+    });
+  };
   // Update UserAgent
   const updateUserAgent = (userAgent: SipUserAgent) => {
     setSipStore({ userAgent });
   };
 
-  console.log(123, { userAgent });
-
-  const startAudioCall = async (
-    lineObj: LineObject,
-    dialledNumber: string,
-    extraHeaders?: string[],
-  ) => {
-    if (!userAgent) return;
-
-    // const session = createAudioSession(userAgent, lineObj, dialledNumber, extraHeaders);
-
-    // setActiveSessions((prev) =>
-    //   new Map(prev).set(lineObj.LineNumber, { ...lineObj, SipSession: session }),
-    // );
-
-    // handleSessionEvents(session, lineObj, setActiveSessions);
-    // await session.invite().catch(console.error);
-  };
-
-  return (
-    <SipContext.Provider value={{ userAgent, activeSessions, startAudioCall }}>
-      {children}
-    </SipContext.Provider>
-  );
+  return <SipContext.Provider value={rest}>{children}</SipContext.Provider>;
 };
 
-export const useSip = () => {
+export const useSipProvider = () => {
   const context = useContext(SipContext);
   if (!context) throw new Error('useSip must be used within a SipProvider');
-  return context;
+  const sipStore = useSipStore();
+  return { ...sipStore, ...context };
 };

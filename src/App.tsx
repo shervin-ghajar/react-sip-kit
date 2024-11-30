@@ -1,30 +1,38 @@
 import './App.css';
-import reactLogo from './assets/react.svg';
-import viteLogo from '/vite.svg';
-import { useState } from 'react';
+import { useSipProvider } from './core/services/sip/provider';
 
 function App() {
-  const [count, setCount] = useState(0);
+  const { userAgent, lines, buddies, AnswerAudioCall, RejectCall } = useSipProvider();
+  console.log(222, { userAgent, lines, buddies });
 
+  const renderLines = () => {
+    return lines.map((line) => {
+      const isVideoCall = !!line.SipSession?.data.withvideo || false;
+      return (
+        <>
+          <h2>Call Screen</h2>
+          <p>Name: {line.DisplayName}</p>
+          <p>Number: {line.DisplayNumber}</p>
+          <button
+            onClick={() => AnswerAudioCall(line.LineNumber)}
+          >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
+          <button onClick={() => RejectCall(line.LineNumber)}>{`Reject Call`}</button>
+          {isVideoCall && (
+            <div style={{ display: 'block', gap: 4 }}>
+              <video id="remoteVideo"></video>
+              <video id="localVideo" muted={true}></video>
+            </div>
+          )}
+        </>
+      );
+    });
+  };
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>count is {count}</button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">Click on the Vite and React logos to learn more</p>
-    </>
+    <div>
+      <h2>Web Phone</h2>
+      {renderLines()}
+      <button onClick={() => {}}>{`Call 1005`}</button>
+    </div>
   );
 }
 
