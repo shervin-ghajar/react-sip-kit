@@ -1,10 +1,11 @@
-export interface MediaStream {
-  trackId: string;
-  mid: string;
+export interface SipMediaStream extends MediaStream {
+  trackId?: string;
+  mid?: string;
 }
 
 export interface MediaStreamTrackType extends MediaStreamTrack {
   mid: RTCRtpTransceiver['mid'];
+  IsMixedTrack: boolean;
 }
 
 export interface RTCRtpTransceiverType extends RTCRtpTransceiver {

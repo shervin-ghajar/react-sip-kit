@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 
 /* -------------------------------------------------------------------------- */
 // Create sip store
+
 export const useSipStore = create(
   persist<SipStoreStateType>(
     (set, get) => ({
@@ -22,14 +23,22 @@ export const useSipStore = create(
       newLineNumber: 1,
       SipUsername: '',
       SipDomain: '',
-      audioBlobs: new AudioBlobs(),
+      audioBlobs: new AudioBlobs().getAudios(),
       setSipStore: (newState: Partial<SipStoreStateType>) =>
         set((state) => ({ ...state, ...newState })),
       setUserAgent: (userAgent: SipStoreStateType['userAgent']) =>
         set((state) => ({ ...state, userAgent })),
       addLine: (newLine: LineType) =>
         set((state) => ({ ...state, lines: [...state.lines, newLine] })),
+      updateLine: (updatedLine: LineType) => {
+        const updatedLines = get().lines.map((line) => {
+          if (line.LineNumber === updatedLine.LineNumber) return updatedLine;
+          return line;
+        });
+        set((state) => ({ ...state, lines: updatedLines }));
+      },
       removeLine: (lineNumber: LineType['LineNumber']) => {
+        console.log('removeLine');
         const lines = get().lines;
         const filteredLines = lines.filter((line) => line.LineNumber !== lineNumber);
         set((state) => ({ ...state, lines: filteredLines }));

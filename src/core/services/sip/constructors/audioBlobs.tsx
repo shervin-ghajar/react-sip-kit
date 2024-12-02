@@ -1,6 +1,3 @@
-import { hostingPrefix } from '../configs';
-import { BuddyType } from '../store/types';
-
 type AudioBlobsType = Record<
   | 'Alert'
   | 'Ringtone'
@@ -18,74 +15,101 @@ type AudioBlobsType = Record<
   {
     file: string;
     url: string;
-    blob?: string;
+    blob?: string | ArrayBuffer | null;
   }
 >;
 
-export class AudioBlobs implements AudioBlobsType {
-  Alert: AudioBlobsType['Alert'];
-  Ringtone: AudioBlobsType['Ringtone'];
-  speech_orig: AudioBlobsType['speech_orig'];
-  Busy_UK: AudioBlobsType['Busy_UK'];
-  Busy_US: AudioBlobsType['Busy_US'];
-  CallWaiting: AudioBlobsType['CallWaiting'];
-  Congestion_UK: AudioBlobsType['Congestion_UK'];
-  Congestion_US: AudioBlobsType['Congestion_US'];
-  EarlyMedia_Australia: AudioBlobsType['EarlyMedia_Australia'];
-  EarlyMedia_European: AudioBlobsType['EarlyMedia_European'];
-  EarlyMedia_Japan: AudioBlobsType['EarlyMedia_Japan'];
-  EarlyMedia_UK: AudioBlobsType['EarlyMedia_UK'];
-  EarlyMedia_US: AudioBlobsType['EarlyMedia_US'];
+export class AudioBlobs {
+  private audioBlobs: AudioBlobsType;
 
-  constructor() {
-    this.Alert = { file: 'Alert.mp3', url: hostingPrefix + './src/assets/media/Alert.mp3' };
-    this.Ringtone = {
-      file: 'Ringtone_1.mp3',
-      url: hostingPrefix + './src/assets/media/Ringtone_1.mp3',
+  constructor(overwrite?: Partial<AudioBlobsType>) {
+    this.audioBlobs = {
+      Alert: overwrite?.['Alert'] ?? {
+        file: 'Alert.mp3',
+        url: './src/assets/media/Alert.mp3',
+      },
+      Ringtone: overwrite?.['Ringtone'] ?? {
+        file: 'Ringtone_1.mp3',
+        url: './src/assets/media/Ringtone_1.mp3',
+      },
+      speech_orig: overwrite?.['speech_orig'] ?? {
+        file: 'speech_orig.mp3',
+        url: './src/assets/media/speech_orig.mp3',
+      },
+      Busy_UK: overwrite?.['Busy_UK'] ?? {
+        file: 'Tone_Busy-UK.mp3',
+        url: './src/assets/media/Tone_Busy-UK.mp3',
+      },
+      Busy_US: overwrite?.['Busy_US'] ?? {
+        file: 'Tone_Busy-US.mp3',
+        url: './src/assets/media/Tone_Busy-US.mp3',
+      },
+      CallWaiting: overwrite?.['CallWaiting'] ?? {
+        file: 'Tone_CallWaiting.mp3',
+        url: './src/assets/media/Tone_CallWaiting.mp3',
+      },
+      Congestion_UK: overwrite?.['Congestion_UK'] ?? {
+        file: 'Tone_Congestion-UK.mp3',
+        url: './src/assets/media/Tone_Congestion-UK.mp3',
+      },
+      Congestion_US: overwrite?.['Congestion_US'] ?? {
+        file: 'Tone_Congestion-US.mp3',
+        url: './src/assets/media/Tone_Congestion-US.mp3',
+      },
+      EarlyMedia_Australia: overwrite?.['EarlyMedia_Australia'] ?? {
+        file: 'Tone_EarlyMedia-Australia.mp3',
+        url: './src/assets/media/Tone_EarlyMedia-Australia.mp3',
+      },
+      EarlyMedia_European: overwrite?.['EarlyMedia_European'] ?? {
+        file: 'Tone_EarlyMedia-European.mp3',
+        url: './src/assets/media/Tone_EarlyMedia-European.mp3',
+      },
+      EarlyMedia_Japan: overwrite?.['EarlyMedia_Japan'] ?? {
+        file: 'Tone_EarlyMedia-Japan.mp3',
+        url: './src/assets/media/Tone_EarlyMedia-Japan.mp3',
+      },
+      EarlyMedia_UK: overwrite?.['EarlyMedia_UK'] ?? {
+        file: 'Tone_EarlyMedia-UK.mp3',
+        url: './src/assets/media/Tone_EarlyMedia-UK.mp3',
+      },
+      EarlyMedia_US: overwrite?.['EarlyMedia_US'] ?? {
+        file: 'Tone_EarlyMedia-US.mp3',
+        url: './src/assets/media/Tone_EarlyMedia-US.mp3',
+      },
     };
-    this.speech_orig = {
-      file: 'speech_orig.mp3',
-      url: hostingPrefix + './src/assets/media/speech_orig.mp3',
+
+    // Automatically load blobs when the instance is created
+    this.loadBlobs();
+  }
+
+  private async loadBlobs(): Promise<void> {
+    const loadBlob = async (key: keyof AudioBlobsType): Promise<void> => {
+      try {
+        const response = await fetch(this.audioBlobs[key].url);
+        const blob = await response.blob();
+        const reader = new FileReader();
+
+        // Use a Promise to wait for FileReader to finish
+        const result = await new Promise<string | ArrayBuffer | null>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(blob); // Convert blob to Base64
+        });
+        console.log({ result });
+        this.audioBlobs[key].blob = result;
+      } catch (error) {
+        console.error(`Failed to load blob for ${key}:`, error);
+      }
     };
-    this.Busy_UK = {
-      file: 'Tone_Busy-UK.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_Busy-UK.mp3',
-    };
-    this.Busy_US = {
-      file: 'Tone_Busy-US.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_Busy-US.mp3',
-    };
-    this.CallWaiting = {
-      file: 'Tone_CallWaiting.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_CallWaiting.mp3',
-    };
-    this.Congestion_UK = {
-      file: 'Tone_Congestion-UK.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_Congestion-UK.mp3',
-    };
-    this.Congestion_US = {
-      file: 'Tone_Congestion-US.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_Congestion-US.mp3',
-    };
-    this.EarlyMedia_Australia = {
-      file: 'Tone_EarlyMedia-Australia.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-Australia.mp3',
-    };
-    this.EarlyMedia_European = {
-      file: 'Tone_EarlyMedia-European.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-European.mp3',
-    };
-    this.EarlyMedia_Japan = {
-      file: 'Tone_EarlyMedia-Japan.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-Japan.mp3',
-    };
-    this.EarlyMedia_UK = {
-      file: 'Tone_EarlyMedia-UK.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-UK.mp3',
-    };
-    this.EarlyMedia_US = {
-      file: 'Tone_EarlyMedia-US.mp3',
-      url: hostingPrefix + './src/assets/media/Tone_EarlyMedia-US.mp3',
-    };
+
+    // Load all blobs concurrently
+    const keys = Object.keys(this.audioBlobs) as Array<keyof AudioBlobsType>;
+    await Promise.all(keys.map(loadBlob));
+
+    console.log('All audio blobs loaded successfully.');
+  }
+
+  getAudios() {
+    return this.audioBlobs;
   }
 }

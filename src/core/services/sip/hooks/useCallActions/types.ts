@@ -1,4 +1,4 @@
-import { LineType, SipInvitationType } from '../../store/types';
+import { BuddyType, LineType, SipInvitationType } from '../../store/types';
 import { SipProviderProps } from '../../types';
 
 export interface CallActionType extends Pick<SipProviderProps, 'config'> {}
@@ -37,10 +37,28 @@ export type SPDOptionsType = Record<
   }>;
 
 export type UseCallActionReturnType = {
-  AnswerAudioCall: (lineNumber: LineType['LineNumber']) => void;
-  AnswerVideoCall: (lineNumber: LineType['LineNumber']) => void;
   AudioCall: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
   VideoCall: (lineObj: LineType, dialledNumber: string, extraHeaders: Array<string>) => void;
   ReceiveCall: (session: SipInvitationType) => void;
-  RejectCall: (lineNumber: LineType['LineNumber']) => void;
-};
+  DialByLine: (
+    type: 'audio' | 'video',
+    numToDial: string,
+    buddy?: BuddyType,
+    CallerID?: BuddyType['CallerIDName'],
+    extraHeaders?: Array<string>,
+  ) => void;
+} & Record<
+  | 'AnswerAudioCall'
+  | 'AnswerVideoCall'
+  | 'RejectCall'
+  | 'endCall'
+  | 'holdSession'
+  | 'unholdSession'
+  | 'muteSession'
+  | 'unmuteSession'
+  | 'cancelSession'
+  | 'startTransferSession'
+  | 'cancelTransferSession'
+  | 'attendedTransferSession',
+  (lineNumber: LineType['LineNumber']) => void
+>;

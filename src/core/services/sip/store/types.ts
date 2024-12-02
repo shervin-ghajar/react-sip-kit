@@ -1,7 +1,13 @@
 import { AudioBlobs } from '../constructors';
 import { SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
-import { Invitation, Inviter, Session, SessionDescriptionHandler } from 'sip.js';
+import {
+  Invitation,
+  Inviter,
+  Session,
+  SessionDescriptionHandler,
+  SessionDescriptionHandlerOptions,
+} from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
@@ -20,11 +26,12 @@ export interface SipStoreStateType {
   newLineNumber: number;
   SipUsername: string;
   SipDomain: string;
-  audioBlobs: AudioBlobs;
+  audioBlobs: AudioBlobs['audioBlobs'];
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
   addLine: (line: LineType) => void;
+  updateLine: (line: LineType) => void;
   removeLine: (lineNum: LineType['LineNumber']) => void;
   addBuddy: (buddy: BuddyType) => void;
   // Getter
@@ -42,19 +49,23 @@ export interface SipInvitationType
   data: Partial<SipSessionDataType>;
   incomingInviteRequest: IncomingInviteRequest;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
+  sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  isInviter: false;
 }
 
+export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
+  hold: boolean;
+}
 export interface SipInviterType extends Inviter {
   data: Partial<SipSessionDataType>;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
+  sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  isInviter: true;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
   peerConnection: RTCPeerConnection;
+  peerConnectionDelegate: any;
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
@@ -74,7 +85,7 @@ export interface SipSessionType extends Session {
 
 export interface SipSessionDataType {
   line: number;
-  calldirection: string;
+  calldirection: 'inbound' | 'outbound';
   terminateby: string;
   src: string;
   buddyId: string;
@@ -88,8 +99,13 @@ export interface SipSessionDataType {
   childsession: SipSessionType | null;
   startTime: Dayjs;
   started: boolean;
+  hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
+  isHold: boolean;
+  mute: Array<{ event: 'mute' | 'unmute'; eventTime: string }>;
+  isMute: boolean;
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
   dst: string;
+  transfer: Array<SipSessionTransferType>;
   AudioSourceTrack: any; //TODO
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
@@ -98,6 +114,19 @@ export interface SipSessionDataType {
   videoSourceDevice: string | null;
   audioSourceDevice: string | null;
   audioOutputDevice: string | null;
+}
+
+export interface SipSessionTransferType {
+  type: string;
+  to: number;
+  transferTime: string;
+  disposition: string;
+  dispositionTime: string;
+  accept: {
+    complete: boolean | null;
+    eventTime: string | null;
+    disposition: string;
+  };
 }
 /* -------------------------------------------------------------------------- */
 export interface BuddyType {

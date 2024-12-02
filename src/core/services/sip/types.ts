@@ -1,5 +1,5 @@
 import { UseCallActionReturnType } from './hooks/useCallActions/types';
-import { LineType, SipSessionType } from './store/types';
+import { SipSessionType } from './store/types';
 import { UserAgent, Registerer, Subscriber } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {

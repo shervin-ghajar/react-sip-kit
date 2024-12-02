@@ -1,22 +1,16 @@
 import { dayJs } from '../../../../../utils';
 import { CallRecordingPolicy, MaxVideoBandwidth, RecordAllCalls } from '../../configs';
 import { teardownSession } from '../../methods/session';
-import { useSipStore } from '../../store';
+import { getSipStore, useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler } from '../../store/types';
-import { CallbackFunction } from '../../types';
 import { formatShortDuration, getAudioOutputID, utcDateNow } from '../../utils';
-import { RTCRtpTransceiverType } from './types';
+import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 // Incoming INVITE
-export function onInviteCancel(
-  lineObj: LineType,
-  response: IncomingRequestMessage,
-  callback?: CallbackFunction<any>,
-) {
-  console.log('onInviteCancel');
+export function onInviteCancel(lineObj: LineType, response: IncomingRequestMessage) {
   // Remote Party Canceled while ringing...
   // Check to see if this call has been completed elsewhere
   // https://github.com/InnovateAsterisk/Browser-Phone/issues/405
@@ -54,7 +48,7 @@ export function onInviteCancel(
     console.log('Failed to dispose the cancel dialog', error);
   });
 
-  teardownSession(lineObj, callback);
+  teardownSession(lineObj);
 }
 // // Both Incoming an outgoing INVITE
 export function onInviteAccepted(
@@ -62,8 +56,7 @@ export function onInviteAccepted(
   includeVideo: boolean,
   response?: IncomingResponse,
 ) {
-  console.log('onInviteCancel');
-
+  console.log('onInviteAccepted');
   // Call in progress
   const session = lineObj.SipSession;
   if (!session) return;
@@ -94,11 +87,15 @@ export function onInviteAccepted(
         localVideoStream.addTrack(sender.track);
       }
     });
-    // const localVideo = $('#line-' + lineObj.LineNumber + '-localVideo').get(0);
-    // localVideo.srcObject = localVideoStream;
-    // localVideo.onloadedmetadata = function (e) {
-    //   localVideo.play();
-    // };
+    const localVideo = document.getElementById(
+      `line-${lineObj.LineNumber}-localVideo`,
+    ) as HTMLVideoElement;
+    if (localVideo) {
+      localVideo.srcObject = localVideoStream;
+      localVideo.onloadedmetadata = function (e) {
+        localVideo.play();
+      };
+    }
 
     // Apply Call Bandwidth Limits
     if (MaxVideoBandwidth > -1) {
@@ -213,7 +210,7 @@ export function onInviteProgress(lineObj: LineType, response: IncomingResponse) 
       // Don't add it again
       console.log('Early Media already playing');
     } else {
-      const earlyMedia = new Audio(soundFile.blob);
+      const earlyMedia = new Audio(soundFile.blob as string);
       earlyMedia.preload = 'auto';
       earlyMedia.loop = true;
       earlyMedia.oncanplaythrough = function (e) {
@@ -448,15 +445,15 @@ export function onSessionDescriptionHandlerCreated(
     if (sdh.peerConnection) {
       // console.log(sdh);
       sdh.peerConnection.ontrack = function (event) {
-        // console.log(event);
+        console.log(event);
         onTrackAddedEvent(lineObj, includeVideo);
       };
       // sdh.peerConnectionDelegate = {
-      //     ontrack: function(event){
-      //         console.log(event);
-      //         onTrackAddedEvent(lineObj, includeVideo);
-      //     }
-      // }
+      //   ontrack: function (event: any) {
+      //     console.log(event);
+      //     onTrackAddedEvent(lineObj, includeVideo);
+      //   },
+      // };
     } else {
       console.warn('onSessionDescriptionHandler fired without a peerConnection');
     }
@@ -465,6 +462,7 @@ export function onSessionDescriptionHandlerCreated(
   }
 }
 function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
+  const { updateLine } = getSipStore();
   // Gets remote tracks
   const session = lineObj.SipSession;
   if (!session) return;
@@ -472,106 +470,80 @@ function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
 
   const pc = session.sessionDescriptionHandler.peerConnection;
 
+  // Create MediaStreams for audio and video
   const remoteAudioStream = new MediaStream();
   const remoteVideoStream = new MediaStream();
 
-  pc.getTransceivers().forEach(function (transceiver) {
-    // Add Media
-    const receiver: RTCRtpTransceiverType = transceiver.receiver as any;
+  // Add tracks to MediaStreams
+  pc.getTransceivers().forEach((transceiver) => {
+    const receiver = transceiver.receiver;
     if (receiver.track) {
-      if (receiver.track.kind == 'audio') {
+      if (receiver.track.kind === 'audio') {
         console.log('Adding Remote Audio Track');
         remoteAudioStream.addTrack(receiver.track);
       }
-      if (includeVideo && receiver.track.kind == 'video') {
+      if (includeVideo && receiver.track.kind === 'video') {
         if (transceiver.mid) {
-          receiver.track.mid = transceiver.mid;
-          console.log(
-            'Adding Remote Video Track - ',
-            receiver.track.readyState,
-            'MID:',
-            receiver.track.mid,
-          );
+          console.log('Adding Remote Video Track', receiver.track.readyState);
+          (receiver.track as any).mid = transceiver.mid;
           remoteVideoStream.addTrack(receiver.track);
         }
       }
     }
   });
 
-  // Attach Audio
-  if (remoteAudioStream.getAudioTracks().length >= 1) {
-    // const remoteAudio = $('#line-' + lineObj.LineNumber + '-remoteAudio').get(0);
-    // remoteAudio.srcObject = remoteAudioStream;
-    // remoteAudio.onloadedmetadata = function () {
-    //   if (typeof remoteAudio.sinkId !== 'undefined') {
-    //     remoteAudio
-    //       .setSinkId(getAudioOutputID())
-    //       .then(function () {
-    //         console.log('sinkId applied: ' + getAudioOutputID());
-    //       })
-    //       .catch(function (e: any) {
-    //         console.warn('Error using setSinkId: ', e);
-    //       });
-    //   }
-    //   remoteAudio.play();
-    // };
+  // Attach Audio Stream
+  if (remoteAudioStream.getAudioTracks().length > 0) {
+    const remoteAudio = document.getElementById(
+      `line-${lineObj.LineNumber}-remoteAudio`,
+    ) as HTMLAudioElement;
+    remoteAudio.setAttribute('id', `line-${lineObj.LineNumber}-remoteAudio`);
+    remoteAudio.srcObject = remoteAudioStream;
+
+    remoteAudio.onloadedmetadata = () => {
+      if (typeof remoteAudio.sinkId !== 'undefined') {
+        remoteAudio
+          .setSinkId(getAudioOutputID())
+          .then(() => console.log('sinkId applied:', getAudioOutputID()))
+          .catch((e) => console.warn('Error using setSinkId:', e));
+      }
+      remoteAudio.play();
+    };
   }
 
-  if (includeVideo) {
-    // Single Or Multiple View
-    // $('#line-' + lineObj.LineNumber + '-remote-videos').empty();
-    // if (remoteVideoStream.getVideoTracks().length >= 1) {
-    //   const remoteVideoStreamTracks: RTCRtpTransceiverType =
-    //     remoteVideoStream.getVideoTracks() as any;
-    //   remoteVideoStreamTracks.forEach(function (remoteVideoStreamTrack) {
-    //     const thisRemoteVideoStream: MediaStream =
-    //       new MediaStream();
-    //     thisRemoteVideoStream.trackID = remoteVideoStreamTrack.id;
-    //     thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-    //     remoteVideoStreamTrack.onended = function () {
-    //       console.log('Video Track Ended: ', this.mid);
-    //       RedrawStage(lineObj.LineNumber, true);
-    //     };
-    //     thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-    //     const wrapper = $('<span />', {
-    //       class: 'VideoWrapper',
-    //     });
-    //     wrapper.css('width', '1px');
-    //     wrapper.css('heigh', '1px');
-    //     wrapper.hide();
-    //     const callerID = $('<div />', {
-    //       class: 'callerID',
-    //     });
-    //     wrapper.append(callerID);
-    //     const Actions = $('<div />', {
-    //       class: 'Actions',
-    //     });
-    //     wrapper.append(Actions);
-    //     const videoEl = $('<video />', {
-    //       id: remoteVideoStreamTrack.id,
-    //       mid: remoteVideoStreamTrack.mid,
-    //       muted: true,
-    //       autoplay: true,
-    //       playsinline: true,
-    //       controls: false,
-    //     });
-    //     videoEl.hide();
-    //     const videoObj = videoEl.get(0);
-    //     videoObj.srcObject = thisRemoteVideoStream;
-    //     videoObj.onloadedmetadata = function (e) {
-    //       // videoObj.play();
-    //       videoEl.show();
-    //       videoEl.parent().show();
-    //       console.log('Playing Video Stream MID:', thisRemoteVideoStream.mid);
-    //       RedrawStage(lineObj.LineNumber, true);
-    //     };
-    //     wrapper.append(videoEl);
-    //     $('#line-' + lineObj.LineNumber + '-remote-videos').append(wrapper);
-    //     console.log('Added Video Element MID:', thisRemoteVideoStream.mid);
-    //   });
-    // } else {
-    //   console.log('No Video Streams');
-    //   // RedrawStage(lineObj.LineNumber, true);
-    // }
+  // Attach Video Stream
+  if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
+    const videoContainerId = `line-${lineObj.LineNumber}-remoteVideos`;
+    let videoContainer = document.getElementById(videoContainerId);
+
+    if (!videoContainer) return;
+    // Clear existing videos
+    videoContainer.innerHTML = '';
+
+    remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
+      const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
+      thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
+      thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
+      thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
+      const videoElement = document.createElement('video');
+      videoElement.id = `line-${lineObj.LineNumber}-video-${index}`;
+      videoElement.srcObject = thisRemoteVideoStream;
+      videoElement.autoplay = true;
+      videoElement.playsInline = true;
+      videoElement.muted = true; // Ensure autoplay works in browsers
+      videoElement.className = 'video-element'; // Add styling class
+
+      videoElement.onloadedmetadata = () => {
+        videoElement.play().catch((error) => {
+          console.error('Error playing video:', error);
+        });
+      };
+
+      videoContainer.appendChild(videoElement);
+    });
+  } else {
+    console.warn('No Video Tracks Found');
   }
+
+  updateLine(lineObj);
 }

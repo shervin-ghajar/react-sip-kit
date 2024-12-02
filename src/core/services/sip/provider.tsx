@@ -6,11 +6,11 @@ import {
   onTransportDisconnected,
 } from './events/transport';
 import { useCallActions } from './hooks';
-import { detectDevices } from './methods/initialization';
+import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { setSipStore, useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import React, { createContext, useCallback, useContext, useEffect } from 'react';
-import { UserAgent, RegistererState, Registerer } from 'sip.js';
+import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
 
 const SipContext = createContext<SipContextType | undefined>(undefined);
 let userAgent: SipUserAgent;
@@ -26,6 +26,9 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
   const { ReceiveCall, ...rest } = useCallActions({ config });
 
   useEffect(() => {
+    (async function test() {
+      await getMediaPermissions();
+    })();
     initiateDetectedDevices();
     window.setInterval(function () {
       initiateDetectedDevices();
@@ -53,7 +56,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       delegate: {
         onInvite: ReceiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
-      } as any,
+      } as UserAgentDelegate,
     }) as SipUserAgent;
 
     // Setting custom properties and methods for userAgent

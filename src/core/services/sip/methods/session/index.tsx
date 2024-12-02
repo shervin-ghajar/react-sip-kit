@@ -1,8 +1,9 @@
+import { getSipStore } from '../../store';
 import { LineType } from '../../store/types';
-import { CallbackFunction } from '../../types';
 
 /* -------------------------------------------------------------------------- */
-export function teardownSession(lineObj: LineType, callback?: CallbackFunction<any>) {
+export function teardownSession(lineObj: LineType) {
+  const { removeLine } = getSipStore();
   if (lineObj == null || lineObj.SipSession == null) return;
 
   const session = lineObj.SipSession;
@@ -99,5 +100,5 @@ export function teardownSession(lineObj: LineType, callback?: CallbackFunction<a
   //   if (session.data.earlyReject != true) {
   //     UpdateUI();
   //   }
-  callback?.();
+  removeLine(lineObj.LineNumber);
 }
