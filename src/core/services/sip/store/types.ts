@@ -90,7 +90,6 @@ export interface SipSessionDataType {
   src: string;
   buddyId: string;
   callstart: string;
-  callTimer: number;
   earlyReject: boolean;
   withvideo: boolean;
   reasonCode: number;

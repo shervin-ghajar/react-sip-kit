@@ -1,4 +1,3 @@
-import { hostingPrefix } from '../../configs';
 import { CallbackFunction } from '../../types';
 
 /* -------------------------------------------------------------------------- */
@@ -12,12 +11,6 @@ export function detectDevices(callback: CallbackFunction<MediaDeviceInfo[]>) {
       // so from then on these devices will be with lables.
       // deviceInfos.map((deviceInfo) => {
       //   console.log({ audiooutput: deviceInfo.kind });
-      // });
-      const url = new URL('./src/assets/media/Alert.mp3');
-      // const testAudio = new Audio(url);
-      console.log({ url });
-      // testAudio.play().catch((error) => {
-      //   console.error('Error playing test audio:', error);
       // });
       callback(deviceInfos);
     })

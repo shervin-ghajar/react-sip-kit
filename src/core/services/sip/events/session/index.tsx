@@ -5,6 +5,7 @@ import { getSipStore, useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler } from '../../store/types';
 import { formatShortDuration, getAudioOutputID, utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
+import clone from 'clone';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
@@ -56,7 +57,7 @@ export function onInviteAccepted(
   includeVideo: boolean,
   response?: IncomingResponse,
 ) {
-  console.log('onInviteAccepted');
+  const { updateLine } = getSipStore();
   // Call in progress
   const session = lineObj.SipSession;
   if (!session) return;
@@ -67,14 +68,9 @@ export function onInviteAccepted(
     session.data.earlyMedia = null;
   }
 
-  window.clearInterval(session.data.callTimer);
   const startTime = dayJs.utc();
   session.data.startTime = startTime;
-  session.data.callTimer = window.setInterval(function () {
-    const now = dayJs.utc();
-    const duration = dayJs.duration(now.diff(startTime));
-    const timeStr = formatShortDuration(duration.asSeconds());
-  }, 1000);
+
   session.isOnHold = false;
   session.data.started = true;
 
@@ -121,6 +117,7 @@ export function onInviteAccepted(
     // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
   }
 
+  // console.log(111, { lineObj });
   //   if (includeVideo) {
   //     // Layout for Video Call
   //     $('#line-' + lineObj.LineNumber + '-progress').hide();
@@ -180,6 +177,8 @@ export function onInviteAccepted(
   //   $('#line-' + lineObj.LineNumber + '-msg').html(lang.call_in_progress);
 
   //   if (includeVideo && StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH
+
+  updateLine(lineObj);
 }
 
 // Outgoing INVITE
@@ -187,6 +186,7 @@ export function onInviteTrying(lineObj: LineType, response: IncomingResponse) {
   // $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
 }
 export function onInviteProgress(lineObj: LineType, response: IncomingResponse) {
+  const { updateLine } = getSipStore();
   const audioBlobs = useSipStore().audioBlobs;
   console.log('Call Progress:', response.message.statusCode);
   const session = lineObj.SipSession;
@@ -196,7 +196,8 @@ export function onInviteProgress(lineObj: LineType, response: IncomingResponse) 
   if (response.message.statusCode == 180) {
     // $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
 
-    let soundFile = audioBlobs.EarlyMedia_European;
+    let soundFile = audioBlobs.Ringtone;
+    console.log({ soundFile });
     // if (UserLocale().indexOf('us') > -1) soundFile = audioBlobs.EarlyMedia_US; TODO #SH locale
     // if (UserLocale().indexOf('gb') > -1) soundFile = audioBlobs.EarlyMedia_UK;
     // if (UserLocale().indexOf('au') > -1) soundFile = audioBlobs.EarlyMedia_Australia;
@@ -245,6 +246,7 @@ export function onInviteProgress(lineObj: LineType, response: IncomingResponse) 
     // 199 = Call is Terminated (Early Dialog)
     // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
   }
+  updateLine(lineObj);
 }
 export function onInviteRejected(lineObj: LineType, response: IncomingResponse) {
   console.log('INVITE Rejected:', response.message.reasonPhrase);

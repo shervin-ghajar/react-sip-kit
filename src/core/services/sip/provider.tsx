@@ -23,7 +23,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     videoInputDevices,
     speakerDevices,
   } = useSipStore();
-  const { ReceiveCall, ...rest } = useCallActions({ config });
+  const { receiveCall, ...rest } = useCallActions({ config });
 
   useEffect(() => {
     (async function test() {
@@ -54,7 +54,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       autoStart: false,
       autoStop: true,
       delegate: {
-        onInvite: ReceiveCall as any,
+        onInvite: receiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;

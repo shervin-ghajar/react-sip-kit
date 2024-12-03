@@ -50,7 +50,14 @@ import {
   utcDateNow,
 } from '../../utils';
 import { CallActionType, SPDOptionsType, UseCallActionReturnType } from './types';
-import { Inviter, InviterInviteOptions, SessionState, URI, UserAgent } from 'sip.js';
+import {
+  Inviter,
+  InviterInviteOptions,
+  SessionReferOptions,
+  SessionState,
+  URI,
+  UserAgent,
+} from 'sip.js';
 import { v4 as uuidv4 } from 'uuid';
 
 let newLineNumber = 0;
@@ -75,7 +82,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
   // Handle incoming calls
-  function ReceiveCall(session: SipInvitationType) {
+  function receiveCall(session: SipInvitationType) {
     console.log('receiveCall', { session });
     const callerID = session.remoteIdentity.displayName || session.remoteIdentity.uri.user || '';
     let did = session.remoteIdentity.uri.user ?? '';
@@ -95,12 +102,6 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     lineObj.SipSession.data.src = did;
     lineObj.SipSession.data.buddyId = lineObj?.BuddyObj?.identity;
     lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
-    lineObj.SipSession.data.callTimer = window.setInterval(function () {
-      const now = dayJs.utc();
-      const duration = dayJs.duration(now.diff(startTime));
-      const timeStr = formatShortDuration(duration.asSeconds());
-    }, 1000);
-    console.log('callTimer', lineObj.SipSession.data);
     lineObj.SipSession.data.earlyReject = false;
     // Detect Video
     lineObj.SipSession.data.withvideo = false;
@@ -166,7 +167,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
       } else {
         console.log('Do Not Disturb Enabled, rejecting call.');
         lineObj.SipSession.data.earlyReject = true;
-        RejectCall(lineObj.LineNumber);
+        rejectCall(lineObj.LineNumber);
         return;
       }
     }
@@ -176,7 +177,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
       if (CallWaitingEnabled == false || CallWaitingEnabled == 'disabled') {
         console.log('Call Waiting Disabled, rejecting call.');
         lineObj.SipSession.data.earlyReject = true;
-        RejectCall(lineObj.LineNumber);
+        rejectCall(lineObj.LineNumber);
         return;
       }
     }
@@ -247,9 +248,9 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
           // The NULL video should be configured
           // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
           if (lineObj?.SipSession?.data.withvideo) {
-            AnswerVideoCall(lineObj.LineNumber);
+            answerVideoCall(lineObj.LineNumber);
           } else {
-            AnswerAudioCall(lineObj.LineNumber);
+            answerAudioCall(lineObj.LineNumber);
           }
         }, answerTimeout);
 
@@ -286,9 +287,9 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     //       window.setTimeout(function () {
     //         // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
     //         if (videoInvite) {
-    //           AnswerVideoCall(lineNo);
+    //           answerVideoCall(lineNo);
     //         } else {
-    //           AnswerAudioCall(lineNo);
+    //           answerAudioCall(lineNo);
     //         }
     //       }, 1000);
 
@@ -364,7 +365,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   // Handle inbound calls
-  function AnswerAudioCall(lineNumber: LineType['LineNumber']) {
+  function answerAudioCall(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Failed to get line (' + lineNumber + ')');
@@ -380,7 +381,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
       session.data.ringerObj = null;
     }
     // Check vitals
-    if (hasAudioDevice == false) {
+    if (!hasAudioDevice) {
       alert('lang.alert_no_microphone');
       return;
     }
@@ -451,19 +452,18 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
         session.data.reasonText = 'Client Error';
         teardownSession(lineObj);
       });
-    updateLine(lineObj);
   }
 
   // Handle outbound calls
-  function AudioCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
+  function makeAudioCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
     if (userAgent == null) return;
     if (userAgent.isRegistered() == false) return;
     if (lineObj == null) return;
-    if (hasAudioDevice == false) {
+    if (!hasAudioDevice) {
       alert('lang.alert_no_microphone');
       return;
     }
-
+    console.log('makeAudioCall');
     const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
 
     const spdOptions: SPDOptionsType & {
@@ -552,13 +552,6 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     lineObj.SipSession.data.calldirection = 'outbound';
     lineObj.SipSession.data.dst = dialledNumber;
     lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
-    lineObj.SipSession.data.callTimer = window.setInterval(function () {
-      const now = dayJs.utc();
-      const duration = dayJs.duration(now.diff(startTime));
-      const timeStr = formatShortDuration(duration.asSeconds());
-      // $('#line-' + lineObj.LineNumber + '-timer').html(timeStr);
-      // $('#line-' + lineObj.LineNumber + '-datetime').html(timeStr);
-    }, 1000);
     lineObj.SipSession.data.videoSourceDevice = null;
     lineObj.SipSession.data.audioSourceDevice = getAudioSrcID();
     lineObj.SipSession.data.audioOutputDevice = getAudioOutputID();
@@ -626,7 +619,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   // Handle inbound video calls
-  function AnswerVideoCall(lineNumber: LineType['LineNumber']) {
+  function answerVideoCall(lineNumber: LineType['LineNumber']) {
     // CloseWindow();
 
     const lineObj = findLineByNumber(lineNumber);
@@ -644,7 +637,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
       session.data.ringerObj = null;
     }
     // Check vitals
-    if (hasAudioDevice == false) {
+    if (!hasAudioDevice) {
       alert('lang.alert_no_microphone');
       return;
     }
@@ -753,19 +746,19 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   // Handle outbound video calls
-  function VideoCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
+  function makeVideoCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
     if (lineObj == null) return;
 
-    if (hasAudioDevice == false) {
+    if (!hasAudioDevice) {
       alert('lang.alert_no_microphone');
       return;
     }
 
     if (hasVideoDevice == false) {
       console.warn('No video devices (webcam) found, switching to audio call.');
-      AudioCall(lineObj, dialledNumber);
+      makeAudioCall(lineObj, dialledNumber);
       return;
     }
 
@@ -888,13 +881,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     lineObj.SipSession.data.calldirection = 'outbound';
     lineObj.SipSession.data.dst = dialledNumber;
     lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
-    lineObj.SipSession.data.callTimer = window.setInterval(function () {
-      const now = dayJs.utc();
-      const duration = dayJs.duration(now.diff(startTime));
-      const timeStr = formatShortDuration(duration.asSeconds());
-      // $('#line-' + lineObj.LineNumber + '-timer').html(timeStr);
-      // $('#line-' + lineObj.LineNumber + '-datetime').html(timeStr);
-    }, 1000);
+
     lineObj.SipSession.data.videoSourceDevice = getVideoSrcID();
     lineObj.SipSession.data.audioSourceDevice = getAudioSrcID();
     lineObj.SipSession.data.audioOutputDevice = getAudioOutputID();
@@ -904,19 +891,15 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     lineObj.SipSession.isOnHold = false;
     lineObj.SipSession.delegate = {
       onBye: function (sip) {
-        console.log('onBye1');
         onSessionReceivedBye(lineObj, sip);
       },
       onMessage: function (sip) {
-        console.log('onBye2');
         onSessionReceivedMessage(lineObj, sip);
       },
       onInvite: function (sip) {
-        console.log('onBye3');
         onSessionReinvited(lineObj, sip);
       },
       onSessionDescriptionHandler: function (sdh, provisional) {
-        console.log('onBye4', lineObj, sdh as SipSessionDescriptionHandler, provisional);
         onSessionDescriptionHandlerCreated(
           lineObj,
           sdh as SipSessionDescriptionHandler,
@@ -929,28 +912,18 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
       requestDelegate: {
         // OutgoingRequestDelegate
         onTrying: function (sip) {
-          console.log('onBye5');
-
           onInviteTrying(lineObj, sip);
         },
         onProgress: function (sip) {
-          console.log('onBye6');
-
           onInviteProgress(lineObj, sip);
         },
         onRedirect: function (sip) {
-          console.log('onBye7');
-
           onInviteRedirected(lineObj, sip);
         },
         onAccept: function (sip) {
-          console.log('onBye8');
-
           onInviteAccepted(lineObj, true, sip);
         },
         onReject: function (sip) {
-          console.log('onBye9');
-
           onInviteRejected(lineObj, sip);
         },
       },
@@ -974,7 +947,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   // Handle Reject calls
-  function RejectCall(lineNumber: LineType['LineNumber']) {
+  function rejectCall(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineNumber + ')');
@@ -984,7 +957,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     if (!session || session instanceof Inviter) return;
     if (session.state == SessionState.Established) {
       session.bye().catch(function (e) {
-        console.warn('Problem in RejectCall(), could not bye() call', e, session);
+        console.warn('Problem in rejectCall(), could not bye() call', e, session);
       });
     } else {
       session
@@ -993,7 +966,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
           reasonPhrase: 'Busy Here',
         })
         .catch(function (e) {
-          console.warn('Problem in RejectCall(), could not reject() call', e, session);
+          console.warn('Problem in rejectCall(), could not reject() call', e, session);
         });
     }
 
@@ -1004,7 +977,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   // Handle Dial User By Line Number
-  function DialByLine(
+  function dialByLine(
     type: 'audio' | 'video',
     numToDial: string,
     buddy?: BuddyType,
@@ -1014,7 +987,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
-      alert('DialByLine error');
+      alert('dialByLine error');
       return;
     }
 
@@ -1052,16 +1025,16 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     }
     console.log({ buddyObj });
     // Create a Line
-    newLineNumber = newLineNumber + 1;
+    newLineNumber++;
     const lineObj = new Line(newLineNumber, buddyObj.CallerIDName, numDial, buddyObj);
     // SelectLine(newLineNumber); TODO #SH
     // UpdateBuddyList();
 
     // Start Call Invite
     if (type === 'audio') {
-      AudioCall(lineObj, numDial, extraHeaders);
+      makeAudioCall(lineObj, numDial, extraHeaders);
     } else {
-      VideoCall(lineObj, numDial, extraHeaders ?? []);
+      makeVideoCall(lineObj, numDial, extraHeaders ?? []);
     }
     addLine(lineObj);
   }
@@ -1351,7 +1324,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
               reasonPhrase: 'Busy Here',
             })
             .catch(function (e) {
-              console.warn('Problem in RejectCall(), could not reject() call', e, session);
+              console.warn('Problem in rejectCall(), could not reject() call', e, session);
             });
 
           session.data.terminateby = 'us';
@@ -1362,7 +1335,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
         break;
       case SessionState.Established:
         session.bye().catch(function (e) {
-          console.warn('Problem in RejectCall(), could not bye() call', e, session);
+          console.warn('Problem in rejectCall(), could not bye() call', e, session);
         });
 
         session.data.terminateby = 'us';
@@ -1526,27 +1499,28 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   //
 
   // Attend Transfer Call Session
-  function attendedTransferSession(lineNumber: LineType['LineNumber']) {
+  function attendedTransferSession(baseLine: LineType, transferLineNumber: LineType['LineNumber']) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
-    const dstNo = String(lineNumber);
+    const dstNo = String(transferLineNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
 
-    const lineObj = findLineByNumber(lineNumber);
+    let lineObj = baseLine;
     console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
-    if (lineObj == null || lineObj.SipSession == null) {
+    if (!lineObj?.SipSession) {
       console.warn('Null line or session');
       return;
     }
-    const session = lineObj.SipSession;
 
+    const session = lineObj.SipSession;
+    if (!session) return;
     if (!session.data.transfer) session.data.transfer = [];
     session.data.transfer.push({
       type: 'Attended',
-      to: lineNumber,
+      to: transferLineNumber,
       transferTime: utcDateNow(),
       disposition: 'invite',
       dispositionTime: utcDateNow(),
@@ -1570,11 +1544,12 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
         },
       },
     };
-    if (
-      typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object' ||
-      typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video !== 'object'
-    )
-      return; // type checking assurance
+    console.log(
+      555,
+      'typeof spdOptions',
+      typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object',
+    );
+    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
     if (session.data.audioSourceDevice && session.data.audioSourceDevice != 'default') {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
         exact: session.data.audioSourceDevice,
@@ -1596,21 +1571,21 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
 
     // Not sure if its possible to transfer a Video call???
     if (session.data.withvideo) {
+      const video = spdOptions.sessionDescriptionHandlerOptions.constraints.video as any;
       if (session.data.videoSourceDevice && session.data.videoSourceDevice != 'default') {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
+        video.deviceId = {
           exact: session.data.videoSourceDevice,
         };
       }
       // Add additional Constraints
       if (supportedConstraints.frameRate && maxFrameRate != '') {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.frameRate = maxFrameRate;
+        video.frameRate = maxFrameRate;
       }
       if (supportedConstraints.height && videoHeight != '') {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.height = videoHeight;
+        video.height = videoHeight;
       }
       if (supportedConstraints.aspectRatio && videoAspectRatio != '') {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.aspectRatio =
-          videoAspectRatio;
+        video.aspectRatio = videoAspectRatio;
       }
       if (
         (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'object' &&
@@ -1622,7 +1597,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
     }
 
     // Create new call session
-    console.log('TRANSFER INVITE: ', 'sip:' + dstNo + '@' + config.domain, spdOptions);
+    console.log(555, 'TRANSFER INVITE: ', 'sip:' + dstNo + '@' + config.domain, spdOptions);
     const targetURI = UserAgent.makeURI(
       'sip:' + dstNo.replace(/#/g, '%23') + '@' + config.domain,
     ) as URI;
@@ -1635,6 +1610,8 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
           session.data.transfer[transferId].disposition = 'bye';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
         }
+
+        updateLine(lineObj);
       },
       onSessionDescriptionHandler: function (sdh: SipSessionDescriptionHandler, provisional) {
         if (sdh) {
@@ -1650,7 +1627,7 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
                 }
               });
               const remoteAudio = document.createElement('audio');
-              remoteAudio.setAttribute('id', 'line-' + lineNumber + '-transfer-remoteAudio');
+              remoteAudio.setAttribute('id', `line-${lineObj.LineNumber}-transfer-remoteAudio`);
               remoteAudio.srcObject = remoteStream;
               remoteAudio.onloadedmetadata = function (e) {
                 if (typeof remoteAudio.sinkId !== 'undefined' && session?.data?.audioOutputDevice) {
@@ -1681,29 +1658,15 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'trying';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
+          updateLine(lineObj);
         },
         onProgress: function (sip) {
           console.log('onProgress');
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'progress';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
-
-          // const CancelAttendedTransferBtn = $('#line-' + lineNumber + '-btn-cancel-attended-transfer');
-          // CancelAttendedTransferBtn.off('click');
-          // CancelAttendedTransferBtn.on('click', function () {
-          // if (!session.data.transfer) return;
-          //   newSession.cancel().catch(function (error) {
-          //     console.warn('Failed to CANCEL', error);
-          //   });
-          //   console.log('New call session canceled');
-
-          //   session.data.transfer[transferId].accept.complete = false;
-          //   session.data.transfer[transferId].accept.disposition = 'cancel';
-          //   session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-          //   updateLine(lineObj);
-          // });
-          // CancelAttendedTransferBtn.show();
+          console.log('New call session canceled');
+          updateLine(lineObj);
         },
         onRedirect: function (sip) {
           console.log('Redirect received:', sip);
@@ -1715,113 +1678,52 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
           session.data.transfer[transferId].disposition = 'accepted';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
 
-          // var CompleteTransferBtn = $('#line-' + lineNum + '-btn-complete-attended-transfer');
-          // CompleteTransferBtn.off('click');
-          // CompleteTransferBtn.on('click', function () {
-          //   var transferOptions = {
-          //     requestDelegate: {
-          //       onAccept: function (sip) {
-          //         console.log('Attended transfer Accepted');
+          const transferOptions: SessionReferOptions = {
+            requestDelegate: {
+              onAccept: function (sip) {
+                console.log('Attended transfer Accepted');
+                if (!session.data.transfer) return;
 
-          //         session.data.terminateby = 'us';
-          //         session.data.reasonCode = 202;
-          //         session.data.reasonText = 'Attended Transfer';
+                session.data.terminateby = 'us';
+                session.data.reasonCode = 202;
+                session.data.reasonText = 'Attended Transfer';
 
-          //         session.data.transfer[transferId].accept.complete = true;
-          //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-          //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
+                session.data.transfer[transferId].accept.complete = true;
+                session.data.transfer[transferId].accept.disposition =
+                  sip.message.reasonPhrase ?? '';
+                session.data.transfer[transferId].accept.eventTime = utcDateNow();
 
-          //         $('#line-' + lineNum + '-msg').html(lang.attended_transfer_complete_accepted);
+                // We must end this session manually
+                session.bye().catch(function (error) {
+                  console.warn('Could not BYE after blind transfer:', error);
+                });
 
-          //         updateLineScroll(lineNum);
+                teardownSession(lineObj);
+              },
+              onReject: function (sip) {
+                console.warn('Attended transfer rejected:', sip);
+                if (!session.data.transfer) return;
 
-          //         // We must end this session manually
-          //         session.bye().catch(function (error) {
-          //           console.warn('Could not BYE after blind transfer:', error);
-          //         });
+                session.data.transfer[transferId].accept.complete = false;
+                session.data.transfer[transferId].accept.disposition =
+                  sip.message.reasonPhrase ?? '';
+                session.data.transfer[transferId].accept.eventTime = utcDateNow();
+              },
+            },
+          };
 
-          //         teardownSession(lineObj);
-          //       },
-          //       onReject: function (sip) {
-          //         console.warn('Attended transfer rejected:', sip);
-
-          //         session.data.transfer[transferId].accept.complete = false;
-          //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-          //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-          //         $('#line-' + lineNum + '-msg').html('Attended Transfer Failed!');
-
-          //         updateLineScroll(lineNum);
-          //       },
-          //     },
-          //   };
-
-          //   // Send REFER
-          //   session.refer(newSession, transferOptions).catch(function (error) {
-          //     console.warn('Failed to REFER', error);
-          //   });
-
-          //   newCallStatus.html(lang.attended_transfer_complete);
-
-          //   updateLineScroll(lineNum);
-          // });
-          // CompleteTransferBtn.show();
-
-          // var TerminateAttendedTransferBtn = $(
-          //   '#line-' + lineNum + '-btn-terminate-attended-transfer',
-          // );
-          // TerminateAttendedTransferBtn.off('click');
-          // TerminateAttendedTransferBtn.on('click', function () {
-          //   newSession.bye().catch(function (error) {
-          //     console.warn('Failed to BYE', error);
-          //   });
-          //   newCallStatus.html(lang.call_ended);
-          //   console.log('New call session end');
-
-          //   session.data.transfer[transferId].accept.complete = false;
-          //   session.data.transfer[transferId].accept.disposition = 'bye';
-          //   session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-          //   $('#line-' + lineNum + '-btn-complete-attended-transfer').hide();
-          //   $('#line-' + lineNum + '-btn-cancel-attended-transfer').hide();
-          //   $('#line-' + lineNum + '-btn-terminate-attended-transfer').hide();
-
-          //   $('#line-' + lineNum + '-msg').html(lang.attended_transfer_call_ended);
-
-          //   updateLineScroll(lineNum);
-
-          //   window.setTimeout(function () {
-          //     newCallStatus.hide();
-          //     CancelTransferSession(lineNum);
-          //     updateLineScroll(lineNum);
-          //   }, 1000);
-          // });
-          // TerminateAttendedTransferBtn.show();
+          // Send REFER
+          session.refer(newSession, transferOptions).catch(function (error) {
+            console.warn('Failed to REFER', error);
+          });
+          updateLine(lineObj);
         },
         onReject: function (sip) {
           if (!session.data.transfer) return;
           console.log('New call session rejected: ', sip.message.reasonPhrase);
           session.data.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
-
-          // $('#line-' + lineNum + '-txt-FindTransferBuddy')
-          //   .parent()
-          //   .show();
-          // $('#line-' + lineNum + '-btn-blind-transfer').show();
-          // $('#line-' + lineNum + '-btn-attended-transfer').show();
-
-          // $('#line-' + lineNum + '-btn-complete-attended-transfer').hide();
-          // $('#line-' + lineNum + '-btn-cancel-attended-transfer').hide();
-          // $('#line-' + lineNum + '-btn-terminate-attended-transfer').hide();
-
-          // $('#line-' + lineNum + '-msg').html(lang.attended_transfer_call_rejected);
-
-          // updateLineScroll(lineNum);
-
-          // window.setTimeout(function () {
-          //   newCallStatus.hide();
-          //   updateLineScroll(lineNum);
-          // }, 1000);
+          updateLine(lineObj);
         },
       },
     };
@@ -1832,13 +1734,13 @@ export const useCallActions = ({ config }: CallActionType): UseCallActionReturnT
   }
 
   return {
-    ReceiveCall,
-    AnswerAudioCall,
-    AnswerVideoCall,
-    AudioCall,
-    VideoCall,
-    RejectCall,
-    DialByLine,
+    receiveCall,
+    answerAudioCall,
+    answerVideoCall,
+    makeAudioCall,
+    makeVideoCall,
+    rejectCall,
+    dialByLine,
     endCall,
     holdSession,
     unholdSession,

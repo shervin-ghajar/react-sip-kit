@@ -37,20 +37,21 @@ export type SPDOptionsType = Record<
   }>;
 
 export type UseCallActionReturnType = {
-  AudioCall: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
-  VideoCall: (lineObj: LineType, dialledNumber: string, extraHeaders: Array<string>) => void;
-  ReceiveCall: (session: SipInvitationType) => void;
-  DialByLine: (
+  makeAudioCall: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
+  makeVideoCall: (lineObj: LineType, dialledNumber: string, extraHeaders: Array<string>) => void;
+  receiveCall: (session: SipInvitationType) => void;
+  dialByLine: (
     type: 'audio' | 'video',
     numToDial: string,
     buddy?: BuddyType,
     CallerID?: BuddyType['CallerIDName'],
     extraHeaders?: Array<string>,
   ) => void;
+  attendedTransferSession: (lineObj: LineType, transferLineNumber: LineType['LineNumber']) => void;
 } & Record<
-  | 'AnswerAudioCall'
-  | 'AnswerVideoCall'
-  | 'RejectCall'
+  | 'answerAudioCall'
+  | 'answerVideoCall'
+  | 'rejectCall'
   | 'endCall'
   | 'holdSession'
   | 'unholdSession'
@@ -58,7 +59,6 @@ export type UseCallActionReturnType = {
   | 'unmuteSession'
   | 'cancelSession'
   | 'startTransferSession'
-  | 'cancelTransferSession'
-  | 'attendedTransferSession',
+  | 'cancelTransferSession',
   (lineNumber: LineType['LineNumber']) => void
 >;

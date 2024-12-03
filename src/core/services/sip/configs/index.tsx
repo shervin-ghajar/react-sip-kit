@@ -59,7 +59,7 @@ export let SubscribeBuddyEvent = getDbItem('SubscribeBuddyEvent', 'presence') ??
 export let SubscribeBuddyExpires = parseInt(getDbItem('SubscribeBuddyExpires', '300') ?? ''); // Buddy Subscription expiry time (in seconds)
 export let ProfileDisplayPrefix = getDbItem('ProfileDisplayPrefix', ''); // Can display an item from your vCard before your name. Options: Number1 | Number2
 export let ProfileDisplayPrefixSeparator = getDbItem('ProfileDisplayPrefixSeparator', ''); // Used with profileDisplayPrefix, adds a separating character (string). eg: - ~ * or even 💥
-export let InviteExtraHeaders = getDbItem('InviteExtraHeaders', '{}'); // Extra SIP headers to be included in the initial INVITE message for each call. (Added to the extra headers in the DialByLine() parameters. e.g {"foo":"bar"})
+export let InviteExtraHeaders = getDbItem('InviteExtraHeaders', '{}'); // Extra SIP headers to be included in the initial INVITE message for each call. (Added to the extra headers in the dialByLine() parameters. e.g {"foo":"bar"})
 
 export let NoAnswerTimeout = parseInt(getDbItem('NoAnswerTimeout', '120') ?? ''); // Time in seconds before automatic Busy Here sent
 export let AutoAnswerEnabled = getDbItem('AutoAnswerEnabled', '0') == '1'; // Automatically answers the phone when the call comes in, if you are not on a call already

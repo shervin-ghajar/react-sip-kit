@@ -66,6 +66,6 @@ export interface SipConfig {
   AutoDeleteDefault?: boolean; // Default auto-delete behavior for buddies (default false)
 }
 
-export interface SipContextType extends Omit<UseCallActionReturnType, 'ReceiveCall'> {}
+export interface SipContextType extends Omit<UseCallActionReturnType, 'receiveCall'> {}
 
 export type CallbackFunction<T> = (value?: T) => void;

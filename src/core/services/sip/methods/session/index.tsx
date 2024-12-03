@@ -72,7 +72,6 @@ export function teardownSession(lineObj: LineType) {
 
   // End timers TODO #SH
   //   window.clearInterval(session.data.videoResampleInterval);
-  //   window.clearInterval(session.data.callTimer);
 
   // Add to stream
   //   AddCallMessage(lineObj?.BuddyObj?.identity, session); TODO #SH
