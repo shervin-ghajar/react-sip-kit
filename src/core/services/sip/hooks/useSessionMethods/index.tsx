@@ -85,7 +85,11 @@ export const useSessionMethods = () => {
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
-  // Handle incoming calls
+  /**
+   * Handle incoming calls
+   * @param session
+   * @returns
+   */
   function receiveCall(session: SipInvitationType) {
     console.log('receiveCall', { session });
     const callerID = session.remoteIdentity.displayName || session.remoteIdentity.uri.user || '';
@@ -368,7 +372,11 @@ export const useSessionMethods = () => {
     addLine(lineObj);
   }
 
-  // Handle inbound calls
+  /**
+   * Handle inbound calls
+   * @param lineNumber
+   * @returns
+   */
   function answerAudioSession(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
@@ -458,8 +466,18 @@ export const useSessionMethods = () => {
       });
   }
 
-  // Handle outbound calls
-  function makeAudioCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
+  /**
+   * Handle outbound calls
+   * @param lineObj
+   * @param dialledNumber
+   * @param extraHeaders
+   * @returns
+   */
+  function makeAudioSession(
+    lineObj: LineType,
+    dialledNumber: string,
+    extraHeaders?: Array<string>,
+  ) {
     if (userAgent == null) return;
     if (userAgent.isRegistered() == false) return;
     if (lineObj == null) return;
@@ -467,7 +485,7 @@ export const useSessionMethods = () => {
       alert('lang.alert_no_microphone');
       return;
     }
-    console.log('makeAudioCall');
+    console.log('makeAudioSession');
     const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
 
     const spdOptions: SPDOptionsType & {
@@ -622,7 +640,11 @@ export const useSessionMethods = () => {
     // if (typeof web_hook_on_invite !== 'undefined') web_hook_on_invite(lineObj.SipSession);
   }
 
-  // Handle inbound video calls
+  /**
+   * Handle inbound video calls
+   * @param lineNumber
+   * @returns
+   */
   function answerVideoSession(lineNumber: LineType['LineNumber']) {
     // CloseWindow();
 
@@ -749,8 +771,18 @@ export const useSessionMethods = () => {
     updateLine(lineObj);
   }
 
-  // Handle outbound video calls
-  function makeVideoCall(lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) {
+  /**
+   * Handle outbound video calls
+   * @param lineObj
+   * @param dialledNumber
+   * @param extraHeaders
+   * @returns
+   */
+  function makeVideoSession(
+    lineObj: LineType,
+    dialledNumber: string,
+    extraHeaders?: Array<string>,
+  ) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
     if (lineObj == null) return;
@@ -762,7 +794,7 @@ export const useSessionMethods = () => {
 
     if (hasVideoDevice == false) {
       console.warn('No video devices (webcam) found, switching to audio call.');
-      makeAudioCall(lineObj, dialledNumber);
+      makeAudioSession(lineObj, dialledNumber);
       return;
     }
 
@@ -950,7 +982,11 @@ export const useSessionMethods = () => {
     // updateLineScroll(lineObj.LineNumber);
   }
 
-  // Handle Reject calls
+  /**
+   * Handle reject calls
+   * @param lineNumber
+   * @returns
+   */
   function rejectCall(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
@@ -980,14 +1016,21 @@ export const useSessionMethods = () => {
     teardownSession(lineObj);
   }
 
-  // Handle Dial User By Line Number
+  /**
+   * Handle Dial User By Line Number
+   * @param type
+   * @param numToDial
+   * @param buddy
+   * @param CallerID
+   * @param extraHeaders
+   * @returns
+   */
   function dialByLine(
     type: 'audio' | 'video',
     numToDial: string,
     buddy?: BuddyType,
     CallerID?: string,
     extraHeaders?: Array<string>,
-    remoteVideoRef?: any,
   ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
@@ -1036,29 +1079,32 @@ export const useSessionMethods = () => {
 
     // Start Call Invite
     if (type === 'audio') {
-      makeAudioCall(lineObj, numDial, extraHeaders);
+      makeAudioSession(lineObj, numDial, extraHeaders);
     } else {
-      makeVideoCall(lineObj, numDial, extraHeaders ?? []);
+      makeVideoSession(lineObj, numDial, extraHeaders ?? []);
     }
     addLine(lineObj);
   }
-
   /* -------------------------------------------------------------------------- */
   /*                        In-Session Call Functionality                       */
   /*                           HOLD/MUTE/END/TRANSFER                           */
   /* -------------------------------------------------------------------------- */
 
   /* ------------------------------- HOLD/UNHOLD ------------------------------ */
-  // Hold Call Session
-  function holdSession(lineNum: LineType['LineNumber']) {
-    const lineObj = findLineByNumber(lineNum);
+  /**
+   * Hold Call Session
+   * @param lineNumber
+   * @returns
+   */
+  function holdSession(lineNumber: LineType['LineNumber']) {
+    const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.SipSession == null) return;
     const session = lineObj.SipSession;
     if (session.isOnHold == true) {
-      console.log('Call is is already on hold:', lineNum);
+      console.log('Call is is already on hold:', lineNumber);
       return;
     }
-    console.log('Putting Call on hold:', lineNum);
+    console.log('Putting Call on hold:', lineNumber);
     session.isOnHold = true;
 
     const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
@@ -1104,20 +1150,20 @@ export const useSessionMethods = () => {
             });
           }
           session.isOnHold = true;
-          console.log('Call is is on hold:', lineNum);
+          console.log('Call is is on hold:', lineNumber);
 
           // Log Hold
           if (!session.data.hold) session.data.hold = [];
           session.data.hold.push({ event: 'hold', eventTime: utcDateNow() });
           session.data.isHold = true;
 
-          // updateLineScroll(lineNum);
+          // updateLineScroll(lineNumber);
 
           // Custom Web hook
         },
         onReject: function () {
           session.isOnHold = false;
-          console.warn('Failed to put the call on hold:', lineNum);
+          console.warn('Failed to put the call on hold:', lineNumber);
         },
       },
     };
@@ -1128,16 +1174,20 @@ export const useSessionMethods = () => {
     updateLine(lineObj);
   }
 
-  // Un-Hold Call Session
-  function unholdSession(lineNum: LineType['LineNumber']) {
-    const lineObj = findLineByNumber(lineNum);
+  /**
+   * Un-Hold Call Session
+   * @param lineNumber
+   * @returns
+   */
+  function unholdSession(lineNumber: LineType['LineNumber']) {
+    const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.SipSession == null) return;
     const session = lineObj.SipSession;
     if (session.isOnHold == false) {
-      console.log('Call is already off hold:', lineNum);
+      console.log('Call is already off hold:', lineNumber);
       return;
     }
-    console.log('Taking call off hold:', lineNum);
+    console.log('Taking call off hold:', lineNumber);
     session.isOnHold = false;
 
     const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
@@ -1181,7 +1231,7 @@ export const useSessionMethods = () => {
             });
           }
           session.isOnHold = false;
-          console.log('Call is off hold:', lineNum);
+          console.log('Call is off hold:', lineNumber);
 
           // $('#line-' + lineNum + '-btn-Hold').show();
           // $('#line-' + lineNum + '-btn-Unhold').hide();
@@ -1192,11 +1242,11 @@ export const useSessionMethods = () => {
           session.data.hold.push({ event: 'unhold', eventTime: utcDateNow() });
           session.data.isHold = false;
 
-          // updateLineScroll(lineNum);
+          // updateLineScroll(lineNumber);
         },
         onReject: function () {
           session.isOnHold = true;
-          console.warn('Failed to put the call on hold', lineNum);
+          console.warn('Failed to put the call on hold', lineNumber);
         },
       },
     };
@@ -1208,9 +1258,13 @@ export const useSessionMethods = () => {
   }
 
   /* ------------------------------- MUTE/UNMUTE ------------------------------ */
-  // Mute Call Session
-  function muteSession(lineNum: LineType['LineNumber']) {
-    const lineObj = findLineByNumber(lineNum);
+  /**
+   * Mute Call Session
+   * @param lineNumber
+   * @returns
+   */
+  function muteSession(lineNumber: LineType['LineNumber']) {
+    const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.SipSession == null) return;
 
     // $('#line-' + lineNum + '-btn-Unmute').show();
@@ -1239,13 +1293,17 @@ export const useSessionMethods = () => {
 
     // $('#line-' + lineNum + '-msg').html(lang.call_on_mute);
 
-    // updateLineScroll(lineNum);
+    // updateLineScroll(lineNumber);
     updateLine(lineObj);
   }
 
-  // Un-Mute Call Session
-  function unmuteSession(lineNum: LineType['LineNumber']) {
-    const lineObj = findLineByNumber(lineNum);
+  /**
+   * Un-Mute Call Session
+   * @param lineNumber
+   * @returns
+   */
+  function unmuteSession(lineNumber: LineType['LineNumber']) {
+    const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.SipSession == null) return;
 
     // $('#line-' + lineNum + '-btn-Unmute').hide();
@@ -1274,7 +1332,7 @@ export const useSessionMethods = () => {
 
     // $('#line-' + lineNum + '-msg').html(lang.call_off_mute);
 
-    // updateLineScroll(lineNum);
+    // updateLineScroll(lineNumber);
 
     // Custom Web hook
     // if (typeof web_hook_on_modify !== 'undefined') web_hook_on_modify('unmute', session);
@@ -1282,7 +1340,11 @@ export const useSessionMethods = () => {
   }
 
   /* ------------------------------- CANCEL/END/TEARDOWN ------------------------------- */
-  // Cancle And Terminate Call Session
+  /**
+   * Cancle And Terminate Call Session
+   * @param lineNumber
+   * @returns
+   */
   function cancelSession(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.SipSession == null) return;
@@ -1302,7 +1364,11 @@ export const useSessionMethods = () => {
     }
   }
 
-  // Terminate Call Session Based on Session State
+  /**
+   * Terminate Call Session Based on Session State
+   * @param lineNumber
+   * @returns
+   */
   function endSession(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
@@ -1355,7 +1421,11 @@ export const useSessionMethods = () => {
     }
   }
 
-  // Teardown Call Session Based on Line
+  /**
+   * Teardown Call Session Based on Line
+   * @param lineObj
+   * @returns
+   */
   function teardownSession(lineObj: LineType) {
     if (lineObj == null || lineObj.SipSession == null) return;
 
@@ -1455,10 +1525,13 @@ export const useSessionMethods = () => {
     removeLine(lineObj.LineNumber);
   }
   /* -------------------------------- TRANSFER -------------------------------- */
-  // Start Transfer Call Session
+  /**
+   * Start Transfer Call Session
+   * @param lineNumber
+   */
   function startTransferSession(lineNumber: LineType['LineNumber']) {
     // if ($('#line-' + lineNum + '-btn-CancelConference').is(':visible')) { //TODO #SH
-    //   CancelConference(lineNum);
+    //   CancelConference(lineNumber);
     //   return;
     // }
     // $('#line-' + lineNum + '-btn-Transfer').hide();
@@ -1470,7 +1543,7 @@ export const useSessionMethods = () => {
     //   .show();
     // $('#line-' + lineNum + '-session-avatar').css('width', '50px');
     // $('#line-' + lineNum + '-session-avatar').css('height', '50px');
-    // RestoreCallControls(lineNum);
+    // RestoreCallControls(lineNumber);
     // $('#line-' + lineNum + '-btn-blind-transfer').show();
     // $('#line-' + lineNum + '-btn-attended-transfer').show();
     // $('#line-' + lineNum + '-btn-complete-transfer').hide();
@@ -1480,10 +1553,14 @@ export const useSessionMethods = () => {
     // $('#line-' + lineNum + '-btn-terminate-attended-transfer').hide();
     // $('#line-' + lineNum + '-transfer-status').hide();
     // $('#line-' + lineNum + '-Transfer').show();
-    // updateLineScroll(lineNum); TODO #SH
+    // updateLineScroll(lineNumber); TODO #SH
   }
 
-  // Cancel Transfer Call Session
+  /**
+   * Cancel Transfer Call Session
+   * @param lineNumber
+   * @returns
+   */
   function cancelTransferSession(lineNumber: LineType['LineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     console.log('cancelTransferSession', { lineObj });
@@ -1514,11 +1591,11 @@ export const useSessionMethods = () => {
     unholdSession(lineNumber);
     // $("#line-" + lineNum + "-Transfer").hide();
 
-    // updateLineScroll(lineNum);
+    // updateLineScroll(lineNumber);
     updateLine(lineObj);
   }
 
-  // function BlindTransfer(lineNum) {
+  // function BlindTransfer(lineNumber) {
   //   var dstNo = $("#line-" + lineNum + "-txt-FindTransferBuddy").val();
   //   if (EnableAlphanumericDial) {
   //     dstNo = dstNo.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
@@ -1530,7 +1607,7 @@ export const useSessionMethods = () => {
   //     return;
   //   }
 
-  //   var lineObj = FindLineByNumber(lineNum);
+  //   var lineObj = FindLineByNumber(lineNumber);
   //   if (lineObj == null || lineObj.SipSession == null) {
   //     console.warn("Null line or session");
   //     return;
@@ -1568,7 +1645,7 @@ export const useSessionMethods = () => {
   //         // TODO: use lang pack
   //         $("#line-" + lineNum + "-msg").html("Call Blind Transferred (Accepted)");
 
-  //         updateLineScroll(lineNum);
+  //         updateLineScroll(lineNumber);
 
   //         session.bye().catch(function (error) {
   //           console.warn("Could not BYE after blind transfer:", error);
@@ -1584,7 +1661,7 @@ export const useSessionMethods = () => {
 
   //         $("#line-" + lineNum + "-msg").html("Call Blind Failed!");
 
-  //         updateLineScroll(lineNum);
+  //         updateLineScroll(lineNumber);
 
   //         // Session should still be up, so just allow them to try again
   //       },
@@ -1598,11 +1675,16 @@ export const useSessionMethods = () => {
 
   //   $("#line-" + lineNum + "-msg").html(lang.call_blind_transfered);
 
-  //   updateLineScroll(lineNum);
+  //   updateLineScroll(lineNumber);
   // }
   //
 
-  // Attend Transfer Call Session
+  /**
+   * Attend Transfer Call Session
+   * @param baseLine
+   * @param transferLineNumber
+   * @returns
+   */
   function attendedTransferSession(baseLine: LineType, transferLineNumber: LineType['LineNumber']) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
@@ -1816,7 +1898,7 @@ export const useSessionMethods = () => {
     updateLine(lineObj);
   }
 
-  // function BlindTransfer(lineNum) {
+  // function BlindTransfer(lineNumber) {
   //   var dstNo = $("#line-" + lineNum + "-txt-FindTransferBuddy").val();
   //   if (EnableAlphanumericDial) {
   //     dstNo = dstNo.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
@@ -1828,7 +1910,7 @@ export const useSessionMethods = () => {
   //     return;
   //   }
 
-  //   var lineObj = FindLineByNumber(lineNum);
+  //   var lineObj = FindLineByNumber(lineNumber);
   //   if (lineObj == null || lineObj.SipSession == null) {
   //     console.warn("Null line or session");
   //     return;
@@ -1866,7 +1948,7 @@ export const useSessionMethods = () => {
   //         // TODO: use lang pack
   //         $("#line-" + lineNum + "-msg").html("Call Blind Transferred (Accepted)");
 
-  //         updateLineScroll(lineNum);
+  //         updateLineScroll(lineNumber);
 
   //         session.bye().catch(function (error) {
   //           console.warn("Could not BYE after blind transfer:", error);
@@ -1882,7 +1964,7 @@ export const useSessionMethods = () => {
 
   //         $("#line-" + lineNum + "-msg").html("Call Blind Failed!");
 
-  //         updateLineScroll(lineNum);
+  //         updateLineScroll(lineNumber);
 
   //         // Session should still be up, so just allow them to try again
   //       },
@@ -1896,11 +1978,18 @@ export const useSessionMethods = () => {
 
   //   $("#line-" + lineNum + "-msg").html(lang.call_blind_transfered);
 
-  //   updateLineScroll(lineNum);
+  //   updateLineScroll(lineNumber);
   // }
   //
 
   // Cancel Attend Transfer Call Session
+
+  /**
+   * Cancel Transfered Call Session
+   * @param baseLine
+   * @param transferLineNumber
+   * @returns
+   */
   function cancelAttendedTransferSession(
     baseLine: LineType,
     transferLineNumber: LineType['LineNumber'],
@@ -1935,8 +2024,8 @@ export const useSessionMethods = () => {
     receiveCall,
     answerAudioSession,
     answerVideoSession,
-    makeAudioCall,
-    makeVideoCall,
+    makeAudioSession,
+    makeVideoSession,
     rejectCall,
     dialByLine,
     endSession,
