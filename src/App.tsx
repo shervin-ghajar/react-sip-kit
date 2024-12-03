@@ -1,25 +1,26 @@
 import './App.css';
 import { Audio, Video } from './components';
-import { useSipProvider } from './core/services/sip/provider';
-import { useSipStore } from './core/services/sip/store';
+import { useSipProvider } from './core/services/sip';
 import { LineType } from './core/services/sip/store/types';
-import { memo } from 'react';
 
 function App() {
   const {
-    lines,
-    answerAudioCall,
-    answerVideoCall,
-    dialByLine,
-    endCall,
-    muteSession,
-    unmuteSession,
-    holdSession,
-    unholdSession,
-    startTransferSession,
-    cancelTransferSession,
-    attendedTransferSession,
+    store: { lines },
+    methods: {
+      answerAudioSession,
+      answerVideoSession,
+      dialByLine,
+      endSession,
+      muteSession,
+      unmuteSession,
+      holdSession,
+      unholdSession,
+      startTransferSession,
+      cancelAttendedTransferSession,
+      attendedTransferSession,
+    },
   } = useSipProvider();
+
   console.log({ lines });
 
   const handleTransferLine = (line: LineType, transferNumber: LineType['LineNumber']) => {
@@ -60,11 +61,13 @@ function App() {
           {!isOutbound && (
             <button
               onClick={() =>
-                isVideoCall ? answerVideoCall(line.LineNumber) : answerAudioCall(line.LineNumber)
+                isVideoCall
+                  ? answerVideoSession(line.LineNumber)
+                  : answerAudioSession(line.LineNumber)
               }
             >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
           )}
-          <button onClick={() => endCall(line.LineNumber)}>{`Reject Call`}</button>
+          <button onClick={() => endSession(line.LineNumber)}>{`Reject Call`}</button>
           <button
             onClick={() => (isMute ? unmuteSession(line.LineNumber) : muteSession(line.LineNumber))}
           >{`${isMute ? 'Unmute' : 'Mute'} Call`}</button>
@@ -73,6 +76,10 @@ function App() {
             onClick={() => (isHold ? unholdSession(line.LineNumber) : holdSession(line.LineNumber))}
           >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
           <button onClick={() => handleTransferLine(line, 1006)}>{'Transfer To 1006'}</button>
+          <button onClick={() => cancelAttendedTransferSession(line, 1006)}>
+            {'Cancel Transfer To 1006'}
+          </button>
+
           <Audio lineNumber={line.LineNumber} />
           <Audio type={'transfer'} lineNumber={line.LineNumber} />
           <Audio type={'conference'} lineNumber={line.LineNumber} />
@@ -91,7 +98,7 @@ function App() {
         gap: 8,
       }}
     >
-      <h2>Web Phone</h2>
+      <h2>Web Phone 1004</h2>
       <div
         style={{
           backgroundColor: 'lightgray',
@@ -114,52 +121,11 @@ function App() {
       >
         <h4>Call Action Buttons</h4>
         <button onClick={() => dialByLine('audio', '1005')}>{`Call 1005`}</button>
+        <button onClick={() => dialByLine('audio', '1006')}>{`Call 1006`}</button>
         <button onClick={() => dialByLine('video', '1005')}>{`Video Call 1005`}</button>
       </div>
     </div>
   );
 }
-/* -------------------------------------------------------------------------- */
-// const CallSection = memo(({ line }: { line: LineType }) => {
-//   return (
-//     <div
-//       style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 24 }}
-//       id={`line-${line.LineNumber}`}
-//     >
-//       <p>Call Started: {callStarted}</p>
-//       {isVideoCall && (
-//         <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
-//           <Video type="local" lineNumber={line.LineNumber} width={200} height={200} />
-//           <Video
-//             type="remote"
-//             lineNumber={line.LineNumber}
-//             style={{ display: 'flex', width: 200, height: 200 }}
-//           />
-//         </div>
-//       )}
-//       <div>
-//         <p>Name: {line.DisplayName}</p>
-//         <p>Number: {line.DisplayNumber}</p>
-//       </div>
-//       {!isOutbound && (
-//         <button
-//           onClick={() =>
-//             isVideoCall ? answerVideoCall(line.LineNumber) : answerAudioCall(line.LineNumber)
-//           }
-//         >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
-//       )}
-//       <button onClick={() => endCall(line.LineNumber)}>{`Reject Call`}</button>
-//       <button
-//         onClick={() => (isMute ? unmuteSession(line.LineNumber) : muteSession(line.LineNumber))}
-//       >{`${isMute ? 'Unmute' : 'Mute'} Call`}</button>
-
-//       <button
-//         onClick={() => (isHold ? unholdSession(line.LineNumber) : holdSession(line.LineNumber))}
-//       >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-//       <button onClick={() => attendedTransferSession(1002)}>{'Transfer To 1002'}</button>
-//       <Audio lineNumber={line.LineNumber} />
-//     </div>
-//   );
-// });
 /* -------------------------------------------------------------------------- */
 export default App;

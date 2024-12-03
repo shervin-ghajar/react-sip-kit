@@ -6,6 +6,14 @@ import { create } from 'zustand';
 // Create sip store
 
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
+  config: {
+    username: '',
+    password: '',
+    domain: '',
+    wssServer: '',
+    webSocketPort: '',
+    serverPath: '/ws',
+  },
   userAgent: undefined,
   buddies: [],
   selectedBuddy: [],

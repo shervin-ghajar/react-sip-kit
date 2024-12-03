@@ -1,5 +1,5 @@
-import { UseCallActionReturnType } from './hooks/useCallActions/types';
-import { SipSessionType } from './store/types';
+import { useSessionMethods, useSessionEvents } from './hooks';
+import { SipSessionType, SipStoreStateType } from './store/types';
 import { UserAgent, Registerer, Subscriber } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
@@ -66,6 +66,10 @@ export interface SipConfig {
   AutoDeleteDefault?: boolean; // Default auto-delete behavior for buddies (default false)
 }
 
-export interface SipContextType extends Omit<UseCallActionReturnType, 'receiveCall'> {}
+export interface SipContextType {
+  store: SipStoreStateType;
+  methods: Omit<ReturnType<typeof useSessionMethods>, 'receiveCall'>;
+  events: ReturnType<typeof useSessionEvents>;
+}
 
 export type CallbackFunction<T> = (value?: T) => void;

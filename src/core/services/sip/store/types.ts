@@ -1,5 +1,5 @@
 import { AudioBlobs } from '../constructors';
-import { SipUserAgent } from '../types';
+import { SipConfig, SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
 import {
   Invitation,
@@ -12,6 +12,7 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 export interface SipStoreStateType {
+  config: SipConfig;
   userAgent?: SipUserAgent;
   buddies: Array<BuddyType>;
   selectedBuddy: Array<any>;
@@ -126,6 +127,7 @@ export interface SipSessionTransferType {
     eventTime: string | null;
     disposition: string;
   };
+  onCancle?: Function;
 }
 /* -------------------------------------------------------------------------- */
 export interface BuddyType {

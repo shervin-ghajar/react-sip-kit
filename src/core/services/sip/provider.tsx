@@ -5,14 +5,14 @@ import {
   onTransportConnectError,
   onTransportDisconnected,
 } from './events/transport';
-import { useCallActions } from './hooks';
+import { useSessionMethods, useSessionEvents } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
-import { setSipStore, useSipStore } from './store';
+import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import React, { createContext, useCallback, useContext, useEffect } from 'react';
 import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
 
-const SipContext = createContext<SipContextType | undefined>(undefined);
+export const SipContext = createContext<SipContextType | undefined>(undefined);
 let userAgent: SipUserAgent;
 export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
   const {
@@ -22,23 +22,35 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     audioInputDevices,
     videoInputDevices,
     speakerDevices,
+    setSipStore,
   } = useSipStore();
-  const { receiveCall, ...rest } = useCallActions({ config });
+  const store = useSipStore();
+  const methods = useSessionMethods();
+  const events = useSessionEvents();
 
   useEffect(() => {
-    (async function test() {
-      await getMediaPermissions();
+    setSipStore({ config });
+    (async function () {
+      await initialize();
     })();
-    initiateDetectedDevices();
-    window.setInterval(function () {
-      initiateDetectedDevices();
-    }, 10000);
-    // Create user agent for SIP connection
-    createUserAgent();
     return () => {
       userAgent?.stop();
     };
   }, [config]);
+
+  const initialize = async () => {
+    // Get Audio Access Permission
+    await getMediaPermissions('audio');
+
+    // User Connected Devices Detection
+    initiateDetectedDevices();
+    window.setInterval(function () {
+      initiateDetectedDevices();
+    }, 10000);
+
+    // Create user agent for SIP connection
+    createUserAgent();
+  };
 
   // Create user agent for SIP connection
   const createUserAgent = useCallback(() => {
@@ -54,7 +66,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       autoStart: false,
       autoStop: true,
       delegate: {
-        onInvite: receiveCall as any,
+        onInvite: methods.receiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -162,12 +174,11 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     setSipStore({ userAgent });
   };
 
-  return <SipContext.Provider value={rest}>{children}</SipContext.Provider>;
+  return <SipContext.Provider value={{ store, methods, events }}>{children}</SipContext.Provider>;
 };
 
 export const useSipProvider = () => {
   const context = useContext(SipContext);
-  if (!context) throw new Error('useSip must be used within a SipProvider');
-  const sipStore = useSipStore();
-  return { ...sipStore, ...context };
+  if (!context) throw new Error('useSipProvider must be used within a SipProvider');
+  return context;
 };
