@@ -79,7 +79,7 @@ export class AudioBlobs {
     };
 
     // Automatically load blobs when the instance is created
-    this.loadBlobs();
+    // this.loadBlobs();TODO
   }
 
   private async loadBlobs(): Promise<void> {

@@ -36,8 +36,8 @@ import {
 } from '../../utils';
 import { useSessionEvents } from '../useSessionEvents';
 import { MediaStreamTrackType } from '../useSessionEvents/types';
-import { SessionMethods, SPDOptionsType, VideoSessionConstraints } from './types';
-import { useContext } from 'react';
+import { useSpdOptions } from '../useSpdOptions';
+import { SPDOptionsType, VideoSessionConstraints } from './types';
 import {
   Inviter,
   InviterInviteOptions,
@@ -62,10 +62,7 @@ export const useSessionMethods = () => {
     countSessions,
     userAgent,
     audioBlobs,
-    hasAudioDevice,
-    hasVideoDevice,
-    audioInputDevices,
-    videoInputDevices,
+    devicesInfo: { hasAudioDevice, hasVideoDevice, audioInputDevices, videoInputDevices },
   } = useSipStore();
 
   const {
@@ -81,7 +78,7 @@ export const useSessionMethods = () => {
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
   } = useSessionEvents();
-
+  const { answerAudioSpdOptions, makeAudioSpdOptions } = useSpdOptions();
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
@@ -378,8 +375,14 @@ export const useSessionMethods = () => {
    * @returns
    */
   function answerAudioSession(lineNumber: LineType['LineNumber']) {
+    // Check vitals
+    if (!hasAudioDevice) {
+      alert('lang.alert_no_microphone');
+      return;
+    }
+
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null) {
+    if (lineObj === null) {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
     }
@@ -392,60 +395,10 @@ export const useSessionMethods = () => {
       session.data.ringerObj.load();
       session.data.ringerObj = null;
     }
-    // Check vitals
-    if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
-      return;
-    }
 
     // Start SIP handling
-    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-    console.log({ supportedConstraints });
-    const spdOptions: SPDOptionsType = {
-      sessionDescriptionHandlerOptions: {
-        constraints: {
-          audio: { deviceId: 'default' },
-          video: false,
-        },
-      },
-    };
-
-    // Configure Audio
-    const currentAudioDevice = getAudioSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-    if (currentAudioDevice != 'default') {
-      let confirmedAudioDevice = false;
-      for (let i = 0; i < audioInputDevices.length; ++i) {
-        if (currentAudioDevice == audioInputDevices[i].deviceId) {
-          confirmedAudioDevice = true;
-          break;
-        }
-      }
-      if (confirmedAudioDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-          exact: currentAudioDevice,
-        };
-      } else {
-        console.warn(
-          'The audio device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('AudioSrcId', 'default');
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.autoGainControl) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        AutoGainControl;
-    }
-    if (supportedConstraints.echoCancellation) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        EchoCancellation;
-    }
-    if (supportedConstraints.noiseSuppression) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        NoiseSuppression;
-    }
-
+    const spdOptions = answerAudioSpdOptions();
+    if (!spdOptions) return console.error('answerAudioSession spdOptions is undefined');
     // Save Devices
     session.data.withvideo = false;
     session.data.videoSourceDevice = null;
@@ -478,95 +431,25 @@ export const useSessionMethods = () => {
     dialledNumber: string,
     extraHeaders?: Array<string>,
   ) {
-    if (userAgent == null) return;
-    if (userAgent.isRegistered() == false) return;
+    console.log(222, { lineObj, dialledNumber, extraHeaders });
+    if (!userAgent) return;
+    if (!userAgent.isRegistered()) return;
     if (lineObj == null) return;
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      console.error('lang.alert_no_microphone');
       return;
     }
     console.log('makeAudioSession');
-    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
 
-    const spdOptions: SPDOptionsType & {
-      earlyMedia: boolean;
-      extraHeaders?: string[];
-    } = {
-      earlyMedia: true,
-      sessionDescriptionHandlerOptions: {
-        constraints: {
-          audio: { deviceId: 'default' },
-          video: false,
-        },
-      },
-    };
-    // Configure Audio
-    const currentAudioDevice = getAudioSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-
-    if (currentAudioDevice != 'default') {
-      let confirmedAudioDevice = false;
-      for (let i = 0; i < audioInputDevices.length; ++i) {
-        if (currentAudioDevice == audioInputDevices[i].deviceId) {
-          confirmedAudioDevice = true;
-          break;
-        }
-      }
-      if (confirmedAudioDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-          exact: currentAudioDevice,
-        };
-      } else {
-        console.warn(
-          'The audio device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('AudioSrcId', 'default');
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.autoGainControl) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        AutoGainControl;
-    }
-    if (supportedConstraints.echoCancellation) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        EchoCancellation;
-    }
-    if (supportedConstraints.noiseSuppression) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        NoiseSuppression;
-    }
-    // Added to the SIP Headers
-    if (extraHeaders) {
-      spdOptions.extraHeaders = extraHeaders;
-    } else {
-      spdOptions.extraHeaders = [];
-    }
-    if (InviteExtraHeaders && InviteExtraHeaders != '' && InviteExtraHeaders != '{}') {
-      try {
-        const inviteExtraHeaders = JSON.parse(InviteExtraHeaders);
-        for (const [key, value] of Object.entries(inviteExtraHeaders)) {
-          if (value == '') {
-            // This is a header, must be format: "Field: Value"
-          } else {
-            spdOptions?.extraHeaders?.push(key + ': ' + value);
-          }
-        }
-      } catch (e) {}
-    }
-
-    // $('#line-' + lineObj.LineNumber + '-msg').html(lang.starting_audio_call);
-    // $('#line-' + lineObj.LineNumber + '-timer').show();
-
+    const spdOptions = makeAudioSpdOptions({ extraHeaders });
+    if (!spdOptions) return;
     let startTime = dayJs.utc();
 
     // Invite
     console.log('INVITE (audio): ' + dialledNumber + '@' + config.domain);
-
     const targetURI = UserAgent.makeURI(
       'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + config.domain,
     ) as URI;
-    console.log('audio', { spdOptions });
     lineObj.SipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.SipSession.data = {};
     lineObj.SipSession.data.line = lineObj.LineNumber;
@@ -592,6 +475,7 @@ export const useSessionMethods = () => {
         onSessionReinvited(lineObj, sip);
       },
       onSessionDescriptionHandler: function (sdh, provisional) {
+        console.log('Session Description Handler created:', { sdh });
         onSessionDescriptionHandlerCreated(
           lineObj,
           sdh as SipSessionDescriptionHandler,
@@ -601,21 +485,27 @@ export const useSessionMethods = () => {
       },
     };
     const inviterOptions: InviterInviteOptions = {
+      // sessionDescriptionHandlerOptions: spdOptions.sessionDescriptionHandlerOptions,
       requestDelegate: {
         // OutgoingRequestDelegate
         onTrying: function (sip) {
+          console.log('makeAudioSession 1');
           onInviteTrying(lineObj, sip);
         },
         onProgress: function (sip) {
+          console.log('makeAudioSession 2');
           onInviteProgress(lineObj, sip);
         },
         onRedirect: function (sip) {
+          console.log('makeAudioSession 3');
           onInviteRedirected(lineObj, sip);
         },
         onAccept: function (sip) {
+          console.log('makeAudioSession 4');
           onInviteAccepted(lineObj, false, sip);
         },
         onReject: function (sip) {
+          console.log('makeAudioSession 5');
           onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
         },
       },
@@ -646,8 +536,6 @@ export const useSessionMethods = () => {
    * @returns
    */
   function answerVideoSession(lineNumber: LineType['LineNumber']) {
-    // CloseWindow();
-
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Failed to get line (' + lineNumber + ')');
@@ -753,8 +641,6 @@ export const useSessionMethods = () => {
     session.data.videoSourceDevice = getVideoSrcID();
     session.data.audioSourceDevice = getAudioSrcID();
     session.data.audioOutputDevice = getAudioOutputID();
-
-    // if (StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH StartVideoFullScreen
 
     // Send Answer
     session
@@ -1074,8 +960,6 @@ export const useSessionMethods = () => {
     // Create a Line
     newLineNumber++;
     const lineObj = new Line(newLineNumber, buddyObj.CallerIDName, numDial, buddyObj);
-    // SelectLine(newLineNumber); TODO #SH
-    // UpdateBuddyList();
 
     // Start Call Invite
     if (type === 'audio') {
@@ -1594,90 +1478,6 @@ export const useSessionMethods = () => {
     // updateLineScroll(lineNumber);
     updateLine(lineObj);
   }
-
-  // function BlindTransfer(lineNumber) {
-  //   var dstNo = $("#line-" + lineNum + "-txt-FindTransferBuddy").val();
-  //   if (EnableAlphanumericDial) {
-  //     dstNo = dstNo.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
-  //   } else {
-  //     dstNo = dstNo.replace(telNumericRegEx, "").substring(0, MaxDidLength);
-  //   }
-  //   if (dstNo == "") {
-  //     console.warn("Cannot transfer, no number");
-  //     return;
-  //   }
-
-  //   var lineObj = FindLineByNumber(lineNumber);
-  //   if (lineObj == null || lineObj.SipSession == null) {
-  //     console.warn("Null line or session");
-  //     return;
-  //   }
-  //   var session = lineObj.SipSession;
-
-  //   if (!session.data.transfer) session.data.transfer = [];
-  //   session.data.transfer.push({
-  //     type: "Blind",
-  //     to: dstNo,
-  //     transferTime: utcDateNow(),
-  //     disposition: "refer",
-  //     dispositionTime: utcDateNow(),
-  //     accept: {
-  //       complete: null,
-  //       eventTime: null,
-  //       disposition: "",
-  //     },
-  //   });
-  //   var transferId = session.data.transfer.length - 1;
-
-  //   var transferOptions = {
-  //     requestDelegate: {
-  //       onAccept: function (sip) {
-  //         console.log("Blind transfer Accepted");
-
-  //         session.data.terminateby = "us";
-  //         session.data.reasonCode = 202;
-  //         session.data.reasonText = "Transfer";
-
-  //         session.data.transfer[transferId].accept.complete = true;
-  //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-  //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-  //         // TODO: use lang pack
-  //         $("#line-" + lineNum + "-msg").html("Call Blind Transferred (Accepted)");
-
-  //         updateLineScroll(lineNumber);
-
-  //         session.bye().catch(function (error) {
-  //           console.warn("Could not BYE after blind transfer:", error);
-  //         });
-  //         teardownSession(lineObj);
-  //       },
-  //       onReject: function (sip) {
-  //         console.warn("REFER rejected:", sip);
-
-  //         session.data.transfer[transferId].accept.complete = false;
-  //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-  //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-  //         $("#line-" + lineNum + "-msg").html("Call Blind Failed!");
-
-  //         updateLineScroll(lineNumber);
-
-  //         // Session should still be up, so just allow them to try again
-  //       },
-  //     },
-  //   };
-  //   console.log("REFER: ", dstNo + "@" + SipDomain);
-  //   var referTo = SIP.UserAgent.makeURI("sip:" + dstNo.replace(/#/g, "%23") + "@" + SipDomain);
-  //   session.refer(referTo, transferOptions).catch(function (error) {
-  //     console.warn("Failed to REFER", error);
-  //   });
-
-  //   $("#line-" + lineNum + "-msg").html(lang.call_blind_transfered);
-
-  //   updateLineScroll(lineNumber);
-  // }
-  //
 
   /**
    * Attend Transfer Call Session

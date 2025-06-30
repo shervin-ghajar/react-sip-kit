@@ -17,17 +17,12 @@ export interface SipStoreStateType {
   buddies: Array<BuddyType>;
   selectedBuddy: Array<any>;
   selectedLine: Array<any>;
-  hasVideoDevice: boolean;
-  hasAudioDevice: boolean;
-  hasSpeakerDevice: boolean;
-  audioInputDevices: Array<any>;
-  videoInputDevices: Array<any>;
-  speakerDevices: Array<any>;
   lines: Array<LineType>;
   newLineNumber: number;
   SipUsername: string;
   SipDomain: string;
   audioBlobs: AudioBlobs['audioBlobs'];
+  devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
@@ -117,7 +112,7 @@ export interface SipSessionDataType {
 }
 
 export interface SipSessionTransferType {
-  type: string;
+  type: 'Attended' | 'Blind';
   to: number;
   transferTime: string;
   disposition: string;
@@ -153,4 +148,13 @@ export interface BuddyType {
   SubscribeUser: string;
   AllowAutoDelete: boolean;
   Pinned: boolean;
+}
+/* -------------------------------------------------------------------------- */
+interface DevicesInfoType {
+  hasVideoDevice: boolean;
+  hasAudioDevice: boolean;
+  hasSpeakerDevice: boolean;
+  audioInputDevices: any[];
+  videoInputDevices: any[];
+  speakerDevices: any[];
 }

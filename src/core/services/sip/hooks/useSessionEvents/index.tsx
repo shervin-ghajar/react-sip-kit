@@ -452,9 +452,11 @@ export const useSessionEvents = () => {
   ) {
     if (sdh) {
       if (sdh.peerConnection) {
-        // console.log(sdh);
+        console.log(222, 'onSessionDescriptionHandlerCreated', sdh, {
+          peerConnection: sdh.peerConnection,
+        });
         sdh.peerConnection.ontrack = function (event) {
-          console.log(event);
+          console.log(222, { event });
           onTrackAddedEvent(lineObj, includeVideo);
         };
         // sdh.peerConnectionDelegate = {
@@ -474,6 +476,7 @@ export const useSessionEvents = () => {
   function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
     const { updateLine } = getSipStore();
     // Gets remote tracks
+    console.log('onTrackAddedEvent');
     const session = lineObj.SipSession;
     if (!session) return;
     // TODO: look at detecting video, so that UI switches to audio/video automatically.

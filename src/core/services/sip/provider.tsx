@@ -13,21 +13,23 @@ import React, { createContext, useCallback, useContext, useEffect } from 'react'
 import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
-let userAgent: SipUserAgent;
 export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
   const {
-    hasAudioDevice,
-    hasSpeakerDevice,
-    hasVideoDevice,
-    audioInputDevices,
-    videoInputDevices,
-    speakerDevices,
+    userAgent,
+    devicesInfo: {
+      hasAudioDevice,
+      hasSpeakerDevice,
+      hasVideoDevice,
+      audioInputDevices,
+      videoInputDevices,
+      speakerDevices,
+    },
     setSipStore,
   } = useSipStore();
   const store = useSipStore();
   const methods = useSessionMethods();
   const events = useSessionEvents();
-
+  console.log({ isRegistered: userAgent });
   useEffect(() => {
     setSipStore({ config });
     (async function () {
@@ -44,9 +46,6 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
 
     // User Connected Devices Detection
     initiateDetectedDevices();
-    window.setInterval(function () {
-      initiateDetectedDevices();
-    }, 10000);
 
     // Create user agent for SIP connection
     createUserAgent();
@@ -63,14 +62,11 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       },
       authorizationUsername: config.username,
       authorizationPassword: config.password,
-      autoStart: false,
-      autoStop: true,
       delegate: {
         onInvite: methods.receiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
-
     // Setting custom properties and methods for userAgent
     ua.isRegistered = function () {
       return ua && ua.registerer && ua.registerer.state === RegistererState.Registered;
@@ -88,7 +84,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     ua.transport.onConnect = () => {
       onTransportConnected(ua);
     };
-    ua.transport.onDisconnect = (error: any) => {
+    ua.transport.onDisconnect = (error?: Error) => {
       if (error) {
         onTransportConnectError(error, ua);
       } else {
@@ -103,6 +99,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       extraContactHeaderParams: [],
       refreshFrequency: 75, // Determines when a re-REGISTER request is sent. The value should be specified as a percentage of the expiration time (between 50 and 99).
     };
+    console.log(111, { ua });
 
     ua.registerer = new Registerer(ua, RegistererOptions);
     console.log('Creating Registerer... Done');
@@ -126,6 +123,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       }
     });
     ua.start();
+    console.log(111, { ua });
     Object.defineProperty(ua, '_key', {
       enumerable: false,
       value: 1,
@@ -136,6 +134,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
 
   // Detect devices
   const initiateDetectedDevices = () => {
+    //TODO useHook
     detectDevices((deviceInfos) => {
       console.log({ deviceInfos });
       if (!deviceInfos) return;
@@ -160,12 +159,14 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
         }
       }
       setSipStore({
-        hasAudioDevice: tmpHasAudioDevice,
-        audioInputDevices: tmpAudioInputDevices,
-        hasSpeakerDevice: tmpHasSpeakerDevice,
-        speakerDevices: tmpSpeakerDevices,
-        hasVideoDevice: tmpHasVideoDevice,
-        videoInputDevices: tmpVideoInputDevices,
+        devicesInfo: {
+          hasAudioDevice: tmpHasAudioDevice,
+          audioInputDevices: tmpAudioInputDevices,
+          hasSpeakerDevice: tmpHasSpeakerDevice,
+          speakerDevices: tmpSpeakerDevices,
+          hasVideoDevice: tmpHasVideoDevice,
+          videoInputDevices: tmpVideoInputDevices,
+        },
       });
     });
   };

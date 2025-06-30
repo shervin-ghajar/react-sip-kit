@@ -20,7 +20,7 @@ export function onRegistered(userAgent: SipUserAgent) {
     console.log('Registered!');
 
     // Start Subscribe Loop
-    window.setTimeout(function () {
+    setTimeout(function () {
       SubscribeAll(clonedUserAgent);
     }, 500);
 

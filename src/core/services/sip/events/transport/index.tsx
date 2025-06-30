@@ -7,8 +7,7 @@ import clone from 'clone';
 /* -------------------------------------------------------------------------- */
 export function onTransportConnected(userAgent?: SipUserAgent) {
   console.log('Connected to Web Socket!');
-  const { userAgent: storeUserAgent } = getSipStore();
-  const clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent) return;
   // Reset the ReconnectionAttempts
   clonedUserAgent.isReRegister = false;
@@ -33,8 +32,7 @@ export function onTransportConnected(userAgent?: SipUserAgent) {
 
 export function onTransportConnectError(error: any, userAgent?: SipUserAgent) {
   console.warn('WebSocket Connection Failed:', error);
-  const { userAgent: storeUserAgent } = getSipStore();
-  const clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent) return;
   // We set this flag here so that the re-register attempts are fully completed.
   clonedUserAgent.isReRegister = false;
@@ -61,10 +59,8 @@ export function onTransportDisconnected(userAgent: SipUserAgent) {
 }
 
 export function ReconnectTransport(userAgent?: SipUserAgent) {
-  if (userAgent == null) return;
-
-  const { userAgent: storeUserAgent } = getSipStore();
-  const clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
+  if (!clonedUserAgent) return;
 
   clonedUserAgent.registering = false; // if the transport was down, you will not be registered
   if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
@@ -74,7 +70,7 @@ export function ReconnectTransport(userAgent?: SipUserAgent) {
   }
   console.log('Reconnect Transport...');
 
-  window.setTimeout(function () {
+  setTimeout(function () {
     console.log('ReConnecting to WebSocket...');
 
     if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
