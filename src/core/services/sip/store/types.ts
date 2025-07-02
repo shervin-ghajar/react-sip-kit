@@ -28,12 +28,12 @@ export interface SipStoreStateType {
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
   addLine: (line: LineType) => void;
   updateLine: (line: LineType) => void;
-  removeLine: (lineNum: LineType['LineNumber']) => void;
+  removeLine: (lineNum: LineType['lineNumber']) => void;
   addBuddy: (buddy: BuddyType) => void;
   // Getter
   findBuddyByDid: (did: string) => BuddyType | null;
   findBuddyByIdentity: (indentity: BuddyType['identity']) => BuddyType | null;
-  findLineByNumber: (lineNum: LineType['LineNumber']) => LineType | null;
+  findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
   getSession: (did: string) => SipSessionType | null;
   getSessions: () => SipUserAgent['sessions'] | null;
   // Utils
@@ -65,12 +65,12 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
-  LineNumber: number;
+  lineNumber: number;
   DisplayName: string;
   DisplayNumber: string;
   IsSelected: boolean;
   BuddyObj: BuddyType | null;
-  SipSession: SipInvitationType | SipInviterType | null;
+  sipSession: SipInvitationType | SipInviterType | null;
   LocalSoundMeter: any;
   RemoteSoundMeter: any;
 }

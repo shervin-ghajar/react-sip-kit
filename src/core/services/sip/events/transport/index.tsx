@@ -46,7 +46,7 @@ export function onTransportConnectError(error: any, userAgent?: SipUserAgent) {
     // I know!!!
   }
 
-  ReconnectTransport(clonedUserAgent);
+  reconnectTransport(clonedUserAgent);
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
 export function onTransportDisconnected(userAgent: SipUserAgent) {
@@ -58,7 +58,7 @@ export function onTransportDisconnected(userAgent: SipUserAgent) {
   setSipStore({ userAgent: clonedUserAgent });
 }
 
-export function ReconnectTransport(userAgent?: SipUserAgent) {
+export function reconnectTransport(userAgent?: SipUserAgent) {
   const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent) return;
 
@@ -71,10 +71,11 @@ export function ReconnectTransport(userAgent?: SipUserAgent) {
   console.log('Reconnect Transport...');
 
   setTimeout(function () {
-    console.log('ReConnecting to WebSocket...');
+    console.log('ReConnecting to WebSocket...', { timeout: TransportReconnectionTimeout * 1000 });
 
     if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
       // Already Connected
+      console.log('Transport Already Connected...');
       onTransportConnected(clonedUserAgent);
       return;
     } else {
@@ -82,9 +83,8 @@ export function ReconnectTransport(userAgent?: SipUserAgent) {
       clonedUserAgent.reconnect().catch(function (error) {
         clonedUserAgent.transport.attemptingReconnection = false;
         console.warn('Failed to reconnect', error);
-
         // Try Again
-        ReconnectTransport(clonedUserAgent);
+        reconnectTransport(clonedUserAgent);
       });
     }
   }, TransportReconnectionTimeout * 1000);

@@ -1,11 +1,11 @@
 import { BuddyType, LineType, SipInvitationType } from '../store/types';
 
 export class Line implements LineType {
-  LineNumber: number; // Unique identifier for the line
+  lineNumber: number; // Unique identifier for the line
   DisplayName: string; // Display name of the caller/callee
   DisplayNumber: string; // DID or number associated with the call
   BuddyObj: BuddyType | null; // Associated buddy object (if any)
-  SipSession: SipInvitationType | null; // SIP.js Session object for the call
+  sipSession: SipInvitationType | null; // SIP.js Session object for the call
   LocalSoundMeter: any; // Placeholder for local audio level meter (if applicable)
   RemoteSoundMeter: any; // Placeholder for remote audio level meter (if applicable)
   IsSelected: boolean;
@@ -17,12 +17,12 @@ export class Line implements LineType {
     buddyObj: BuddyType | null = null,
     sipSession: SipInvitationType | null = null,
   ) {
-    this.LineNumber = lineNumber;
+    this.lineNumber = lineNumber;
     this.DisplayName = displayName;
     this.DisplayNumber = displayNumber;
     this.IsSelected = false;
     this.BuddyObj = buddyObj;
-    this.SipSession = sipSession;
+    this.sipSession = sipSession;
     this.LocalSoundMeter = null;
     this.RemoteSoundMeter = null;
   }

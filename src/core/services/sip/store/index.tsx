@@ -38,15 +38,15 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   addLine: (newLine: LineType) => set((state) => ({ ...state, lines: [...state.lines, newLine] })),
   updateLine: (updatedLine: LineType) => {
     const updatedLines = get().lines.map((line) => {
-      if (line.LineNumber === updatedLine.LineNumber) return { ...updatedLine };
+      if (line.lineNumber === updatedLine.lineNumber) return { ...updatedLine };
       return line;
     });
     set((state) => ({ ...state, lines: updatedLines }));
   },
-  removeLine: (lineNumber: LineType['LineNumber']) => {
+  removeLine: (lineNumber: LineType['lineNumber']) => {
     console.log('removeLine');
     const lines = get().lines;
-    const filteredLines = lines.filter((line) => line.LineNumber !== lineNumber);
+    const filteredLines = lines.filter((line) => line.lineNumber !== lineNumber);
     set((state) => ({ ...state, lines: filteredLines }));
   },
   addBuddy: (newBuddy: BuddyType) =>
@@ -68,7 +68,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     return get().buddies.find((buddy) => buddy.identity === identity) ?? null;
   },
   findLineByNumber: (lineNumber) => {
-    return get().lines.find((line) => line.LineNumber === lineNumber) ?? null;
+    return get().lines.find((line) => line.lineNumber === lineNumber) ?? null;
   },
   getSession: (buddyId) => {
     const { userAgent } = get();

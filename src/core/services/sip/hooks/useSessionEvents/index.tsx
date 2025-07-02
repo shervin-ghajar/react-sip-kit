@@ -37,7 +37,7 @@ export const useSessionEvents = () => {
         }
       }
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     session.data.terminateby = 'them';
     session.data.reasonCode = temp_cause;
@@ -58,7 +58,8 @@ export const useSessionEvents = () => {
   // // Both Incoming an outgoing INVITE
   function onInviteAccepted(lineObj: LineType, includeVideo: boolean, response?: IncomingResponse) {
     // Call in progress
-    const session = lineObj.SipSession;
+    console.log('onInviteAccepted');
+    const session = lineObj.sipSession;
     if (!session) return;
     if (session.data.earlyMedia) {
       session.data.earlyMedia.pause();
@@ -78,13 +79,14 @@ export const useSessionEvents = () => {
       const localVideoStream = new MediaStream();
       const pc = session.sessionDescriptionHandler.peerConnection;
       pc.getSenders().forEach(function (sender) {
-        if (sender.track && sender.track.kind == 'video') {
+        if (sender.track && sender.track.kind === 'video') {
           localVideoStream.addTrack(sender.track);
         }
       });
       const localVideo = document.getElementById(
-        `line-${lineObj.LineNumber}-localVideo`,
+        `line-${lineObj.lineNumber}-localVideo`,
       ) as HTMLVideoElement;
+      console.log('onInviteAccepted', { localVideo });
       if (localVideo) {
         localVideo.srcObject = localVideoStream;
         localVideo.onloadedmetadata = function (e) {
@@ -95,7 +97,7 @@ export const useSessionEvents = () => {
       // Apply Call Bandwidth Limits
       if (MaxVideoBandwidth > -1) {
         pc.getSenders().forEach(function (sender) {
-          if (sender.track && sender.track.kind == 'video') {
+          if (sender.track && sender.track.kind === 'video') {
             const parameters = sender.getParameters();
             if (!parameters.encodings) parameters.encodings = [{}];
             parameters.encodings[0].maxBitrate = MaxVideoBandwidth * 1000;
@@ -188,7 +190,7 @@ export const useSessionEvents = () => {
     const { updateLine } = getSipStore();
     const audioBlobs = useSipStore().audioBlobs;
     console.log('Call Progress:', response.message.statusCode);
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     // Provisional 1xx
     // response.message.reasonPhrase
@@ -253,7 +255,7 @@ export const useSessionEvents = () => {
     callback?: CallbackFunction<any>,
   ) {
     console.log('INVITE Rejected:', response.message.reasonPhrase);
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     session.data.terminateby = 'them';
     session.data.reasonCode = response.message.statusCode;
@@ -273,10 +275,10 @@ export const useSessionEvents = () => {
     callback?: CallbackFunction<any>,
   ) {
     // They Ended the call
-    if (!lineObj?.SipSession) return;
-    lineObj.SipSession.data.terminateby = 'them';
-    lineObj.SipSession.data.reasonCode = 16;
-    lineObj.SipSession.data.reasonText = 'Normal Call clearing';
+    if (!lineObj?.sipSession) return;
+    lineObj.sipSession.data.terminateby = 'them';
+    lineObj.sipSession.data.reasonCode = 16;
+    lineObj.sipSession.data.reasonText = 'Normal Call clearing';
 
     response.accept(); // Send OK
 
@@ -286,7 +288,7 @@ export const useSessionEvents = () => {
   function onSessionReinvited(lineObj: LineType, response: IncomingRequestMessage) {
     // This may be used to include video streams
     const sdp = response.body;
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     // All the possible streams will get
     // Note, this will probably happen after the streams are added
@@ -332,7 +334,7 @@ export const useSessionEvents = () => {
         channels: Array<any>;
       };
 
-      const session = lineObj.SipSession;
+      const session = lineObj.sipSession;
       if (!session) return;
       if (!session.data) return;
       if (!session.data.ConfbridgeChannels) session.data.ConfbridgeChannels = [];
@@ -477,7 +479,7 @@ export const useSessionEvents = () => {
     const { updateLine } = getSipStore();
     // Gets remote tracks
     console.log('onTrackAddedEvent');
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     // TODO: look at detecting video, so that UI switches to audio/video automatically.
 
@@ -508,9 +510,9 @@ export const useSessionEvents = () => {
     // Attach Audio Stream
     if (remoteAudioStream.getAudioTracks().length > 0) {
       const remoteAudio = document.getElementById(
-        `line-${lineObj.LineNumber}-remoteAudio`,
+        `line-${lineObj.lineNumber}-remoteAudio`,
       ) as HTMLAudioElement;
-      remoteAudio.setAttribute('id', `line-${lineObj.LineNumber}-remoteAudio`);
+      remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
       remoteAudio.srcObject = remoteAudioStream;
 
       remoteAudio.onloadedmetadata = () => {
@@ -526,7 +528,7 @@ export const useSessionEvents = () => {
 
     // Attach Video Stream
     if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
-      const videoContainerId = `line-${lineObj.LineNumber}-remoteVideos`;
+      const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
       let videoContainer = document.getElementById(videoContainerId);
 
       if (!videoContainer) return;
@@ -539,7 +541,7 @@ export const useSessionEvents = () => {
         thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
         thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
         const videoElement = document.createElement('video');
-        videoElement.id = `line-${lineObj.LineNumber}-video-${index}`;
+        videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
         videoElement.srcObject = thisRemoteVideoStream;
         videoElement.autoplay = true;
         videoElement.playsInline = true;
@@ -592,7 +594,7 @@ export const useSessionEvents = () => {
 
           // Attach Audio Stream
           const remoteAudio = document.createElement('audio');
-          remoteAudio.setAttribute('id', `line-${lineObj.LineNumber}-transfer-remoteAudio`);
+          remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-transfer-remoteAudio`);
           remoteAudio.srcObject = remoteAudioStream;
           remoteAudio.onloadedmetadata = function (e) {
             if (typeof remoteAudio.sinkId !== 'undefined' && session?.data?.audioOutputDevice) {
@@ -616,7 +618,7 @@ export const useSessionEvents = () => {
               thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
               thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
               thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-              remoteVideo.id = `line-${lineObj.LineNumber}-video-${index}`;
+              remoteVideo.id = `line-${lineObj.lineNumber}-video-${index}`;
               remoteVideo.srcObject = thisRemoteVideoStream;
               remoteVideo.autoplay = true;
               remoteVideo.playsInline = true;

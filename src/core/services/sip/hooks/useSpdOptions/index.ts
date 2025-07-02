@@ -2,10 +2,13 @@ import {
   AutoGainControl,
   EchoCancellation,
   InviteExtraHeaders,
+  maxFrameRate,
   NoiseSuppression,
+  videoAspectRatio,
+  videoHeight,
 } from '../../configs';
 import { useSipStore } from '../../store';
-import { getAudioSrcID } from '../../utils';
+import { getAudioSrcID, getVideoSrcID } from '../../utils';
 import { SPDOptionsType } from '../useSessionMethods/types';
 
 export const useSpdOptions = () => {
@@ -95,7 +98,7 @@ export const useSpdOptions = () => {
       }
       options.answerAudioSpdOptions({ option });
       // Added to the SIP Headers
-      if (InviteExtraHeaders && InviteExtraHeaders != '' && InviteExtraHeaders != '{}') {
+      if (InviteExtraHeaders && InviteExtraHeaders !== '' && InviteExtraHeaders !== '{}') {
         try {
           const inviteExtraHeaders = JSON.parse(InviteExtraHeaders);
           for (const [key, value] of Object.entries(inviteExtraHeaders)) {
@@ -107,6 +110,86 @@ export const useSpdOptions = () => {
           }
         } catch (e) {}
       }
+      return option;
+    },
+    answerVideoSpdOptions: function ({ option: defaultOption }: { option?: SPDOptionsType } = {}) {
+      const option: SPDOptionsType = defaultOption ?? {
+        sessionDescriptionHandlerOptions: {
+          constraints: {
+            audio: { deviceId: 'default' },
+            video: { deviceId: 'default' },
+          },
+        },
+      };
+      const supportedConstraints = getSupportedConstraints();
+
+      // Configure Audio
+      options.answerAudioSpdOptions({ option });
+
+      // Configure Video
+      const currentVideoDevice = getVideoSrcID();
+      if (typeof option.sessionDescriptionHandlerOptions.constraints.video !== 'object') return; // type checking assurance
+      if (currentVideoDevice != 'default') {
+        let confirmedVideoDevice = videoDeviceConfirmation(currentVideoDevice);
+        if (confirmedVideoDevice) {
+          option.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
+            exact: currentVideoDevice,
+          };
+        } else {
+          console.warn(
+            'The video device you used before is no longer available, default settings applied.',
+          );
+          localStorage.setItem('VideoSrcId', 'default'); // resets for later and subsequent calls
+        }
+      }
+      // Add additional Constraints
+      if (supportedConstraints.frameRate && !!maxFrameRate) {
+        option.sessionDescriptionHandlerOptions.constraints.video.frameRate = maxFrameRate;
+      }
+      if (supportedConstraints.height && !!videoHeight) {
+        option.sessionDescriptionHandlerOptions.constraints.video.height = videoHeight;
+      }
+      if (supportedConstraints.aspectRatio && !!videoAspectRatio) {
+        option.sessionDescriptionHandlerOptions.constraints.video.aspectRatio = videoAspectRatio;
+      }
+      return option;
+    },
+    makeVideoSpdOptions: function ({ extraHeaders }: { extraHeaders?: string[] }) {
+      const option: SPDOptionsType & {
+        earlyMedia: boolean;
+        extraHeaders?: string[];
+      } = {
+        earlyMedia: true,
+        sessionDescriptionHandlerOptions: {
+          constraints: {
+            audio: { deviceId: 'default' },
+            video: { deviceId: 'default' },
+          },
+        },
+      };
+
+      // Configure Audio & Video
+      options.answerVideoSpdOptions({ option });
+
+      // Extra Headers
+      if (extraHeaders) {
+        option.extraHeaders = extraHeaders;
+      } else {
+        option.extraHeaders = [];
+      }
+      if (InviteExtraHeaders && InviteExtraHeaders !== '' && InviteExtraHeaders !== '{}') {
+        try {
+          const inviteExtraHeaders = JSON.parse(InviteExtraHeaders);
+          for (const [key, value] of Object.entries(inviteExtraHeaders)) {
+            if (value == '') {
+              // This is a header, must be format: "Field: Value"
+            } else {
+              option.extraHeaders.push(key + ': ' + value);
+            }
+          }
+        } catch (e) {}
+      }
+
       return option;
     },
   };

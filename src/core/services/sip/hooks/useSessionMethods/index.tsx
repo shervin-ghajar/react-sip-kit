@@ -62,7 +62,7 @@ export const useSessionMethods = () => {
     countSessions,
     userAgent,
     audioBlobs,
-    devicesInfo: { hasAudioDevice, hasVideoDevice, audioInputDevices, videoInputDevices },
+    devicesInfo: { hasAudioDevice, hasVideoDevice },
   } = useSipStore();
 
   const {
@@ -78,7 +78,8 @@ export const useSessionMethods = () => {
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
   } = useSessionEvents();
-  const { answerAudioSpdOptions, makeAudioSpdOptions } = useSpdOptions();
+  const { answerAudioSpdOptions, makeAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
+    useSpdOptions();
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
@@ -99,22 +100,22 @@ export const useSessionMethods = () => {
     // Create or update buddy based on DID
     const buddyObj = findBuddyByDid(did); // Find or create buddy
     const lineObj = new Line(newLineNumber, callerID, did, buddyObj);
-    lineObj.SipSession = session as SipInvitationType;
-    lineObj.SipSession.data = {};
-    lineObj.SipSession.data.line = lineObj.LineNumber;
-    lineObj.SipSession.data.calldirection = 'inbound';
-    lineObj.SipSession.data.terminateby = '';
-    lineObj.SipSession.data.src = did;
-    lineObj.SipSession.data.buddyId = lineObj?.BuddyObj?.identity;
-    lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
-    lineObj.SipSession.data.earlyReject = false;
+    lineObj.sipSession = session as SipInvitationType;
+    lineObj.sipSession.data = {};
+    lineObj.sipSession.data.line = lineObj.lineNumber;
+    lineObj.sipSession.data.calldirection = 'inbound';
+    lineObj.sipSession.data.terminateby = '';
+    lineObj.sipSession.data.src = did;
+    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
+    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+    lineObj.sipSession.data.earlyReject = false;
     // Detect Video
-    lineObj.SipSession.data.withvideo = false;
-    if (EnableVideoCalling == true && lineObj.SipSession.request.body) {
+    lineObj.sipSession.data.withvideo = false;
+    if (EnableVideoCalling == true && lineObj.sipSession.request.body) {
       // Asterisk 13 PJ_SIP always sends m=video if endpoint has video codec,
       // even if original invite does not specify video.
-      if (lineObj.SipSession.request.body.indexOf('m=video') > -1) {
-        lineObj.SipSession.data.withvideo = true;
+      if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
+        lineObj.sipSession.data.withvideo = true;
         // The invite may have video, but the buddy may be a contact
         if (buddyObj?.type == 'contact') {
           // videoInvite = false;
@@ -137,7 +138,7 @@ export const useSessionMethods = () => {
       }
     }
     // Session Delegates
-    lineObj.SipSession.delegate = {
+    lineObj.sipSession.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
@@ -157,7 +158,7 @@ export const useSessionMethods = () => {
       },
     };
     // incomingInviteRequestDelegate
-    lineObj.SipSession.incomingInviteRequest.delegate = {
+    lineObj.sipSession.incomingInviteRequest.delegate = {
       onCancel: function (sip) {
         console.log('onInviteCancel');
         onInviteCancel(lineObj, sip, () => teardownSession(lineObj));
@@ -171,8 +172,8 @@ export const useSessionMethods = () => {
         console.log('Buddy is allowed to call while you are on DND');
       } else {
         console.log('Do Not Disturb Enabled, rejecting call.');
-        lineObj.SipSession.data.earlyReject = true;
-        rejectCall(lineObj.LineNumber);
+        lineObj.sipSession.data.earlyReject = true;
+        rejectCall(lineObj.lineNumber);
         return;
       }
     }
@@ -181,8 +182,8 @@ export const useSessionMethods = () => {
     if (CurrentCalls >= 1) {
       if (CallWaitingEnabled == false || CallWaitingEnabled == 'disabled') {
         console.log('Call Waiting Disabled, rejecting call.');
-        lineObj.SipSession.data.earlyReject = true;
-        rejectCall(lineObj.LineNumber);
+        lineObj.sipSession.data.earlyReject = true;
+        rejectCall(lineObj.lineNumber);
         return;
       }
     }
@@ -252,10 +253,10 @@ export const useSessionMethods = () => {
           // In order to ensure video call compatibility (i.e. the recipient must have their web cam in, and working)
           // The NULL video should be configured
           // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
-          if (lineObj?.SipSession?.data.withvideo) {
-            answerVideoSession(lineObj.LineNumber);
+          if (lineObj?.sipSession?.data.withvideo) {
+            answerVideoSession(lineObj.lineNumber);
           } else {
-            answerAudioSession(lineObj.LineNumber);
+            answerAudioSession(lineObj.lineNumber);
           }
         }, answerTimeout);
 
@@ -288,7 +289,7 @@ export const useSessionMethods = () => {
     //     const inComingCallNotification = new Notification(lang.incoming_call, noticeOptions);
     //     inComingCallNotification.onclick = function (event) {
     //       const lineNo = lineObj.LineNumber;
-    //       const videoInvite = lineObj.SipSession.data.withvideo;
+    //       const videoInvite = lineObj.sipSession.data.withvideo;
     //       window.setTimeout(function () {
     //         // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
     //         if (videoInvite) {
@@ -335,7 +336,7 @@ export const useSessionMethods = () => {
               console.warn('Unable to play audio file.', e);
             });
         };
-        lineObj.SipSession.data.ringerObj = ringer;
+        lineObj.sipSession.data.ringerObj = ringer;
       } else {
         // Play Ring Tone
         console.log('Audio:', audioBlobs.Ringtone.url, audioBlobs.Ringtone);
@@ -363,7 +364,7 @@ export const useSessionMethods = () => {
               console.warn('Unable to play audio file.', e);
             });
         };
-        lineObj.SipSession.data.ringerObj = ringer;
+        lineObj.sipSession.data.ringerObj = ringer;
       }
     }
     addLine(lineObj);
@@ -374,7 +375,7 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function answerAudioSession(lineNumber: LineType['LineNumber']) {
+  function answerAudioSession(lineNumber: LineType['lineNumber']) {
     // Check vitals
     if (!hasAudioDevice) {
       alert('lang.alert_no_microphone');
@@ -386,7 +387,7 @@ export const useSessionMethods = () => {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session || session instanceof Inviter) return;
     // Stop the ringtone
     if (session.data.ringerObj) {
@@ -450,21 +451,21 @@ export const useSessionMethods = () => {
     const targetURI = UserAgent.makeURI(
       'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + config.domain,
     ) as URI;
-    lineObj.SipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
-    lineObj.SipSession.data = {};
-    lineObj.SipSession.data.line = lineObj.LineNumber;
-    lineObj.SipSession.data.buddyId = lineObj?.BuddyObj?.identity;
-    lineObj.SipSession.data.calldirection = 'outbound';
-    lineObj.SipSession.data.dst = dialledNumber;
-    lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
-    lineObj.SipSession.data.videoSourceDevice = null;
-    lineObj.SipSession.data.audioSourceDevice = getAudioSrcID();
-    lineObj.SipSession.data.audioOutputDevice = getAudioOutputID();
-    lineObj.SipSession.data.terminateby = 'them';
-    lineObj.SipSession.data.withvideo = false;
-    lineObj.SipSession.data.earlyReject = false;
-    lineObj.SipSession.isOnHold = false;
-    lineObj.SipSession.delegate = {
+    lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
+    lineObj.sipSession.data = {};
+    lineObj.sipSession.data.line = lineObj.lineNumber;
+    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
+    lineObj.sipSession.data.calldirection = 'outbound';
+    lineObj.sipSession.data.dst = dialledNumber;
+    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+    lineObj.sipSession.data.videoSourceDevice = null;
+    lineObj.sipSession.data.audioSourceDevice = getAudioSrcID();
+    lineObj.sipSession.data.audioOutputDevice = getAudioOutputID();
+    lineObj.sipSession.data.terminateby = 'them';
+    lineObj.sipSession.data.withvideo = false;
+    lineObj.sipSession.data.earlyReject = false;
+    lineObj.sipSession.isOnHold = false;
+    lineObj.sipSession.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
@@ -510,7 +511,7 @@ export const useSessionMethods = () => {
         },
       },
     };
-    lineObj.SipSession.invite(inviterOptions).catch(function (e) {
+    lineObj.sipSession.invite(inviterOptions).catch(function (e) {
       console.warn('Failed to send INVITE:', e);
     });
     // updateLine(lineObj);
@@ -527,7 +528,7 @@ export const useSessionMethods = () => {
     // updateLineScroll(lineObj.LineNumber);
 
     // // Custom Web hook
-    // if (typeof web_hook_on_invite !== 'undefined') web_hook_on_invite(lineObj.SipSession);
+    // if (typeof web_hook_on_invite !== 'undefined') web_hook_on_invite(lineObj.sipSession);
   }
 
   /**
@@ -535,13 +536,13 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function answerVideoSession(lineNumber: LineType['LineNumber']) {
+  function answerVideoSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session || session instanceof Inviter) return;
     // Stop the ringtone
     if (session.data.ringerObj) {
@@ -557,84 +558,7 @@ export const useSessionMethods = () => {
     }
 
     // Start SIP handling
-    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-    const spdOptions: SPDOptionsType = {
-      sessionDescriptionHandlerOptions: {
-        constraints: {
-          audio: { deviceId: 'default' },
-          video: { deviceId: 'default' },
-        },
-      },
-    };
-
-    // Configure Audio
-    const currentAudioDevice = getAudioSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-    if (currentAudioDevice != 'default') {
-      let confirmedAudioDevice = false;
-      for (let i = 0; i < audioInputDevices.length; ++i) {
-        if (currentAudioDevice == audioInputDevices[i].deviceId) {
-          confirmedAudioDevice = true;
-          break;
-        }
-      }
-      if (confirmedAudioDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-          exact: currentAudioDevice,
-        };
-      } else {
-        console.warn(
-          'The audio device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('AudioSrcId', 'default');
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.autoGainControl) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        AutoGainControl;
-    }
-    if (supportedConstraints.echoCancellation) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        EchoCancellation;
-    }
-    if (supportedConstraints.noiseSuppression) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        NoiseSuppression;
-    }
-
-    // Configure Video
-    const currentVideoDevice = getVideoSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video !== 'object') return; // type checking assurance
-    if (currentVideoDevice != 'default') {
-      let confirmedVideoDevice = false;
-      for (let i = 0; i < videoInputDevices.length; ++i) {
-        if (currentVideoDevice == videoInputDevices[i].deviceId) {
-          confirmedVideoDevice = true;
-          break;
-        }
-      }
-      if (confirmedVideoDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
-          exact: currentVideoDevice,
-        };
-      } else {
-        console.warn(
-          'The video device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('VideoSrcId', 'default'); // resets for later and subsequent calls
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.frameRate && maxFrameRate != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.frameRate = maxFrameRate;
-    }
-    if (supportedConstraints.height && videoHeight != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.height = videoHeight;
-    }
-    if (supportedConstraints.aspectRatio && videoAspectRatio != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.aspectRatio = videoAspectRatio;
-    }
+    const spdOptions = answerVideoSpdOptions();
 
     // Save Devices
     session.data.withvideo = true;
@@ -684,107 +608,8 @@ export const useSessionMethods = () => {
       return;
     }
 
-    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-    const spdOptions: SPDOptionsType = {
-      earlyMedia: true,
-      sessionDescriptionHandlerOptions: {
-        constraints: {
-          audio: { deviceId: 'default' },
-          video: { deviceId: 'default' },
-        },
-      },
-    };
-
-    // Configure Audio
-    const currentAudioDevice = getAudioSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-    if (currentAudioDevice != 'default') {
-      let confirmedAudioDevice = false;
-      for (let i = 0; i < audioInputDevices.length; ++i) {
-        if (currentAudioDevice == audioInputDevices[i].deviceId) {
-          confirmedAudioDevice = true;
-          break;
-        }
-      }
-      if (confirmedAudioDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-          exact: currentAudioDevice,
-        };
-      } else {
-        console.warn(
-          'The audio device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('AudioSrcId', 'default');
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.autoGainControl) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        AutoGainControl;
-    }
-    if (supportedConstraints.echoCancellation) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        EchoCancellation;
-    }
-    if (supportedConstraints.noiseSuppression) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        NoiseSuppression;
-    }
-
-    // Configure Video
-    const currentVideoDevice = getVideoSrcID();
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video !== 'object') return; // type checking assurance
-
-    if (currentVideoDevice != 'default') {
-      let confirmedVideoDevice = false;
-      for (let i = 0; i < videoInputDevices.length; ++i) {
-        if (currentVideoDevice == videoInputDevices[i].deviceId) {
-          confirmedVideoDevice = true;
-          break;
-        }
-      }
-      if (confirmedVideoDevice) {
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
-          exact: currentVideoDevice,
-        };
-      } else {
-        console.warn(
-          'The video device you used before is no longer available, default settings applied.',
-        );
-        localStorage.setItem('VideoSrcId', 'default'); // resets for later and subsequent calls
-      }
-    }
-    // Add additional Constraints
-    if (supportedConstraints.frameRate && maxFrameRate != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.frameRate = maxFrameRate;
-    }
-    if (supportedConstraints.height && videoHeight != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.height = videoHeight;
-    }
-    if (supportedConstraints.aspectRatio && videoAspectRatio != '') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video.aspectRatio = videoAspectRatio;
-    }
-    // Extra Headers
-    if (extraHeaders) {
-      spdOptions.extraHeaders = extraHeaders;
-    } else {
-      spdOptions.extraHeaders = [];
-    }
-    if (InviteExtraHeaders && InviteExtraHeaders != '' && InviteExtraHeaders != '{}') {
-      try {
-        const inviteExtraHeaders = JSON.parse(InviteExtraHeaders);
-        for (const [key, value] of Object.entries(inviteExtraHeaders)) {
-          if (value == '') {
-            // This is a header, must be format: "Field: Value"
-          } else {
-            spdOptions.extraHeaders.push(key + ': ' + value);
-          }
-        }
-      } catch (e) {}
-    }
-
-    // $('#line-' + lineObj.LineNumber + '-msg').html(lang.starting_video_call);
-    // $('#line-' + lineObj.LineNumber + '-timer').show();
+    const spdOptions = makeVideoSpdOptions({ extraHeaders });
+    if (!spdOptions) return;
 
     const startTime = dayJs.utc();
 
@@ -796,22 +621,22 @@ export const useSessionMethods = () => {
     ) as URI;
     console.log('video', { spdOptions });
 
-    lineObj.SipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
-    lineObj.SipSession.data = {};
-    lineObj.SipSession.data.line = lineObj.LineNumber;
-    lineObj.SipSession.data.buddyId = lineObj?.BuddyObj?.identity;
-    lineObj.SipSession.data.calldirection = 'outbound';
-    lineObj.SipSession.data.dst = dialledNumber;
-    lineObj.SipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+    lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
+    lineObj.sipSession.data = {};
+    lineObj.sipSession.data.line = lineObj.lineNumber;
+    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
+    lineObj.sipSession.data.calldirection = 'outbound';
+    lineObj.sipSession.data.dst = dialledNumber;
+    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
 
-    lineObj.SipSession.data.videoSourceDevice = getVideoSrcID();
-    lineObj.SipSession.data.audioSourceDevice = getAudioSrcID();
-    lineObj.SipSession.data.audioOutputDevice = getAudioOutputID();
-    lineObj.SipSession.data.terminateby = 'them';
-    lineObj.SipSession.data.withvideo = true;
-    lineObj.SipSession.data.earlyReject = false;
-    lineObj.SipSession.isOnHold = false;
-    lineObj.SipSession.delegate = {
+    lineObj.sipSession.data.videoSourceDevice = getVideoSrcID();
+    lineObj.sipSession.data.audioSourceDevice = getAudioSrcID();
+    lineObj.sipSession.data.audioOutputDevice = getAudioOutputID();
+    lineObj.sipSession.data.terminateby = 'them';
+    lineObj.sipSession.data.withvideo = true;
+    lineObj.sipSession.data.earlyReject = false;
+    lineObj.sipSession.isOnHold = false;
+    lineObj.sipSession.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
@@ -850,7 +675,7 @@ export const useSessionMethods = () => {
         },
       },
     };
-    lineObj.SipSession.invite(inviterOptions).catch(function (e) {
+    lineObj.sipSession.invite(inviterOptions).catch(function (e) {
       console.warn('Failed to send INVITE:', e);
     });
     // updateLine(lineObj);
@@ -873,13 +698,13 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function rejectCall(lineNumber: LineType['LineNumber']) {
+  function rejectCall(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineNumber + ')');
       return;
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session || session instanceof Inviter) return;
     if (session.state == SessionState.Established) {
       session.bye().catch(function (e) {
@@ -980,12 +805,12 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function holdSession(lineNumber: LineType['LineNumber']) {
+  function holdSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null || lineObj.SipSession == null) return;
-    const session = lineObj.SipSession;
+    if (lineObj == null || lineObj.sipSession == null) return;
+    const session = lineObj.sipSession;
     if (session.isOnHold == true) {
-      console.log('Call is is already on hold:', lineNumber);
+      console.log('Call is already on hold:', lineNumber);
       return;
     }
     console.log('Putting Call on hold:', lineNumber);
@@ -1063,10 +888,10 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function unholdSession(lineNumber: LineType['LineNumber']) {
+  function unholdSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null || lineObj.SipSession == null) return;
-    const session = lineObj.SipSession;
+    if (lineObj == null || lineObj.sipSession == null) return;
+    const session = lineObj.sipSession;
     if (session.isOnHold == false) {
       console.log('Call is already off hold:', lineNumber);
       return;
@@ -1117,10 +942,6 @@ export const useSessionMethods = () => {
           session.isOnHold = false;
           console.log('Call is off hold:', lineNumber);
 
-          // $('#line-' + lineNum + '-btn-Hold').show();
-          // $('#line-' + lineNum + '-btn-Unhold').hide();
-          // $('#line-' + lineNum + '-msg').html(lang.call_in_progress);
-
           // Log Hold
           if (!session.data.hold) session.data.hold = [];
           session.data.hold.push({ event: 'unhold', eventTime: utcDateNow() });
@@ -1147,14 +968,14 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function muteSession(lineNumber: LineType['LineNumber']) {
+  function muteSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null || lineObj.SipSession == null) return;
+    if (lineObj == null || lineObj.sipSession == null) return;
 
     // $('#line-' + lineNum + '-btn-Unmute').show();
     // $('#line-' + lineNum + '-btn-Mute').hide();
 
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     const pc = session.sessionDescriptionHandler.peerConnection;
     pc.getSenders().forEach(function (RTCRtpSender) {
       if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
@@ -1186,14 +1007,14 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function unmuteSession(lineNumber: LineType['LineNumber']) {
+  function unmuteSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null || lineObj.SipSession == null) return;
+    if (lineObj == null || lineObj.sipSession == null) return;
 
     // $('#line-' + lineNum + '-btn-Unmute').hide();
     // $('#line-' + lineNum + '-btn-Mute').show();
 
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     const pc = session.sessionDescriptionHandler.peerConnection;
     pc.getSenders().forEach(function (RTCRtpSender) {
       if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
@@ -1229,10 +1050,10 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function cancelSession(lineNumber: LineType['LineNumber']) {
+  function cancelSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null || lineObj.SipSession == null) return;
-    const session = lineObj.SipSession;
+    if (lineObj == null || lineObj.sipSession == null) return;
+    const session = lineObj.sipSession;
     if (!(session instanceof Inviter)) return;
     session.data.terminateby = 'us';
     session.data.reasonCode = 0;
@@ -1242,7 +1063,7 @@ export const useSessionMethods = () => {
     if (session.state == SessionState.Initial || session.state == SessionState.Establishing) {
       session.cancel();
     } else {
-      console.warn('Session not in correct state for cancel.', lineObj.SipSession.state);
+      console.warn('Session not in correct state for cancel.', lineObj.sipSession.state);
       console.log('Attempting teardown : ' + lineNumber);
       teardownSession(lineObj);
     }
@@ -1253,13 +1074,13 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function endSession(lineNumber: LineType['LineNumber']) {
+  function endSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineNumber + ')');
       return;
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     switch (session.state) {
       case SessionState.Initial:
@@ -1311,9 +1132,9 @@ export const useSessionMethods = () => {
    * @returns
    */
   function teardownSession(lineObj: LineType) {
-    if (lineObj == null || lineObj.SipSession == null) return;
+    if (lineObj == null || lineObj.sipSession == null) return;
 
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (session.data.teardownComplete == true) return;
     session.data.teardownComplete = true; // Run this code only once
 
@@ -1406,14 +1227,14 @@ export const useSessionMethods = () => {
     //   if (session.data.earlyReject != true) {
     //     UpdateUI();
     //   }
-    removeLine(lineObj.LineNumber);
+    removeLine(lineObj.lineNumber);
   }
   /* -------------------------------- TRANSFER -------------------------------- */
   /**
    * Start Transfer Call Session
    * @param lineNumber
    */
-  function startTransferSession(lineNumber: LineType['LineNumber']) {
+  function startTransferSession(lineNumber: LineType['lineNumber']) {
     // if ($('#line-' + lineNum + '-btn-CancelConference').is(':visible')) { //TODO #SH
     //   CancelConference(lineNumber);
     //   return;
@@ -1445,14 +1266,14 @@ export const useSessionMethods = () => {
    * @param lineNumber
    * @returns
    */
-  function cancelTransferSession(lineNumber: LineType['LineNumber']) {
+  function cancelTransferSession(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
     console.log('cancelTransferSession', { lineObj });
-    if (lineObj == null || lineObj.SipSession == null) {
+    if (lineObj == null || lineObj.sipSession == null) {
       console.warn('Null line or session');
       return;
     }
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (session.data.childsession) {
       console.log('Child Transfer call detected:', session.data.childsession.state);
       session.data.childsession
@@ -1485,7 +1306,7 @@ export const useSessionMethods = () => {
    * @param transferLineNumber
    * @returns
    */
-  function attendedTransferSession(baseLine: LineType, transferLineNumber: LineType['LineNumber']) {
+  function attendedTransferSession(baseLine: LineType, transferLineNumber: LineType['lineNumber']) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
     const dstNo = String(transferLineNumber);
@@ -1496,12 +1317,12 @@ export const useSessionMethods = () => {
 
     let lineObj = baseLine;
     console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
-    if (!lineObj?.SipSession) {
+    if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
     }
 
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     if (!session.data.transfer) session.data.transfer = [];
     session.data.transfer.push({
@@ -1711,11 +1532,11 @@ export const useSessionMethods = () => {
   //   }
 
   //   var lineObj = FindLineByNumber(lineNumber);
-  //   if (lineObj == null || lineObj.SipSession == null) {
+  //   if (lineObj == null || lineObj.sipSession == null) {
   //     console.warn("Null line or session");
   //     return;
   //   }
-  //   var session = lineObj.SipSession;
+  //   var session = lineObj.sipSession;
 
   //   if (!session.data.transfer) session.data.transfer = [];
   //   session.data.transfer.push({
@@ -1792,7 +1613,7 @@ export const useSessionMethods = () => {
    */
   function cancelAttendedTransferSession(
     baseLine: LineType,
-    transferLineNumber: LineType['LineNumber'],
+    transferLineNumber: LineType['lineNumber'],
   ) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
@@ -1804,12 +1625,12 @@ export const useSessionMethods = () => {
 
     let lineObj = baseLine;
     console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
-    if (!lineObj?.SipSession) {
+    if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
     }
 
-    const session = lineObj.SipSession;
+    const session = lineObj.sipSession;
     if (!session) return;
     if (!session.data.transfer) return;
     session.data.transfer.forEach((transfer) => {

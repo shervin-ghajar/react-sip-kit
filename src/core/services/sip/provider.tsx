@@ -4,6 +4,7 @@ import {
   onTransportConnected,
   onTransportConnectError,
   onTransportDisconnected,
+  reconnectTransport,
 } from './events/transport';
 import { useSessionMethods, useSessionEvents } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
@@ -29,7 +30,10 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
   const store = useSipStore();
   const methods = useSessionMethods();
   const events = useSessionEvents();
-  console.log({ isRegistered: userAgent });
+
+  console.log({
+    userAgent,
+  });
   useEffect(() => {
     setSipStore({ config });
     (async function () {
@@ -99,14 +103,13 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       extraContactHeaderParams: [],
       refreshFrequency: 75, // Determines when a re-REGISTER request is sent. The value should be specified as a percentage of the expiration time (between 50 and 99).
     };
-    console.log(111, { ua });
 
     ua.registerer = new Registerer(ua, RegistererOptions);
     console.log('Creating Registerer... Done');
 
     ua.registerer.stateChange.addListener(function (newState) {
       console.log('User Agent Registration State:', newState);
-      console.log({ newState });
+      console.log({ 'SIP-STATUS': newState });
       switch (newState) {
         case RegistererState.Initial:
           // Nothing to do
@@ -123,11 +126,11 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       }
     });
     ua.start();
-    console.log(111, { ua });
     Object.defineProperty(ua, '_key', {
       enumerable: false,
       value: 1,
     });
+    console.log('createUserAgent', { ua });
     updateUserAgent(ua);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);

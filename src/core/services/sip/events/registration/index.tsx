@@ -39,7 +39,6 @@ export function onRegistered(userAgent: SipUserAgent) {
  * @param {string} cause Cause message. Unused
  **/
 export function onRegisterFailed(response: any, cause: any) {
-  //   Alert(lang.registration_failed + ':' + response, lang.registration_failed); //TODO
   const userAgent = getSipStore().userAgent;
   const clonedUserAgent = clone(userAgent);
 
@@ -51,7 +50,6 @@ export function onRegisterFailed(response: any, cause: any) {
  */
 export function onUnregistered(userAgent: SipUserAgent) {
   const clonedUserAgent = clone(userAgent);
-
   // We set this flag here so that the re-register attempts are fully completed.
   clonedUserAgent.isReRegister = false;
   setSipStore({ userAgent: clonedUserAgent });

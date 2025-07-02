@@ -4,9 +4,9 @@ import { LineType } from '../../store/types';
 /* -------------------------------------------------------------------------- */
 export function teardownSession(lineObj: LineType) {
   const { removeLine } = getSipStore();
-  if (lineObj == null || lineObj.SipSession == null) return;
+  if (lineObj == null || lineObj.sipSession == null) return;
 
-  const session = lineObj.SipSession;
+  const session = lineObj.sipSession;
   if (session.data.teardownComplete == true) return;
   session.data.teardownComplete = true; // Run this code only once
 
