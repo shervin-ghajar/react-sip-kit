@@ -1,5 +1,6 @@
+import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { SipConfig, SipUserAgent } from '../types';
+import { SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
 import {
   Invitation,
@@ -12,7 +13,7 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 export interface SipStoreStateType {
-  config: SipConfig;
+  configs: SipConfigs;
   userAgent?: SipUserAgent;
   buddies: Array<BuddyType>;
   selectedBuddy: Array<any>;

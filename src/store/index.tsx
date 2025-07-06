@@ -1,18 +1,14 @@
+import { defaultSipConfigs } from '../configs';
+import { SipConfigs, SipStorageConfig } from '../configs/types';
 import { AudioBlobs } from '../constructors';
+import { SipUserAgent } from '../types';
 import { BuddyType, LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
-  config: {
-    username: '',
-    password: '',
-    domain: '',
-    wssServer: '',
-    webSocketPort: '',
-    serverPath: '/ws',
-  },
+  configs: defaultSipConfigs,
   userAgent: undefined,
   buddies: [],
   selectedBuddy: [],
@@ -119,6 +115,20 @@ export const setSipStore = (state: Partial<SipStoreStateType>) => {
  */
 export const getSipStore = (): SipStoreStateType => {
   return useSipStore.getState();
+};
+/**
+ *
+ * Get sip store userAgent for none functional components
+ */
+export const getSipStoreUserAgent = (): SipStoreStateType['userAgent'] => {
+  return useSipStore.getState().userAgent;
+};
+/**
+ *
+ * Get sip store configs for none functional components
+ */
+export const getSipStoreConfigs = (): SipConfigs => {
+  return useSipStore.getState().configs;
 };
 /**
  *

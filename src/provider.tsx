@@ -1,4 +1,4 @@
-import { EnableVideoCalling, RegisterExpires, TransportConnectionTimeout } from './configs';
+import { SipConfigs } from './configs/types';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
   onTransportConnected,
@@ -10,14 +10,16 @@ import { useSessionMethods, useSessionEvents } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
-import React, { createContext, useCallback, useContext, useEffect } from 'react';
+import { deepMerge } from './utils';
+import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
 import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
-export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
+export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) => {
   const store = useSipStore();
   const {
     userAgent,
+    configs: defaultConfigs,
     devicesInfo: {
       hasAudioDevice,
       hasSpeakerDevice,
@@ -28,18 +30,22 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     },
     setSipStore,
   } = store;
+  const mergedConfigs = useMemo(
+    () => deepMerge(defaultConfigs, configs as SipConfigs),
+    [configs, defaultConfigs],
+  );
   const methods = useSessionMethods();
   const events = useSessionEvents();
 
   useEffect(() => {
-    setSipStore({ config });
+    setSipStore({ configs: mergedConfigs });
     (async function () {
       await initialize();
     })();
     return () => {
       userAgent?.stop();
     };
-  }, [config]);
+  }, [mergedConfigs]);
 
   const initialize = async () => {
     // Get Audio Access Permission
@@ -55,14 +61,16 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
   // Create user agent for SIP connection
   const createUserAgent = useCallback(() => {
     let ua = new UserAgent({
-      uri: UserAgent.makeURI(`sip:${config.username}@${config.domain}`),
+      uri: UserAgent.makeURI(
+        `sip:${mergedConfigs.account.username}@${mergedConfigs.account.domain}`,
+      ),
       transportOptions: {
-        server: `wss://${config.wssServer}:${config.webSocketPort}${config.serverPath}`,
+        server: `wss://${mergedConfigs.account.wssServer}:${mergedConfigs.account.webSocketPort}${mergedConfigs.account.serverPath}`,
         traceSip: false,
-        connectionTimeout: TransportConnectionTimeout,
+        connectionTimeout: mergedConfigs.registration.transportConnectionTimeout,
       },
-      authorizationUsername: config.username,
-      authorizationPassword: config.password,
+      authorizationUsername: mergedConfigs.account.username,
+      authorizationPassword: mergedConfigs.account.password,
       delegate: {
         onInvite: methods.receiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
@@ -76,7 +84,8 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     ua.sessions = ua._sessions; // Assign sessions
     ua.registrationCompleted = false;
     ua.registering = false;
-    ua.transport.ReconnectionAttempts = config?.TransportReconnectionAttempts || 0;
+    ua.transport.ReconnectionAttempts =
+      mergedConfigs.registration.transportReconnectionAttempts || 0;
     ua.transport.attemptingReconnection = false;
     ua.BlfSubs = [];
     ua.lastVoicemailCount = 0;
@@ -95,7 +104,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
 
     const RegistererOptions = {
       logConfiguration: false, // If true, constructor logs the registerer configuration.
-      expires: RegisterExpires,
+      expires: mergedConfigs.registration.registerExpires, // The expiration time in seconds for the registration.
       extraHeaders: [],
       extraContactHeaderParams: [],
       refreshFrequency: 75, // Determines when a re-REGISTER request is sent. The value should be specified as a percentage of the expiration time (between 50 and 99).
@@ -130,7 +139,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     console.log('createUserAgent', { ua });
     updateUserAgent(ua);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config]);
+  }, [mergedConfigs]);
 
   // Detect devices
   const initiateDetectedDevices = () => {
@@ -152,7 +161,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
           tmpHasSpeakerDevice = true;
           tmpSpeakerDevices.push(deviceInfos[i]);
         } else if (deviceInfos[i].kind === 'videoinput') {
-          if (EnableVideoCalling == true) {
+          if (mergedConfigs.features.enableVideo) {
             tmpHasVideoDevice = true;
             tmpVideoInputDevices.push(deviceInfos[i]);
           }

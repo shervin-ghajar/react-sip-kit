@@ -1,12 +1,11 @@
 import { onRegisterFailed } from '../../events/registration';
-import { getSipStore, setSipStore } from '../../store';
+import { getSipStoreUserAgent, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
-import { UnsubscribeAll } from '../subscription';
 import clone from 'clone';
 
 /* -------------------------------------------------------------------------- */
 export function Register(userAgent?: SipUserAgent) {
-  const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
+  const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (clonedUserAgent == null) return;
   if (clonedUserAgent.registering == true) return;
   if (clonedUserAgent.isRegistered()) return;
@@ -22,7 +21,7 @@ export function Register(userAgent?: SipUserAgent) {
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
 export function Unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) {
-  const clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
+  const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
 
   if (clonedUserAgent == null || !clonedUserAgent.isRegistered()) return;
   if (skipUnsubscribe == true) {
@@ -30,7 +29,7 @@ export function Unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) 
   } else {
     console.log('Unsubscribing...');
     try {
-      UnsubscribeAll(clonedUserAgent); //TODO
+      //UnsubscribeAll(clonedUserAgent); //TODO
     } catch (e) {}
   }
 

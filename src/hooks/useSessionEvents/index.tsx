@@ -1,9 +1,7 @@
-import { dayJs } from '../../../../../utils';
-import { CallRecordingPolicy, MaxVideoBandwidth, RecordAllCalls } from '../../configs';
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
-import { getAudioOutputID, utcDateNow } from '../../utils';
+import { dayJs, utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
@@ -11,6 +9,9 @@ import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 export const useSessionEvents = () => {
   const updateLine = useSipStore((state) => state.updateLine);
   const audioBlobs = useSipStore((state) => state.audioBlobs);
+  const {
+    media: { maxVideoBandwidth, audioOutputDeviceId },
+  } = useSipStore((state) => state.configs);
 
   function onInviteCancel(
     lineObj: LineType,
@@ -28,7 +29,7 @@ export const useSessionEvents = () => {
         const items = cause.split(';');
         if (
           items.length >= 2 &&
-          (items[0].trim() == 'sip' || items[0].trim() == 'q.850') &&
+          (items[0].trim() === 'sip' || items[0].trim() === 'q.850') &&
           items[1].includes('cause') &&
           cause.includes('call completed elsewhere')
         ) {
@@ -42,7 +43,7 @@ export const useSessionEvents = () => {
     if (!session) return;
     session.data.terminateby = 'them';
     session.data.reasonCode = temp_cause;
-    if (temp_cause == 0) {
+    if (temp_cause === 0) {
       session.data.reasonText = 'Call Cancelled';
       console.log('Call canceled by remote party before answer');
     } else {
@@ -97,14 +98,14 @@ export const useSessionEvents = () => {
       }
 
       // Apply Call Bandwidth Limits
-      if (MaxVideoBandwidth > -1) {
+      if (maxVideoBandwidth > -1) {
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
             const parameters = sender.getParameters();
             if (!parameters.encodings) parameters.encodings = [{}];
-            parameters.encodings[0].maxBitrate = MaxVideoBandwidth * 1000;
+            parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
 
-            console.log('Applying limit for Bandwidth to: ', MaxVideoBandwidth + 'kb per second');
+            console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
 
             // Only going to try without re-negotiations
             sender.setParameters(parameters).catch(function (e: any) {
@@ -116,9 +117,9 @@ export const useSessionEvents = () => {
     }
 
     // Start Call Recording
-    if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
-      // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
-    }
+    // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
+    // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
+    // }
 
     //   if (includeVideo && StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH
 
@@ -135,7 +136,7 @@ export const useSessionEvents = () => {
     if (!session) return;
     // Provisional 1xx
     // response.message.reasonPhrase
-    if (response.message.statusCode == 180) {
+    if (response.message.statusCode === 180) {
       // $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
 
       let soundFile = audioBlobs.Ringtone;
@@ -157,11 +158,11 @@ export const useSessionEvents = () => {
         earlyMedia.preload = 'auto';
         earlyMedia.loop = true;
         earlyMedia.oncanplaythrough = function (e) {
-          if (typeof earlyMedia.sinkId !== 'undefined' && getAudioOutputID() != 'default') {
+          if (typeof earlyMedia.sinkId !== 'undefined' && audioOutputDeviceId !== 'default') {
             earlyMedia
-              .setSinkId(getAudioOutputID())
+              .setSinkId(audioOutputDeviceId)
               .then(function () {
-                console.log('Set sinkId to:', getAudioOutputID());
+                console.log('Set sinkId to:', audioOutputDeviceId);
               })
               .catch(function (e) {
                 console.warn('Failed not apply setSinkId.', e);
@@ -330,7 +331,7 @@ export const useSessionEvents = () => {
             }
           });
         });
-      } else if (msgJson.type == 'ConfbridgeTalking') {
+      } else if (msgJson.type === 'ConfbridgeTalking') {
         const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
         if (videoContainer) {
           //TODO #SH
@@ -458,8 +459,8 @@ export const useSessionEvents = () => {
       remoteAudio.onloadedmetadata = () => {
         if (typeof remoteAudio.sinkId !== 'undefined') {
           remoteAudio
-            .setSinkId(getAudioOutputID())
-            .then(() => console.log('sinkId applied:', getAudioOutputID()))
+            .setSinkId(audioOutputDeviceId)
+            .then(() => console.log('sinkId applied:', audioOutputDeviceId))
             .catch((e) => console.warn('Error using setSinkId:', e));
         }
         remoteAudio.play();

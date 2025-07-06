@@ -1,20 +1,3 @@
-import { dayJs } from '../../../../../utils';
-import {
-  AutoAnswerEnabled,
-  AutoAnswerPolicy,
-  AutoGainControl,
-  CallWaitingEnabled,
-  DidLength,
-  DoNotDisturbEnabled,
-  DoNotDisturbPolicy,
-  EchoCancellation,
-  EnableRingtone,
-  EnableVideoCalling,
-  maxFrameRate,
-  NoiseSuppression,
-  videoAspectRatio,
-  videoHeight,
-} from '../../configs';
 import { Buddy, Line } from '../../constructors';
 import { useSipStore } from '../../store';
 import {
@@ -25,13 +8,7 @@ import {
   SipSessionDescriptionHandler,
   SipSessionType,
 } from '../../store/types';
-import {
-  getAudioOutputID,
-  getAudioSrcID,
-  getRingerOutputID,
-  getVideoSrcID,
-  utcDateNow,
-} from '../../utils';
+import { dayJs, utcDateNow } from '../../utils';
 import { useSessionEvents } from '../useSessionEvents';
 import { MediaStreamTrackType } from '../useSessionEvents/types';
 import { useSpdOptions } from '../useSpdOptions';
@@ -49,7 +26,7 @@ import { v4 as uuidv4 } from 'uuid';
 let newLineNumber = 0;
 
 export const useSessionMethods = () => {
-  const config = useSipStore((state) => state.config);
+  const configs = useSipStore((state) => state.configs);
   const findBuddyByDid = useSipStore((state) => state.findBuddyByDid);
   const findBuddyByIdentity = useSipStore((state) => state.findBuddyByIdentity);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
@@ -108,7 +85,7 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
     lineObj.sipSession.data.withvideo = false;
-    if (EnableVideoCalling == true && lineObj.sipSession.request.body) {
+    if (configs.features.enableVideo && lineObj.sipSession.request.body) {
       // Asterisk 13 PJ_SIP always sends m=video if endpoint has video codec,
       // even if original invite does not specify video.
       if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
@@ -128,7 +105,7 @@ export const useSessionMethods = () => {
       if (rawUri.includes('<sip:')) {
         const uriParts = rawUri.split('<sip:');
         if (uriParts[1].endsWith('>')) uriParts[1] = uriParts[1].slice(0, -1);
-        if (uriParts[1].includes(`@${config.domain}`)) {
+        if (uriParts[1].includes(`@${configs.account.domain}`)) {
           did = uriParts[1].split('@')[0];
           console.log('Using P-Asserted-Identity:', did);
         }
@@ -161,29 +138,6 @@ export const useSessionMethods = () => {
         onInviteCancel(lineObj, sip, () => teardownSession(lineObj));
       },
     };
-
-    // Possible Early Rejection options
-    if (DoNotDisturbEnabled == true || DoNotDisturbPolicy == 'enabled') {
-      if (DoNotDisturbEnabled == true && buddyObj?.EnableDuringDnd == true) {
-        // This buddy has been allowed
-        console.log('Buddy is allowed to call while you are on DND');
-      } else {
-        console.log('Do Not Disturb Enabled, rejecting call.');
-        lineObj.sipSession.data.earlyReject = true;
-        rejectCall(lineObj.lineNumber);
-        return;
-      }
-    }
-    const CurrentCalls = countSessions(session.id);
-    console.log({ CurrentCalls });
-    if (CurrentCalls >= 1) {
-      if (CallWaitingEnabled == false || CallWaitingEnabled == 'disabled') {
-        console.log('Call Waiting Disabled, rejecting call.');
-        lineObj.sipSession.data.earlyReject = true;
-        rejectCall(lineObj.lineNumber);
-        return;
-      }
-    }
 
     // Auto Answer options
     let autoAnswerRequested = false;
@@ -240,31 +194,6 @@ export const useSessionMethods = () => {
     //   // }
     // }
 
-    if (AutoAnswerEnabled || AutoAnswerPolicy == 'enabled' || autoAnswerRequested) {
-      if (CurrentCalls == 0) {
-        // There are no other calls, so you can answer
-        console.log('Going to Auto Answer this call...');
-        window.setTimeout(function () {
-          // If the call is with video, assume the auto answer is also
-          // In order for this to work nicely, the recipient maut be "ready" to accept video calls
-          // In order to ensure video call compatibility (i.e. the recipient must have their web cam in, and working)
-          // The NULL video should be configured
-          // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
-          if (lineObj?.sipSession?.data.withvideo) {
-            answerVideoSession(lineObj.lineNumber);
-          } else {
-            answerAudioSession(lineObj.lineNumber);
-          }
-        }, answerTimeout);
-
-        // Select Buddy
-        // SelectLine(lineObj.LineNumber); TODO #SH select and switch line
-        return;
-      } else {
-        console.warn('Could not auto answer call, already on a call.');
-      }
-    }
-
     // Check if that buddy is not already on a call?? //TODO #SH
     // const streamVisible = $('#stream-' + buddyObj?.identity).is(':visible');
     // if (streamVisible || CurrentCalls == 0) {
@@ -304,20 +233,24 @@ export const useSessionMethods = () => {
     // }
 
     // Play Ring Tone if not on the phone
-    console.log({ EnableRingtone, CurrentCalls });
-    if (EnableRingtone == true) {
-      if (CurrentCalls >= 1) {
+    // Retrieve EnableRingtone from configs or set a default value
+    const currentCalls = countSessions(session.id);
+    if (configs.features.enableRingtone) {
+      if (currentCalls >= 1) {
         // Play Alert
         console.log('Audio:', audioBlobs.CallWaiting.url);
         const ringer = new Audio(audioBlobs.CallWaiting.url as string);
         ringer.preload = 'auto';
         ringer.loop = false;
         ringer.oncanplaythrough = function () {
-          if (typeof ringer.sinkId !== 'undefined' && getRingerOutputID() != 'default') {
+          if (
+            typeof ringer.sinkId !== 'undefined' &&
+            configs.media.ringerOutputDeviceId != 'default'
+          ) {
             ringer
-              .setSinkId(getRingerOutputID())
+              .setSinkId(configs.media.ringerOutputDeviceId)
               .then(function () {
-                console.log('Set sinkId to:', getRingerOutputID());
+                console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
               })
               .catch(function (e) {
                 console.warn('Failed not apply setSinkId.', e);
@@ -341,11 +274,14 @@ export const useSessionMethods = () => {
         ringer.preload = 'auto';
         ringer.loop = true;
         ringer.oncanplaythrough = function () {
-          if (typeof ringer.sinkId !== 'undefined' && getRingerOutputID() != 'default') {
+          if (
+            typeof ringer.sinkId !== 'undefined' &&
+            configs.media.ringerOutputDeviceId != 'default'
+          ) {
             ringer
-              .setSinkId(getRingerOutputID())
+              .setSinkId(configs.media.ringerOutputDeviceId)
               .then(function () {
-                console.log('Set sinkId to:', getRingerOutputID());
+                console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
               })
               .catch(function (e) {
                 console.warn('Failed not apply setSinkId.', e);
@@ -400,8 +336,8 @@ export const useSessionMethods = () => {
     // Save Devices
     session.data.withvideo = false;
     session.data.videoSourceDevice = null;
-    session.data.audioSourceDevice = getAudioSrcID();
-    session.data.audioOutputDevice = getAudioOutputID();
+    session.data.audioSourceDevice = configs.media.audioInputDeviceId;
+    session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
 
     // Send Answer
     session
@@ -444,9 +380,9 @@ export const useSessionMethods = () => {
     let startTime = dayJs.utc();
 
     // Invite
-    console.log('INVITE (audio): ' + dialledNumber + '@' + config.domain);
+    console.log('INVITE (audio): ' + dialledNumber + '@' + configs.account.domain);
     const targetURI = UserAgent.makeURI(
-      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + config.domain,
+      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain,
     ) as URI;
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
@@ -456,8 +392,8 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.dst = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.videoSourceDevice = null;
-    lineObj.sipSession.data.audioSourceDevice = getAudioSrcID();
-    lineObj.sipSession.data.audioOutputDevice = getAudioOutputID();
+    lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
+    lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateby = 'them';
     lineObj.sipSession.data.withvideo = false;
     lineObj.sipSession.data.earlyReject = false;
@@ -559,9 +495,9 @@ export const useSessionMethods = () => {
 
     // Save Devices
     session.data.withvideo = true;
-    session.data.videoSourceDevice = getVideoSrcID();
-    session.data.audioSourceDevice = getAudioSrcID();
-    session.data.audioOutputDevice = getAudioOutputID();
+    session.data.videoSourceDevice = configs.media.videoInputDeviceId;
+    session.data.audioSourceDevice = configs.media.audioInputDeviceId;
+    session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
 
     // Send Answer
     session
@@ -611,10 +547,10 @@ export const useSessionMethods = () => {
     const startTime = dayJs.utc();
 
     // Invite
-    console.log('INVITE (video): ' + dialledNumber + '@' + config.domain);
+    console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
 
     const targetURI = UserAgent.makeURI(
-      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + config.domain,
+      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain,
     ) as URI;
     console.log('video', { spdOptions });
 
@@ -626,9 +562,9 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.dst = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
 
-    lineObj.sipSession.data.videoSourceDevice = getVideoSrcID();
-    lineObj.sipSession.data.audioSourceDevice = getAudioSrcID();
-    lineObj.sipSession.data.audioOutputDevice = getAudioOutputID();
+    lineObj.sipSession.data.videoSourceDevice = configs.media.videoInputDeviceId;
+    lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
+    lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateby = 'them';
     lineObj.sipSession.data.withvideo = true;
     lineObj.sipSession.data.earlyReject = false;
@@ -760,7 +696,8 @@ export const useSessionMethods = () => {
     // Create a Buddy if one is not already existing
     let buddyObj = buddy ? findBuddyByIdentity(buddy.identity) : findBuddyByDid(numDial);
     if (!buddyObj) {
-      let buddyType: BuddyType['type'] = numDial.length > DidLength ? 'contact' : 'extension';
+      let buddyType: BuddyType['type'] =
+        numDial.length > configs.advanced.didLength ? 'contact' : 'extension';
       // Assumption but anyway: If the number starts with a * or # then its probably not a subscribable did,
       // and is probably a feature code.
       if (numDial.substring(0, 1) == '*' || numDial.substring(0, 1) == '#') buddyType = 'contact';
@@ -1359,15 +1296,15 @@ export const useSessionMethods = () => {
     // Add additional Constraints
     if (supportedConstraints.autoGainControl) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        AutoGainControl;
+        configs.media.autoGainControl;
     }
     if (supportedConstraints.echoCancellation) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        EchoCancellation;
+        configs.media.echoCancellation;
     }
     if (supportedConstraints.noiseSuppression) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        NoiseSuppression;
+        configs.media.noiseSuppression;
     }
 
     // Not sure if its possible to transfer a Video call???
@@ -1381,14 +1318,14 @@ export const useSessionMethods = () => {
         };
       }
       // Add additional Constraints
-      if (supportedConstraints.frameRate && maxFrameRate != '') {
-        video.frameRate = maxFrameRate;
+      if (supportedConstraints.frameRate && configs.media.maxFrameRate !== '') {
+        video.frameRate = String(configs.media.maxFrameRate);
       }
-      if (supportedConstraints.height && videoHeight != '') {
-        video.height = videoHeight;
+      if (supportedConstraints.height && configs.media.videoHeight != '') {
+        video.height = String(configs.media.videoHeight);
       }
-      if (supportedConstraints.aspectRatio && videoAspectRatio != '') {
-        video.aspectRatio = videoAspectRatio;
+      if (supportedConstraints.aspectRatio && configs.media.videoAspectRatio != '') {
+        video.aspectRatio = String(configs.media.videoAspectRatio);
       }
 
       if (
@@ -1401,9 +1338,14 @@ export const useSessionMethods = () => {
     }
 
     // Create new call session
-    console.log(555, 'TRANSFER INVITE: ', 'sip:' + dstNo + '@' + config.domain, spdOptions);
+    console.log(
+      555,
+      'TRANSFER INVITE: ',
+      'sip:' + dstNo + '@' + configs.account.domain,
+      spdOptions,
+    );
     const targetURI = UserAgent.makeURI(
-      'sip:' + dstNo.replace(/#/g, '%23') + '@' + config.domain,
+      'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs.account.domain,
     ) as URI;
     const newSession = new Inviter(userAgent, targetURI, spdOptions);
     newSession.data = {};

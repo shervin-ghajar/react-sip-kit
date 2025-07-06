@@ -1,5 +1,4 @@
-import { SubscribeAll } from '../../methods/subscription';
-import { getSipStore, setSipStore } from '../../store';
+import { getSipStoreUserAgent, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
 import clone from 'clone';
 
@@ -20,9 +19,9 @@ export function onRegistered(userAgent: SipUserAgent) {
     console.log('Registered!');
 
     // Start Subscribe Loop
-    setTimeout(function () {
-      SubscribeAll(clonedUserAgent);
-    }, 500);
+    // setTimeout(function () {
+    //   SubscribeAll(clonedUserAgent);
+    // }, 500); //TODO subscription disabled for now
 
     clonedUserAgent.registering = false;
   } else {
@@ -39,7 +38,7 @@ export function onRegistered(userAgent: SipUserAgent) {
  * @param {string} cause Cause message. Unused
  **/
 export function onRegisterFailed(response: any, cause: any) {
-  const userAgent = getSipStore().userAgent;
+  const userAgent = getSipStoreUserAgent();
   const clonedUserAgent = clone(userAgent);
 
   if (clonedUserAgent) clonedUserAgent.registering = false;

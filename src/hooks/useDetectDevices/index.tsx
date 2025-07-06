@@ -1,16 +1,18 @@
-import { EnableVideoCalling } from '../../configs';
 import { detectDevices } from '../../methods/initialization';
 import { useSipStore } from '../../store';
 
 export const useDetectDevices = () => {
   const {
+    configs: {
+      features: { enableVideo },
+    },
     hasAudioDevice,
     audioInputDevices,
     hasSpeakerDevice,
     speakerDevices,
     hasVideoDevice,
     videoInputDevices,
-  } = useSipStore((state) => state.devicesInfo);
+  } = useSipStore((state) => ({ configs: state.configs, ...state.devicesInfo }));
   return detectDevices((deviceInfos) => {
     console.log({ deviceInfos });
     if (!deviceInfos) return;
@@ -28,7 +30,7 @@ export const useDetectDevices = () => {
         tmpHasSpeakerDevice = true;
         tmpSpeakerDevices.push(deviceInfos[i]);
       } else if (deviceInfos[i].kind === 'videoinput') {
-        if (EnableVideoCalling == true) {
+        if (enableVideo) {
           tmpHasVideoDevice = true;
           tmpVideoInputDevices.push(deviceInfos[i]);
         }
