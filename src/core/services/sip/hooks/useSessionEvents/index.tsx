@@ -1,6 +1,6 @@
 import { dayJs } from '../../../../../utils';
 import { CallRecordingPolicy, MaxVideoBandwidth, RecordAllCalls } from '../../configs';
-import { getSipStore, useSipStore } from '../../store';
+import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
 import { getAudioOutputID, utcDateNow } from '../../utils';
@@ -9,7 +9,8 @@ import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
 export const useSessionEvents = () => {
-  const { updateLine } = useSipStore();
+  const updateLine = useSipStore((state) => state.updateLine);
+  const audioBlobs = useSipStore((state) => state.audioBlobs);
 
   function onInviteCancel(
     lineObj: LineType,
@@ -86,10 +87,11 @@ export const useSessionEvents = () => {
       const localVideo = document.getElementById(
         `line-${lineObj.lineNumber}-localVideo`,
       ) as HTMLVideoElement;
-      console.log('onInviteAccepted', { localVideo });
+      console.log('onInviteAccepted', { localVideo, localVideoStream });
       if (localVideo) {
         localVideo.srcObject = localVideoStream;
         localVideo.onloadedmetadata = function (e) {
+          console.log('onInviteAccepted', 'play');
           localVideo.play();
         };
       }
@@ -118,65 +120,6 @@ export const useSessionEvents = () => {
       // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
     }
 
-    // console.log(111, { lineObj });
-    //   if (includeVideo) {
-    //     // Layout for Video Call
-    //     $('#line-' + lineObj.LineNumber + '-progress').hide();
-    //     $('#line-' + lineObj.LineNumber + '-VideoCall').show();
-    //     $('#line-' + lineObj.LineNumber + '-ActiveCall').show();
-
-    //     $('#line-' + lineObj.LineNumber + '-btn-Conference').hide(); // Cannot conference a Video Call (Yet...)
-    //     $('#line-' + lineObj.LineNumber + '-btn-CancelConference').hide();
-    //     $('#line-' + lineObj.LineNumber + '-Conference').hide();
-
-    //     $('#line-' + lineObj.LineNumber + '-btn-Transfer').hide(); // Cannot transfer a Video Call (Yet...)
-    //     $('#line-' + lineObj.LineNumber + '-btn-CancelTransfer').hide();
-    //     $('#line-' + lineObj.LineNumber + '-Transfer').hide();
-
-    //     // Default to use Camera
-    //     $('#line-' + lineObj.LineNumber + '-src-camera').prop('disabled', true);
-    //     $('#line-' + lineObj.LineNumber + '-src-canvas').prop('disabled', false);
-    //     $('#line-' + lineObj.LineNumber + '-src-desktop').prop('disabled', false);
-    //     $('#line-' + lineObj.LineNumber + '-src-video').prop('disabled', false);
-    //   } else {
-    //     // Layout for Audio Call
-    //     $('#line-' + lineObj.LineNumber + '-progress').hide();
-    //     $('#line-' + lineObj.LineNumber + '-VideoCall').hide();
-    //     $('#line-' + lineObj.LineNumber + '-AudioCall').show();
-    //     // Call Control
-    //     $('#line-' + lineObj.LineNumber + '-btn-Mute').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-Unmute').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-start-recording').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-stop-recording').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-Hold').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-Unhold').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-Transfer').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-CancelTransfer').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-Conference').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-CancelConference').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-ShowDtmf').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-settings').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-ShowCallStats').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-HideCallStats').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-ShowTimeline').show();
-    //     $('#line-' + lineObj.LineNumber + '-btn-HideTimeline').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-present-src').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-expand').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-restore').hide();
-    //     $('#line-' + lineObj.LineNumber + '-btn-End').show();
-    //     // Show the Call
-    //     $('#line-' + lineObj.LineNumber + '-ActiveCall').show();
-    //   }
-
-    //   UpdateBuddyList();
-    //   updateLineScroll(lineObj.LineNumber);
-
-    // Start Audio Monitoring
-    //   lineObj.LocalSoundMeter = StartLocalAudioMediaMonitoring(lineObj.LineNumber, session);
-    //   lineObj.RemoteSoundMeter = StartRemoteAudioMediaMonitoring(lineObj.LineNumber, session);
-
-    //   $('#line-' + lineObj.LineNumber + '-msg').html(lang.call_in_progress);
-
     //   if (includeVideo && StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH
 
     updateLine(lineObj);
@@ -187,8 +130,6 @@ export const useSessionEvents = () => {
     // $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
   }
   function onInviteProgress(lineObj: LineType, response: IncomingResponse) {
-    const { updateLine } = getSipStore();
-    const audioBlobs = useSipStore().audioBlobs;
     console.log('Call Progress:', response.message.statusCode);
     const session = lineObj.sipSession;
     if (!session) return;
@@ -212,7 +153,7 @@ export const useSessionEvents = () => {
         // Don't add it again
         console.log('Early Media already playing');
       } else {
-        const earlyMedia = new Audio(soundFile.blob as string);
+        const earlyMedia = new Audio(soundFile.url as string);
         earlyMedia.preload = 'auto';
         earlyMedia.loop = true;
         earlyMedia.oncanplaythrough = function (e) {
@@ -476,7 +417,6 @@ export const useSessionEvents = () => {
   }
 
   function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
-    const { updateLine } = getSipStore();
     // Gets remote tracks
     console.log('onTrackAddedEvent');
     const session = lineObj.sipSession;
@@ -571,7 +511,7 @@ export const useSessionEvents = () => {
   ) {
     if (sdh) {
       if (sdh.peerConnection) {
-        sdh.peerConnection.ontrack = function (event) {
+        sdh.peerConnection.ontrack = function () {
           const pc = sdh.peerConnection;
 
           // Gets Remote Audio Track (Local audio is setup via initial GUM)
@@ -596,7 +536,7 @@ export const useSessionEvents = () => {
           const remoteAudio = document.createElement('audio');
           remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-transfer-remoteAudio`);
           remoteAudio.srcObject = remoteAudioStream;
-          remoteAudio.onloadedmetadata = function (e) {
+          remoteAudio.onloadedmetadata = function () {
             if (typeof remoteAudio.sinkId !== 'undefined' && session?.data?.audioOutputDevice) {
               remoteAudio
                 .setSinkId(session.data.audioOutputDevice)

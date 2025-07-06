@@ -1,5 +1,4 @@
 import { dayJs } from '../../../../utils';
-import { localStorage } from '../configs';
 
 export function uID() {
   return (

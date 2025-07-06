@@ -15,6 +15,7 @@ import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.j
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
 export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) => {
+  const store = useSipStore();
   const {
     userAgent,
     devicesInfo: {
@@ -26,14 +27,10 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
       speakerDevices,
     },
     setSipStore,
-  } = useSipStore();
-  const store = useSipStore();
+  } = store;
   const methods = useSessionMethods();
   const events = useSessionEvents();
 
-  console.log({
-    userAgent,
-  });
   useEffect(() => {
     setSipStore({ config });
     (async function () {
@@ -174,11 +171,26 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, config }) =>
     });
   };
   // Update UserAgent
-  const updateUserAgent = (userAgent: SipUserAgent) => {
-    setSipStore({ userAgent });
+  const updateUserAgent = (ua: SipUserAgent) => {
+    setSipStore({ userAgent: ua });
   };
 
-  return <SipContext.Provider value={{ store, methods, events }}>{children}</SipContext.Provider>;
+  return (
+    <SipContext.Provider
+      value={{
+        lines: store.lines,
+        session: {
+          methods,
+          events,
+        },
+        transport: {
+          reconnectTransport,
+        },
+      }}
+    >
+      {children}
+    </SipContext.Provider>
+  );
 };
 
 export const useSipProvider = () => {

@@ -61,6 +61,7 @@ export function SelfSubscribe(userAgent?: SipUserAgent) {
   );
   clonedUserAgent.selfSub.delegate = {
     onNotify: function (sip) {
+      console.log('onNotify', { sip });
       //TODO #SH
       // ReceiveNotify(sip, true)
     },
@@ -125,6 +126,7 @@ export function SubscribeBuddy(buddyObj: any, userAgent?: SipUserAgent) {
     if (blfSubscribe.data) (blfSubscribe.data as Record<string, any>).buddyId = buddyObj.identity;
     blfSubscribe.delegate = {
       onNotify: function (sip) {
+        console.log('onNotify', { sip });
         //TODO #SH
         // ReceiveNotify(sip, false);
       },
@@ -141,8 +143,7 @@ export function SubscribeBuddy(buddyObj: any, userAgent?: SipUserAgent) {
 }
 
 export function UnsubscribeAll(userAgent?: SipUserAgent) {
-  const { userAgent: storeUserAgent } = getSipStore();
-  let clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  let clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent?.isRegistered()) return;
 
   console.log('Unsubscribe from voicemail Messages...');
@@ -169,8 +170,7 @@ export function UnsubscribeAll(userAgent?: SipUserAgent) {
 }
 //TODO #SH blfSubscribe type
 export function UnsubscribeBlf(blfSubscribe: Subscriber | null, userAgent?: SipUserAgent) {
-  const { userAgent: storeUserAgent } = getSipStore();
-  let clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  let clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent?.isRegistered()) return;
 
   if (blfSubscribe?.state == SubscriptionState.Subscribed) {
@@ -195,8 +195,7 @@ export function UnsubscribeBlf(blfSubscribe: Subscriber | null, userAgent?: SipU
     });
 }
 export function UnsubscribeVoicemail(userAgent?: SipUserAgent) {
-  const { userAgent: storeUserAgent } = getSipStore();
-  let clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  let clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent?.isRegistered()) return;
 
   if (clonedUserAgent?.voicemailSub) {
@@ -216,8 +215,7 @@ export function UnsubscribeVoicemail(userAgent?: SipUserAgent) {
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
 export function SelfUnsubscribe(userAgent?: SipUserAgent) {
-  const { userAgent: storeUserAgent } = getSipStore();
-  let clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  let clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   if (!clonedUserAgent?.isRegistered()) return;
 
   if (clonedUserAgent?.selfSub) {
@@ -239,8 +237,7 @@ export function SelfUnsubscribe(userAgent?: SipUserAgent) {
 
 // TODO #SH buddyObj type
 export function UnsubscribeBuddy(buddyObj: any, userAgent?: SipUserAgent) {
-  const { userAgent: storeUserAgent } = getSipStore();
-  let clonedUserAgent = userAgent ?? clone(storeUserAgent);
+  let clonedUserAgent = userAgent ?? clone(getSipStore().userAgent);
   console.log('Unsubscribe: ', buddyObj.identity);
   if (buddyObj.type == 'extension' || buddyObj.type == 'xmpp') {
     if (clonedUserAgent && clonedUserAgent.BlfSubs && clonedUserAgent.BlfSubs.length > 0) {

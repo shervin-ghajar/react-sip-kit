@@ -1,3 +1,4 @@
+import { reconnectTransport } from './events/transport';
 import { useSessionMethods, useSessionEvents } from './hooks';
 import { SipSessionType, SipStoreStateType } from './store/types';
 import { UserAgent, Registerer, Subscriber } from 'sip.js';
@@ -67,9 +68,16 @@ export interface SipConfig {
 }
 
 export interface SipContextType {
-  store: SipStoreStateType;
+  lines: SipStoreStateType['lines'];
+  session: SipContextSessionType;
+  transport: SipContextTransportType;
+}
+export interface SipContextSessionType {
   methods: Omit<ReturnType<typeof useSessionMethods>, 'receiveCall'>;
   events: ReturnType<typeof useSessionEvents>;
+}
+export interface SipContextTransportType {
+  reconnectTransport: typeof reconnectTransport;
 }
 
 export type CallbackFunction<T> = (value?: T) => void;

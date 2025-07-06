@@ -4,7 +4,6 @@ import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
 // Create sip store
-
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
   config: {
     username: '',
@@ -30,7 +29,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   newLineNumber: 1,
   SipUsername: '',
   SipDomain: '',
-  audioBlobs: new AudioBlobs().getAudios(),
+  audioBlobs: AudioBlobs.getInstance().getAudios(),
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) =>
@@ -107,15 +106,24 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
 }));
 /* -------------------------------------------------------------------------- */
-// Set sip store for none functional components
+/**
+ *
+ * Set sip store for none functional components
+ */
 export const setSipStore = (state: Partial<SipStoreStateType>) => {
   useSipStore.setState((prev) => ({ ...prev, ...state }));
 };
-// Get sip store for none functional components
+/**
+ *
+ * Get sip store for none functional components
+ */
 export const getSipStore = (): SipStoreStateType => {
   return useSipStore.getState();
 };
-// Init sip store for none functional components
+/**
+ *
+ * Init sip store for none functional components
+ */
 export const initSipStore = (): void => {
   const initStore = useSipStore.getInitialState();
   setSipStore(initStore);

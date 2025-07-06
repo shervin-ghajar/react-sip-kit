@@ -20,9 +20,10 @@ type AudioBlobsType = Record<
 >;
 
 export class AudioBlobs {
+  private static instance: AudioBlobs;
   private audioBlobs: AudioBlobsType;
 
-  constructor(overwrite?: Partial<AudioBlobsType>) {
+  private constructor(overwrite?: Partial<AudioBlobsType>) {
     this.audioBlobs = {
       Alert: overwrite?.['Alert'] ?? {
         file: 'Alert.mp3',
@@ -77,36 +78,13 @@ export class AudioBlobs {
         url: './src/assets/media/Tone_EarlyMedia-US.mp3',
       },
     };
-
-    // Automatically load blobs when the instance is created
-    // this.loadBlobs();TODO
   }
 
-  private async loadBlobs(): Promise<void> {
-    const loadBlob = async (key: keyof AudioBlobsType): Promise<void> => {
-      try {
-        const response = await fetch(this.audioBlobs[key].url);
-        const blob = await response.blob();
-        const reader = new FileReader();
-
-        // Use a Promise to wait for FileReader to finish
-        const result = await new Promise<string | ArrayBuffer | null>((resolve, reject) => {
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = () => reject(reader.error);
-          reader.readAsDataURL(blob); // Convert blob to Base64
-        });
-        console.log({ result });
-        this.audioBlobs[key].blob = result;
-      } catch (error) {
-        console.error(`Failed to load blob for ${key}:`, error);
-      }
-    };
-
-    // Load all blobs concurrently
-    const keys = Object.keys(this.audioBlobs) as Array<keyof AudioBlobsType>;
-    await Promise.all(keys.map(loadBlob));
-
-    console.log('All audio blobs loaded successfully.');
+  public static getInstance(overwrite?: Partial<AudioBlobsType>): AudioBlobs {
+    if (!AudioBlobs.instance) {
+      AudioBlobs.instance = new AudioBlobs(overwrite);
+    }
+    return AudioBlobs.instance;
   }
 
   getAudios() {

@@ -18,6 +18,7 @@ export function teardownSession(lineObj: LineType) {
         session.data.childsession = null;
       })
       .catch(function (error) {
+        console.error('teardownSession-dispose', { error });
         session.data.childsession = null;
         // Suppress message
       });
@@ -99,5 +100,5 @@ export function teardownSession(lineObj: LineType) {
   //   if (session.data.earlyReject != true) {
   //     UpdateUI();
   //   }
-  removeLine(lineObj.LineNumber);
+  removeLine(lineObj.lineNumber);
 }

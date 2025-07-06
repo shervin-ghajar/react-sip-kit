@@ -10,8 +10,6 @@ import {
   EchoCancellation,
   EnableRingtone,
   EnableVideoCalling,
-  InviteExtraHeaders,
-  localStorage,
   maxFrameRate,
   NoiseSuppression,
   videoAspectRatio,
@@ -51,19 +49,17 @@ import { v4 as uuidv4 } from 'uuid';
 let newLineNumber = 0;
 
 export const useSessionMethods = () => {
-  const {
-    config,
-    findBuddyByDid,
-    findBuddyByIdentity,
-    findLineByNumber,
-    addLine,
-    removeLine,
-    updateLine,
-    countSessions,
-    userAgent,
-    audioBlobs,
-    devicesInfo: { hasAudioDevice, hasVideoDevice },
-  } = useSipStore();
+  const config = useSipStore((state) => state.config);
+  const findBuddyByDid = useSipStore((state) => state.findBuddyByDid);
+  const findBuddyByIdentity = useSipStore((state) => state.findBuddyByIdentity);
+  const findLineByNumber = useSipStore((state) => state.findLineByNumber);
+  const addLine = useSipStore((state) => state.addLine);
+  const removeLine = useSipStore((state) => state.removeLine);
+  const updateLine = useSipStore((state) => state.updateLine);
+  const countSessions = useSipStore((state) => state.countSessions);
+  const userAgent = useSipStore((state) => state.userAgent);
+  const audioBlobs = useSipStore((state) => state.audioBlobs);
+  const { hasAudioDevice, hasVideoDevice } = useSipStore((state) => state.devicesInfo);
 
   const {
     onInviteAccepted,
@@ -78,6 +74,7 @@ export const useSessionMethods = () => {
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
   } = useSessionEvents();
+
   const { answerAudioSpdOptions, makeAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
     useSpdOptions();
   /* -------------------------------------------------------------------------- */
@@ -312,10 +309,10 @@ export const useSessionMethods = () => {
       if (CurrentCalls >= 1) {
         // Play Alert
         console.log('Audio:', audioBlobs.CallWaiting.url);
-        const ringer = new Audio(audioBlobs.CallWaiting.blob as string);
+        const ringer = new Audio(audioBlobs.CallWaiting.url as string);
         ringer.preload = 'auto';
         ringer.loop = false;
-        ringer.oncanplaythrough = function (e) {
+        ringer.oncanplaythrough = function () {
           if (typeof ringer.sinkId !== 'undefined' && getRingerOutputID() != 'default') {
             ringer
               .setSinkId(getRingerOutputID())
@@ -343,7 +340,7 @@ export const useSessionMethods = () => {
         const ringer = new Audio(audioBlobs.Ringtone.blob as string);
         ringer.preload = 'auto';
         ringer.loop = true;
-        ringer.oncanplaythrough = function (e) {
+        ringer.oncanplaythrough = function () {
           if (typeof ringer.sinkId !== 'undefined' && getRingerOutputID() != 'default') {
             ringer
               .setSinkId(getRingerOutputID())
@@ -745,7 +742,7 @@ export const useSessionMethods = () => {
   ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
-      alert('dialByLine error');
+      alert('userAgent not registered');
       return;
     }
 
@@ -1146,6 +1143,7 @@ export const useSessionMethods = () => {
           session.data.childsession = null;
         })
         .catch(function (error) {
+          console.error('teardownSession', { error });
           session.data.childsession = null;
           // Suppress message
         });
@@ -1282,6 +1280,7 @@ export const useSessionMethods = () => {
           session.data.childsession = null;
         })
         .catch(function (error) {
+          console.error('cancelTransferSession', { error });
           session.data.childsession = null;
           // Suppress message
         });
@@ -1409,14 +1408,14 @@ export const useSessionMethods = () => {
     const newSession = new Inviter(userAgent, targetURI, spdOptions);
     newSession.data = {};
     newSession.delegate = {
-      onBye: function (sip) {
+      onBye: function () {
         console.log('New call session ended with BYE');
         if (session.data.transfer) {
           session.data.transfer[transferId].disposition = 'bye';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
         }
       },
-      onSessionDescriptionHandler: function (sdh: SipSessionDescriptionHandler, provisional) {
+      onSessionDescriptionHandler: function (sdh: SipSessionDescriptionHandler) {
         onTransferSessionDescriptionHandlerCreated(
           lineObj,
           session as SipSessionType,
@@ -1428,15 +1427,12 @@ export const useSessionMethods = () => {
     session.data.childsession = newSession as SipSessionType;
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
-        onTrying: function (sip) {
-          console.log('attend1');
+        onTrying: function () {
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'trying';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
         },
-        onProgress: function (sip) {
-          console.log('attend2');
-
+        onProgress: function () {
           console.log('onProgress');
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'progress';
@@ -1453,13 +1449,9 @@ export const useSessionMethods = () => {
           console.log('New call session canceled');
         },
         onRedirect: function (sip) {
-          console.log('attend3');
-
           console.log('Redirect received:', sip);
         },
-        onAccept: function (sip) {
-          console.log('attend4');
-
+        onAccept: function () {
           if (!session.data.transfer) return;
           // newCallStatus.html(lang.call_in_progress);
           // $('#line-' + lineNum + '-btn-cancel-attended-transfer').hide();
