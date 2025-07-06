@@ -361,7 +361,7 @@ export const useSessionEvents = () => {
           });
         });
         //   RedrawStage(lineObj.LineNumber, false); TODO #SH
-      } else if (msgJson.type == 'ConfbridgeUnmute') {
+      } else if (msgJson.type === 'ConfbridgeUnmute') {
         msgJson.channels.forEach(function (chan) {
           session.data.ConfbridgeChannels?.forEach(function (existingChan) {
             if (existingChan.id == chan.id) {

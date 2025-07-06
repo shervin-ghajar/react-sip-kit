@@ -39,6 +39,7 @@ export const defaultMediaConfig: SipMediaConfig = {
   audioInputDeviceId: 'default',
   audioOutputDeviceId: 'default',
   videoInputDeviceId: 'default',
+  ringerOutputDeviceId: 'default',
   maxFrameRate: 30,
   videoHeight: 720,
   videoAspectRatio: 1.777,
