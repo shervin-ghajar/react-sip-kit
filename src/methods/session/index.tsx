@@ -48,11 +48,11 @@ export function teardownSession(lineObj: LineType) {
   //   StopRecording(lineObj.LineNumber, true);
 
   // Audio Meters
-  if (lineObj.localSoundMeter != null) {
+  if (lineObj.localSoundMeter !== null) {
     lineObj.localSoundMeter.stop();
     lineObj.localSoundMeter = null;
   }
-  if (lineObj.remoteSoundMeter != null) {
+  if (lineObj.remoteSoundMeter !== null) {
     lineObj.remoteSoundMeter.stop();
     lineObj.remoteSoundMeter = null;
   }
