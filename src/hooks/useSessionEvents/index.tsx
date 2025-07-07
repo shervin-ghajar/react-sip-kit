@@ -141,10 +141,6 @@ export const useSessionEvents = () => {
 
       let soundFile = audioBlobs.Ringtone;
       console.log({ soundFile });
-      // if (UserLocale().indexOf('us') > -1) soundFile = audioBlobs.EarlyMedia_US; TODO #SH locale
-      // if (UserLocale().indexOf('gb') > -1) soundFile = audioBlobs.EarlyMedia_UK;
-      // if (UserLocale().indexOf('au') > -1) soundFile = audioBlobs.EarlyMedia_Australia;
-      // if (UserLocale().indexOf('jp') > -1) soundFile = audioBlobs.EarlyMedia_Japan;
 
       // Play Early Media
       console.log('Audio:', soundFile.url);
