@@ -48,13 +48,13 @@ export function teardownSession(lineObj: LineType) {
   //   StopRecording(lineObj.LineNumber, true);
 
   // Audio Meters
-  if (lineObj.LocalSoundMeter != null) {
-    lineObj.LocalSoundMeter.stop();
-    lineObj.LocalSoundMeter = null;
+  if (lineObj.localSoundMeter != null) {
+    lineObj.localSoundMeter.stop();
+    lineObj.localSoundMeter = null;
   }
-  if (lineObj.RemoteSoundMeter != null) {
-    lineObj.RemoteSoundMeter.stop();
-    lineObj.RemoteSoundMeter = null;
+  if (lineObj.remoteSoundMeter != null) {
+    lineObj.remoteSoundMeter.stop();
+    lineObj.remoteSoundMeter = null;
   }
 
   // Make sure you have released the microphone
