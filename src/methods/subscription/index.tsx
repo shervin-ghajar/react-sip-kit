@@ -31,7 +31,7 @@
 // }
 
 // export function SelfSubscribe(userAgent?: SipUserAgent) {
-//   const { SipDomain, SipUsername, userAgent: storeUserAgent } = getSipStore();
+//   const { sipDomain, sipUsername, userAgent: storeUserAgent } = getSipStore();
 //   let clonedUserAgent = userAgent ?? clone(storeUserAgent);
 
 //   if (!clonedUserAgent?.isRegistered()) return;
@@ -41,7 +41,7 @@
 //     SelfUnsubscribe(clonedUserAgent);
 //   }
 
-//   const targetURI = UserAgent.makeURI('sip:' + SipUsername + '@' + SipDomain) as URI;
+//   const targetURI = UserAgent.makeURI('sip:' + sipUsername + '@' + sipDomain) as URI;
 
 //   const options = {
 //     expires: SubscribeBuddyExpires,
@@ -61,7 +61,7 @@
 //       // ReceiveNotify(sip, true)
 //     },
 //   };
-//   console.log('SUBSCRIBE Self: ' + SipUsername + '@' + SipDomain);
+//   console.log('SUBSCRIBE Self: ' + sipUsername + '@' + sipDomain);
 //   clonedUserAgent.selfSub.subscribe().catch(function (error) {
 //     console.warn('Error subscribing to yourself:', error);
 //   });
@@ -69,7 +69,7 @@
 // }
 
 // export function SubscribeVoicemail(userAgent?: SipUserAgent) {
-//   const { SipDomain, SipUsername, userAgent: storeUserAgent } = getSipStore();
+//   const { sipDomain, sipUsername, userAgent: storeUserAgent } = getSipStore();
 //   let clonedUserAgent = userAgent ?? clone(storeUserAgent);
 //   if (!clonedUserAgent?.isRegistered()) return;
 
@@ -79,7 +79,7 @@
 //   }
 
 //   var vmOptions = { expires: SubscribeVoicemailExpires };
-//   var targetURI = UserAgent.makeURI('sip:' + SipUsername + '@' + SipDomain) as URI;
+//   var targetURI = UserAgent.makeURI('sip:' + sipUsername + '@' + sipDomain) as URI;
 //   clonedUserAgent.voicemailSub = new Subscriber(
 //     clonedUserAgent,
 //     targetURI,
@@ -92,7 +92,7 @@
 //       // VoicemailNotify(sip);
 //     },
 //   };
-//   console.log('SUBSCRIBE VOICEMAIL: ' + SipUsername + '@' + SipDomain);
+//   console.log('SUBSCRIBE VOICEMAIL: ' + sipUsername + '@' + sipDomain);
 //   clonedUserAgent.voicemailSub.subscribe().catch(function (error) {
 //     console.warn('Error subscribing to voicemail notifications:', error);
 //   });
@@ -100,7 +100,7 @@
 // }
 // // TODO #SH buddyObj type
 // export function SubscribeBuddy(buddyObj: any, userAgent?: SipUserAgent) {
-//   const { SipDomain, userAgent: storeUserAgent } = getSipStore();
+//   const { sipDomain, userAgent: storeUserAgent } = getSipStore();
 //   let clonedUserAgent = userAgent ?? clone(storeUserAgent);
 //   if (!clonedUserAgent?.isRegistered()) return;
 
@@ -109,7 +109,7 @@
 //     buddyObj.EnableSubscribe == true &&
 //     buddyObj.SubscribeUser != ''
 //   ) {
-//     var targetURI = UserAgent.makeURI('sip:' + buddyObj.SubscribeUser + '@' + SipDomain) as URI;
+//     var targetURI = UserAgent.makeURI('sip:' + buddyObj.SubscribeUser + '@' + sipDomain) as URI;
 
 //     var options = {
 //       expires: SubscribeBuddyExpires,
@@ -126,7 +126,7 @@
 //         // ReceiveNotify(sip, false);
 //       },
 //     };
-//     console.log('SUBSCRIBE: ' + buddyObj.SubscribeUser + '@' + SipDomain);
+//     console.log('SUBSCRIBE: ' + buddyObj.SubscribeUser + '@' + sipDomain);
 //     blfSubscribe.subscribe().catch(function (error) {
 //       console.warn('Error subscribing to Buddy notifications:', error);
 //     });

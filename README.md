@@ -32,11 +32,9 @@ yarn add react-sip-kit
 
 ```tsx
 import { SipProvider } from 'react-sip-kit';
-import { defaultSipConfigs } from 'react-sip-kit/configs';
 
 <SipProvider
   configs={{
-    ...defaultSipConfigs,
     account: {
       username: 'user',
       password: 'password',

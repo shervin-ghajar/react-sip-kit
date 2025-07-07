@@ -25,9 +25,9 @@ export function teardownSession(lineObj: LineType) {
   }
 
   // Mixed Tracks
-  if (session.data.AudioSourceTrack && session.data.AudioSourceTrack.kind == 'audio') {
-    session.data.AudioSourceTrack.stop();
-    session.data.AudioSourceTrack = null;
+  if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+    session.data.audioSourceTrack.stop();
+    session.data.audioSourceTrack = null;
   }
   // Stop any Early Media
   if (session.data.earlyMedia) {
@@ -78,11 +78,11 @@ export function teardownSession(lineObj: LineType) {
   //   AddCallMessage(lineObj?.BuddyObj?.identity, session); TODO #SH
 
   // Check if this call was missed
-  if (session.data.calldirection == 'inbound') {
+  if (session.data.callDirection == 'inbound') {
     if (session.data.earlyReject) {
       // Call was rejected without even ringing
       //   IncreaseMissedBadge(session.data.buddyId); TODO #SH
-    } else if (session.data.terminateby == 'them' && session.data.startTime == null) {
+    } else if (session.data.terminateBy == 'them' && session.data.startTime == null) {
       // Call Terminated by them during ringing
       if (session.data.reasonCode == 0) {
         // Call was canceled, and not answered elsewhere

@@ -1,8 +1,7 @@
 import { defaultSipConfigs } from '../configs';
-import { SipConfigs, SipStorageConfig } from '../configs/types';
+import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { SipUserAgent } from '../types';
-import { BuddyType, LineType, SipStoreStateType } from './types';
+import { LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
@@ -10,9 +9,6 @@ import { create } from 'zustand';
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
   configs: defaultSipConfigs,
   userAgent: undefined,
-  buddies: [],
-  selectedBuddy: [],
-  selectedLine: [],
   devicesInfo: {
     hasVideoDevice: false,
     hasAudioDevice: false,
@@ -22,9 +18,6 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     speakerDevices: [],
   },
   lines: [],
-  newLineNumber: 1,
-  SipUsername: '',
-  SipDomain: '',
   audioBlobs: AudioBlobs.getInstance().getAudios(),
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
@@ -44,40 +37,11 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     const filteredLines = lines.filter((line) => line.lineNumber !== lineNumber);
     set((state) => ({ ...state, lines: filteredLines }));
   },
-  addBuddy: (newBuddy: BuddyType) =>
-    set((state) => ({ ...state, buddies: [...state.buddies, newBuddy] })),
-
-  findBuddyByDid: (did): BuddyType | null => {
-    // Used only in Inbound
-    return (
-      get().buddies.find(
-        (buddy) =>
-          buddy.ExtNo === did ||
-          buddy.MobileNumber === did ||
-          buddy.ContactNumber1 === did ||
-          buddy.ContactNumber2 === did,
-      ) ?? null
-    );
-  },
-  findBuddyByIdentity: (identity: BuddyType['identity']) => {
-    return get().buddies.find((buddy) => buddy.identity === identity) ?? null;
-  },
   findLineByNumber: (lineNumber) => {
     return get().lines.find((line) => line.lineNumber === lineNumber) ?? null;
   },
-  getSession: (buddyId) => {
-    const { userAgent } = get();
-    if (userAgent == null) {
-      console.warn('userAgent is null');
-      return null;
-    }
-    if (userAgent.isRegistered() == false) {
-      console.warn('userAgent is not registered');
-      return null;
-    }
-    const session =
-      Object.values(userAgent.sessions).find((session) => session.data.buddyId === buddyId) ?? null;
-    return session;
+  getNewLineNumber: () => {
+    return get().lines.length + 1;
   },
   getSessions: () => {
     const { userAgent } = get();
@@ -92,7 +56,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     const sessions = userAgent.sessions ?? null;
     return sessions;
   },
-  countSessions: (id: string) => {
+  countIdSessions: (id: string) => {
     let count = 0;
     if (!get().userAgent?.sessions) return count;
     Object.values(get().userAgent?.sessions ?? {}).forEach((session) => {

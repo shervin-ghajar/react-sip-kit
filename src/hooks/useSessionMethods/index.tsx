@@ -1,7 +1,6 @@
-import { Buddy, Line } from '../../constructors';
+import { Line } from '../../constructors';
 import { useSipStore } from '../../store';
 import {
-  BuddyType,
   LineType,
   SipInvitationType,
   SipInviterType,
@@ -21,19 +20,15 @@ import {
   URI,
   UserAgent,
 } from 'sip.js';
-import { v4 as uuidv4 } from 'uuid';
-
-let newLineNumber = 0;
 
 export const useSessionMethods = () => {
   const configs = useSipStore((state) => state.configs);
-  const findBuddyByDid = useSipStore((state) => state.findBuddyByDid);
-  const findBuddyByIdentity = useSipStore((state) => state.findBuddyByIdentity);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
+  const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
   const addLine = useSipStore((state) => state.addLine);
   const removeLine = useSipStore((state) => state.removeLine);
   const updateLine = useSipStore((state) => state.updateLine);
-  const countSessions = useSipStore((state) => state.countSessions);
+  const countIdSessions = useSipStore((state) => state.countIdSessions);
   const userAgent = useSipStore((state) => state.userAgent);
   const audioBlobs = useSipStore((state) => state.audioBlobs);
   const { hasAudioDevice, hasVideoDevice } = useSipStore((state) => state.devicesInfo);
@@ -70,31 +65,25 @@ export const useSessionMethods = () => {
     console.log(`Incoming call from: ${callerID}`);
 
     const startTime = dayJs.utc();
-    newLineNumber++;
     // Create or update buddy based on DID
-    const buddyObj = findBuddyByDid(did); // Find or create buddy
-    const lineObj = new Line(newLineNumber, callerID, did, buddyObj);
+    const lineObj = new Line(getNewLineNumber(), callerID, session.data.metaData ?? {});
     lineObj.sipSession = session as SipInvitationType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.calldirection = 'inbound';
-    lineObj.sipSession.data.terminateby = '';
+    lineObj.sipSession.data.callDirection = 'inbound';
+    lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
-    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
+    lineObj.sipSession.data.metaData = lineObj?.metaData;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
-    lineObj.sipSession.data.withvideo = false;
+    lineObj.sipSession.data.withVideo = false;
     if (configs.features.enableVideo && lineObj.sipSession.request.body) {
       // Asterisk 13 PJ_SIP always sends m=video if endpoint has video codec,
       // even if original invite does not specify video.
       if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
-        lineObj.sipSession.data.withvideo = true;
+        lineObj.sipSession.data.withVideo = true;
         // The invite may have video, but the buddy may be a contact
-        if (buddyObj?.type == 'contact') {
-          // videoInvite = false;
-          // TODO: Is this limitation necessary?
-        }
       }
     }
 
@@ -127,7 +116,7 @@ export const useSessionMethods = () => {
           lineObj,
           sdh as SipSessionDescriptionHandler,
           provisional,
-          session.data.withvideo,
+          session.data.withVideo,
         );
       },
     };
@@ -140,8 +129,8 @@ export const useSessionMethods = () => {
     };
 
     // Auto Answer options
-    let autoAnswerRequested = false;
-    let answerTimeout = 1000;
+    // let autoAnswerRequested = false;
+    // let answerTimeout = 1000;
     // if (!AutoAnswerEnabled && IntercomPolicy == 'enabled') {
     //   // Check headers only if policy is allow
     //   // https://github.com/InnovateAsterisk/Browser-Phone/issues/126
@@ -205,36 +194,9 @@ export const useSessionMethods = () => {
     // Show notification / Ring / Windows Etc
     // ======================================
 
-    // Browser Window Notification //TODO #SH
-    // if ('Notification' in window) {
-    //   if (Notification.permission === 'granted') {
-    //     const noticeOptions = {
-    //       body: lang.incoming_call_from + ' ' + callerID + ' <' + did + '>',
-    //       icon: getPicture(buddyObj?.identity),
-    //     };
-    //     const inComingCallNotification = new Notification(lang.incoming_call, noticeOptions);
-    //     inComingCallNotification.onclick = function (event) {
-    //       const lineNo = lineObj.LineNumber;
-    //       const videoInvite = lineObj.sipSession.data.withvideo;
-    //       window.setTimeout(function () {
-    //         // https://github.com/InnovateAsterisk/Browser-Phone/issues/26
-    //         if (videoInvite) {
-    //           answerVideoSession(lineNo);
-    //         } else {
-    //           answerAudioSession(lineNo);
-    //         }
-    //       }, 1000);
-
-    //       // Select Buddy
-    //       SelectLine(lineNo);
-    //       return;
-    //     };
-    //   }
-    // }
-
     // Play Ring Tone if not on the phone
     // Retrieve EnableRingtone from configs or set a default value
-    const currentCalls = countSessions(session.id);
+    const currentCalls = countIdSessions(session.id);
     if (configs.features.enableRingtone) {
       if (currentCalls >= 1) {
         // Play Alert
@@ -334,7 +296,7 @@ export const useSessionMethods = () => {
     const spdOptions = answerAudioSpdOptions();
     if (!spdOptions) return console.error('answerAudioSession spdOptions is undefined');
     // Save Devices
-    session.data.withvideo = false;
+    session.data.withVideo = false;
     session.data.videoSourceDevice = null;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -368,7 +330,7 @@ export const useSessionMethods = () => {
     console.log(222, { lineObj, dialledNumber, extraHeaders });
     if (!userAgent) return;
     if (!userAgent.isRegistered()) return;
-    if (lineObj == null) return;
+    if (lineObj === null) return;
     if (!hasAudioDevice) {
       console.error('lang.alert_no_microphone');
       return;
@@ -387,15 +349,15 @@ export const useSessionMethods = () => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
-    lineObj.sipSession.data.calldirection = 'outbound';
-    lineObj.sipSession.data.dst = dialledNumber;
+    lineObj.sipSession.data.metaData = lineObj.metaData;
+    lineObj.sipSession.data.callDirection = 'outbound';
+    lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.videoSourceDevice = null;
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-    lineObj.sipSession.data.terminateby = 'them';
-    lineObj.sipSession.data.withvideo = false;
+    lineObj.sipSession.data.terminateBy = 'them';
+    lineObj.sipSession.data.withVideo = false;
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -494,7 +456,7 @@ export const useSessionMethods = () => {
     const spdOptions = answerVideoSpdOptions();
 
     // Save Devices
-    session.data.withvideo = true;
+    session.data.withVideo = true;
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -557,16 +519,16 @@ export const useSessionMethods = () => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.buddyId = lineObj?.BuddyObj?.identity;
-    lineObj.sipSession.data.calldirection = 'outbound';
-    lineObj.sipSession.data.dst = dialledNumber;
+    lineObj.sipSession.data.metaData = lineObj?.metaData;
+    lineObj.sipSession.data.callDirection = 'outbound';
+    lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
 
     lineObj.sipSession.data.videoSourceDevice = configs.media.videoInputDeviceId;
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-    lineObj.sipSession.data.terminateby = 'them';
-    lineObj.sipSession.data.withvideo = true;
+    lineObj.sipSession.data.terminateBy = 'them';
+    lineObj.sipSession.data.withVideo = true;
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -654,7 +616,7 @@ export const useSessionMethods = () => {
         });
     }
 
-    session.data.terminateby = 'us';
+    session.data.terminateBy = 'us';
     session.data.reasonCode = 486;
     session.data.reasonText = 'Busy Here';
     teardownSession(lineObj);
@@ -663,17 +625,15 @@ export const useSessionMethods = () => {
   /**
    * Handle Dial User By Line Number
    * @param type
-   * @param numToDial
-   * @param buddy
-   * @param CallerID
+   * @param dialNumber
+   * @param metaData
    * @param extraHeaders
    * @returns
    */
   function dialByLine(
     type: 'audio' | 'video',
-    numToDial: string,
-    buddy?: BuddyType,
-    CallerID?: string,
+    dialNumber: string,
+    metaData: object = {},
     extraHeaders?: Array<string>,
   ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
@@ -682,7 +642,6 @@ export const useSessionMethods = () => {
       return;
     }
 
-    const numDial = numToDial;
     // if (EnableAlphanumericDial) {
     //   numDial = numDial.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
     // } else {
@@ -694,37 +653,14 @@ export const useSessionMethods = () => {
     // }
 
     // Create a Buddy if one is not already existing
-    let buddyObj = buddy ? findBuddyByIdentity(buddy.identity) : findBuddyByDid(numDial);
-    if (!buddyObj) {
-      let buddyType: BuddyType['type'] =
-        numDial.length > configs.advanced.didLength ? 'contact' : 'extension';
-      // Assumption but anyway: If the number starts with a * or # then its probably not a subscribable did,
-      // and is probably a feature code.
-      if (numDial.substring(0, 1) == '*' || numDial.substring(0, 1) == '#') buddyType = 'contact';
-      buddyObj = new Buddy(
-        buddyType,
-        uuidv4(),
-        numDial,
-        '',
-        CallerID ? CallerID : numDial,
-        numDial,
-        '',
-        '',
-        '',
-        '',
-        '',
-      );
-    }
-    console.log({ buddyObj });
     // Create a Line
-    newLineNumber++;
-    const lineObj = new Line(newLineNumber, buddyObj.CallerIDName, numDial, buddyObj);
+    const lineObj = new Line(getNewLineNumber(), dialNumber, metaData);
 
     // Start Call Invite
     if (type === 'audio') {
-      makeAudioSession(lineObj, numDial, extraHeaders);
+      makeAudioSession(lineObj, dialNumber, extraHeaders);
     } else {
-      makeVideoSession(lineObj, numDial, extraHeaders ?? []);
+      makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
     }
     addLine(lineObj);
   }
@@ -774,13 +710,13 @@ export const useSessionMethods = () => {
               if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
                 if (track.IsMixedTrack == true) {
                   if (
-                    session.data.AudioSourceTrack &&
-                    session.data.AudioSourceTrack.kind == 'audio'
+                    session.data.audioSourceTrack &&
+                    session.data.audioSourceTrack.kind == 'audio'
                   ) {
                     console.log(
-                      'Muting Mixed Audio Track : ' + session.data.AudioSourceTrack.label,
+                      'Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label,
                     );
-                    session.data.AudioSourceTrack.enabled = false;
+                    session.data.audioSourceTrack.enabled = false;
                   }
                 }
                 console.log('Muting Audio Track : ' + track.label);
@@ -857,13 +793,13 @@ export const useSessionMethods = () => {
               if (track && track.kind == 'audio') {
                 if (track.IsMixedTrack == true) {
                   if (
-                    session.data.AudioSourceTrack &&
-                    session.data.AudioSourceTrack.kind == 'audio'
+                    session.data.audioSourceTrack &&
+                    session.data.audioSourceTrack.kind == 'audio'
                   ) {
                     console.log(
-                      'Unmuting Mixed Audio Track : ' + session.data.AudioSourceTrack.label,
+                      'Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label,
                     );
-                    session.data.AudioSourceTrack.enabled = true;
+                    session.data.audioSourceTrack.enabled = true;
                   }
                 }
                 console.log('Unmuting Audio Track : ' + track.label);
@@ -916,9 +852,9 @@ export const useSessionMethods = () => {
         const track = RTCRtpSender.track as MediaStreamTrackType;
 
         if (track.IsMixedTrack == true) {
-          if (session.data.AudioSourceTrack && session.data.AudioSourceTrack.kind == 'audio') {
-            console.log('Muting Mixed Audio Track : ' + session.data.AudioSourceTrack.label);
-            session.data.AudioSourceTrack.enabled = false;
+          if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+            console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+            session.data.audioSourceTrack.enabled = false;
           }
         }
         console.log('Muting Audio Track : ' + track.label);
@@ -955,9 +891,9 @@ export const useSessionMethods = () => {
         const track = RTCRtpSender.track as MediaStreamTrackType;
 
         if (track.IsMixedTrack == true) {
-          if (session.data.AudioSourceTrack && session.data.AudioSourceTrack.kind == 'audio') {
-            console.log('Unmuting Mixed Audio Track : ' + session.data.AudioSourceTrack.label);
-            session.data.AudioSourceTrack.enabled = true;
+          if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+            console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+            session.data.audioSourceTrack.enabled = true;
           }
         }
         console.log('Unmuting Audio Track : ' + track.label);
@@ -989,7 +925,7 @@ export const useSessionMethods = () => {
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
     if (!(session instanceof Inviter)) return;
-    session.data.terminateby = 'us';
+    session.data.terminateBy = 'us';
     session.data.reasonCode = 0;
     session.data.reasonText = 'Call Cancelled';
 
@@ -1021,7 +957,7 @@ export const useSessionMethods = () => {
       case SessionState.Establishing:
         if (session instanceof Inviter) {
           // An unestablished outgoing session
-          session.data.terminateby = 'us';
+          session.data.terminateBy = 'us';
           session.data.reasonCode = 0;
           session.data.reasonText = 'Call Cancelled';
           session.cancel();
@@ -1036,7 +972,7 @@ export const useSessionMethods = () => {
               console.warn('Problem in rejectCall(), could not reject() call', e, session);
             });
 
-          session.data.terminateby = 'us';
+          session.data.terminateBy = 'us';
           session.data.reasonCode = 486;
           session.data.reasonText = 'Busy Here';
           teardownSession(lineObj);
@@ -1047,7 +983,7 @@ export const useSessionMethods = () => {
           console.warn('Problem in rejectCall(), could not bye() call', e, session);
         });
 
-        session.data.terminateby = 'us';
+        session.data.terminateBy = 'us';
         session.data.reasonCode = 486;
         session.data.reasonText = 'Busy Here';
         teardownSession(lineObj);
@@ -1087,9 +1023,9 @@ export const useSessionMethods = () => {
     }
 
     // Mixed Tracks
-    if (session.data.AudioSourceTrack && session.data.AudioSourceTrack.kind == 'audio') {
-      session.data.AudioSourceTrack.stop();
-      session.data.AudioSourceTrack = null;
+    if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+      session.data.audioSourceTrack.stop();
+      session.data.audioSourceTrack = null;
     }
     // Stop any Early Media
     if (session.data.earlyMedia) {
@@ -1110,13 +1046,13 @@ export const useSessionMethods = () => {
     //   StopRecording(lineObj.LineNumber, true);
 
     // Audio Meters
-    if (lineObj.LocalSoundMeter != null) {
-      lineObj.LocalSoundMeter.stop();
-      lineObj.LocalSoundMeter = null;
+    if (lineObj.localSoundMeter !== null) {
+      lineObj.localSoundMeter.stop();
+      lineObj.localSoundMeter = null;
     }
-    if (lineObj.RemoteSoundMeter != null) {
-      lineObj.RemoteSoundMeter.stop();
-      lineObj.RemoteSoundMeter = null;
+    if (lineObj.remoteSoundMeter !== null) {
+      lineObj.remoteSoundMeter.stop();
+      lineObj.remoteSoundMeter = null;
     }
 
     // Make sure you have released the microphone
@@ -1140,11 +1076,11 @@ export const useSessionMethods = () => {
     //   AddCallMessage(lineObj?.BuddyObj?.identity, session); TODO #SH
 
     // Check if this call was missed
-    if (session.data.calldirection == 'inbound') {
+    if (session.data.callDirection == 'inbound') {
       if (session.data.earlyReject) {
         // Call was rejected without even ringing
         //   IncreaseMissedBadge(session.data.buddyId); TODO #SH
-      } else if (session.data.terminateby == 'them' && session.data.startTime == null) {
+      } else if (session.data.terminateBy == 'them' && session.data.startTime == null) {
         // Call Terminated by them during ringing
         if (session.data.reasonCode == 0) {
           // Call was canceled, and not answered elsewhere
@@ -1308,7 +1244,7 @@ export const useSessionMethods = () => {
     }
 
     // Not sure if its possible to transfer a Video call???
-    if (session.data.withvideo) {
+    if (session.data.withVideo) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.video = {} as any;
       const video = spdOptions.sessionDescriptionHandlerOptions.constraints
         .video as VideoSessionConstraints;
@@ -1362,7 +1298,7 @@ export const useSessionMethods = () => {
           lineObj,
           session as SipSessionType,
           sdh,
-          session?.data?.withvideo,
+          session?.data?.withVideo,
         );
       },
     };
@@ -1406,7 +1342,7 @@ export const useSessionMethods = () => {
                 console.log('Attended transfer Accepted');
                 if (!session.data.transfer) return;
 
-                session.data.terminateby = 'us';
+                session.data.terminateBy = 'us';
                 session.data.reasonCode = 202;
                 session.data.reasonText = 'Attended Transfer';
 
@@ -1492,7 +1428,7 @@ export const useSessionMethods = () => {
   //       onAccept: function (sip) {
   //         console.log("Blind transfer Accepted");
 
-  //         session.data.terminateby = "us";
+  //         session.data.terminateBy = "us";
   //         session.data.reasonCode = 202;
   //         session.data.reasonText = "Transfer";
 
@@ -1525,8 +1461,8 @@ export const useSessionMethods = () => {
   //       },
   //     },
   //   };
-  //   console.log("REFER: ", dstNo + "@" + SipDomain);
-  //   var referTo = SIP.UserAgent.makeURI("sip:" + dstNo.replace(/#/g, "%23") + "@" + SipDomain);
+  //   console.log("REFER: ", dstNo + "@" + sipDomain);
+  //   var referTo = SIP.UserAgent.makeURI("sip:" + dstNo.replace(/#/g, "%23") + "@" + sipDomain);
   //   session.refer(referTo, transferOptions).catch(function (error) {
   //     console.warn("Failed to REFER", error);
   //   });

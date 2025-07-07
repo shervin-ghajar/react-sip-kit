@@ -1,29 +1,19 @@
-import { BuddyType, LineType, SipInvitationType } from '../store/types';
+import { LineType, SipInvitationType } from '../store/types';
 
-export class Line implements LineType {
+export class Line<T extends Partial<object>> implements LineType<T> {
   lineNumber: number; // Unique identifier for the line
-  DisplayName: string; // Display name of the caller/callee
-  DisplayNumber: string; // DID or number associated with the call
-  BuddyObj: BuddyType | null; // Associated buddy object (if any)
+  displayNumber: string; // DID or number associated with the call
+  metaData: Partial<T>; // Associated buddy object (if any)
   sipSession: SipInvitationType | null; // SIP.js Session object for the call
-  LocalSoundMeter: any; // Placeholder for local audio level meter (if applicable)
-  RemoteSoundMeter: any; // Placeholder for remote audio level meter (if applicable)
-  IsSelected: boolean;
+  localSoundMeter: any; // Placeholder for local audio level meter (if applicable)
+  remoteSoundMeter: any; // Placeholder for remote audio level meter (if applicable)
 
-  constructor(
-    lineNumber: number,
-    displayName: string,
-    displayNumber: string,
-    buddyObj: BuddyType | null = null,
-    sipSession: SipInvitationType | null = null,
-  ) {
+  constructor(lineNumber: number, displayNumber: string, metaData: T) {
     this.lineNumber = lineNumber;
-    this.DisplayName = displayName;
-    this.DisplayNumber = displayNumber;
-    this.IsSelected = false;
-    this.BuddyObj = buddyObj;
-    this.sipSession = sipSession;
-    this.LocalSoundMeter = null;
-    this.RemoteSoundMeter = null;
+    this.displayNumber = displayNumber;
+    this.metaData = metaData;
+    this.sipSession = null;
+    this.localSoundMeter = null;
+    this.remoteSoundMeter = null;
   }
 }

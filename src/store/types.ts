@@ -15,13 +15,7 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
   configs: SipConfigs;
   userAgent?: SipUserAgent;
-  buddies: Array<BuddyType>;
-  selectedBuddy: Array<any>;
-  selectedLine: Array<any>;
   lines: Array<LineType>;
-  newLineNumber: number;
-  SipUsername: string;
-  SipDomain: string;
   audioBlobs: AudioBlobs['audioBlobs'];
   devicesInfo: DevicesInfoType;
   // Setter
@@ -30,15 +24,12 @@ export interface SipStoreStateType {
   addLine: (line: LineType) => void;
   updateLine: (line: LineType) => void;
   removeLine: (lineNum: LineType['lineNumber']) => void;
-  addBuddy: (buddy: BuddyType) => void;
   // Getter
-  findBuddyByDid: (did: string) => BuddyType | null;
-  findBuddyByIdentity: (indentity: BuddyType['identity']) => BuddyType | null;
   findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
-  getSession: (did: string) => SipSessionType | null;
   getSessions: () => SipUserAgent['sessions'] | null;
+  getNewLineNumber: () => number;
   // Utils
-  countSessions: (id: string) => number;
+  countIdSessions: (id: string) => number;
 }
 
 export interface SipInvitationType
@@ -65,15 +56,13 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
   peerConnectionDelegate: any;
 }
 /* -------------------------------------------------------------------------- */
-export interface LineType {
+export interface LineType<T extends object = object> {
   lineNumber: number;
-  DisplayName: string;
-  DisplayNumber: string;
-  IsSelected: boolean;
-  BuddyObj: BuddyType | null;
+  displayNumber: string;
+  metaData: Partial<T>;
   sipSession: SipInvitationType | SipInviterType | null;
-  LocalSoundMeter: any;
-  RemoteSoundMeter: any;
+  localSoundMeter: any;
+  remoteSoundMeter: any;
 }
 
 export interface SipSessionType extends Session {
@@ -82,13 +71,13 @@ export interface SipSessionType extends Session {
 
 export interface SipSessionDataType {
   line: number;
-  calldirection: 'inbound' | 'outbound';
-  terminateby: string;
+  callDirection: 'inbound' | 'outbound';
+  terminateBy: string;
   src: string;
-  buddyId: string;
+  metaData: LineType['metaData'];
   callstart: string;
   earlyReject: boolean;
-  withvideo: boolean;
+  withVideo: boolean;
   reasonCode: number;
   reasonText: string;
   teardownComplete: boolean;
@@ -100,13 +89,13 @@ export interface SipSessionDataType {
   mute: Array<{ event: 'mute' | 'unmute'; eventTime: string }>;
   isMute: boolean;
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
-  dst: string;
+  dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
-  AudioSourceTrack: any; //TODO
+  audioSourceTrack: any; //TODO
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
-  ConfbridgeChannels: Array<any>; //TODO
-  ConfbridgeEvents: Array<any>; //TODO
+  confBridgeChannels: Array<any>; //TODO
+  confBridgeEvents: Array<any>; //TODO
   videoSourceDevice: string | null;
   audioSourceDevice: string | null;
   audioOutputDevice: string | null;
@@ -124,31 +113,6 @@ export interface SipSessionTransferType {
     disposition: string;
   };
   onCancle?: Function;
-}
-/* -------------------------------------------------------------------------- */
-export interface BuddyType {
-  type: 'extension' | 'xmpp' | 'contact' | 'group';
-  identity: string;
-  CallerIDName: string;
-  ExtNo: string;
-  MobileNumber?: string;
-  ContactNumber1?: string;
-  ContactNumber2?: string;
-  lastActivity: string; // ISO timestamp
-  Desc: string;
-  Email: string;
-  jid?: string;
-  devState: string;
-  presence: string;
-  missed: number;
-  IsSelected: boolean;
-  imageObjectURL: string;
-  presenceText: string;
-  EnableDuringDnd: boolean;
-  EnableSubscribe: boolean;
-  SubscribeUser: string;
-  AllowAutoDelete: boolean;
-  Pinned: boolean;
 }
 /* -------------------------------------------------------------------------- */
 interface DevicesInfoType {
