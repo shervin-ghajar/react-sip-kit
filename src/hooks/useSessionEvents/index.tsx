@@ -45,7 +45,7 @@ export const useSessionEvents = () => {
     session.data.reasonCode = temp_cause;
     if (temp_cause === 0) {
       session.data.reasonText = 'Call Cancelled';
-      console.log('Call canceled by remote party before answer');
+      console.log('Call canceled by remote party before answer!');
     } else {
       session.data.reasonText = 'Call completed elsewhere';
       console.log('Call completed elsewhere before answer');
