@@ -41,7 +41,7 @@ export const useSessionEvents = () => {
     }
     const session = lineObj.sipSession;
     if (!session) return;
-    session.data.terminateby = 'them';
+    session.data.terminateBy = 'them';
     session.data.reasonCode = temp_cause;
     if (temp_cause === 0) {
       session.data.reasonText = 'Call Cancelled';
@@ -199,7 +199,7 @@ export const useSessionEvents = () => {
     console.log('INVITE Rejected:', response.message.reasonPhrase);
     const session = lineObj.sipSession;
     if (!session) return;
-    session.data.terminateby = 'them';
+    session.data.terminateBy = 'them';
     session.data.reasonCode = response.message.statusCode;
     session.data.reasonText = response.message.reasonPhrase;
 
@@ -218,7 +218,7 @@ export const useSessionEvents = () => {
   ) {
     // They Ended the call
     if (!lineObj?.sipSession) return;
-    lineObj.sipSession.data.terminateby = 'them';
+    lineObj.sipSession.data.terminateBy = 'them';
     lineObj.sipSession.data.reasonCode = 16;
     lineObj.sipSession.data.reasonText = 'Normal Call clearing';
 
@@ -279,8 +279,8 @@ export const useSessionEvents = () => {
       const session = lineObj.sipSession;
       if (!session) return;
       if (!session.data) return;
-      if (!session.data.ConfbridgeChannels) session.data.ConfbridgeChannels = [];
-      if (!session.data.ConfbridgeEvents) session.data.ConfbridgeEvents = [];
+      if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
+      if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
 
       if (msgJson.type == 'ConfbridgeStart') {
         console.log('ConfbridgeStart!');
@@ -291,8 +291,8 @@ export const useSessionEvents = () => {
         console.log('Created at:', msgJson.bridge.creationtime);
         console.log('Video Mode:', msgJson.bridge.video_mode);
 
-        session.data.ConfbridgeChannels = msgJson.channels; // Write over this
-        session.data.ConfbridgeChannels.forEach(function (chan) {
+        session.data.confBridgeChannels = msgJson.channels; // Write over this
+        session.data.confBridgeChannels.forEach(function (chan) {
           // The mute and unmute status doesn't appear to be a realtime state, only what the
           // startmuted= setting of the default profile is.
           console.log(
@@ -306,12 +306,12 @@ export const useSessionEvents = () => {
       } else if (msgJson.type == 'ConfbridgeJoin') {
         msgJson.channels.forEach(function (chan) {
           let found = false;
-          session.data.ConfbridgeChannels?.forEach(function (existingChan) {
+          session.data.confBridgeChannels?.forEach(function (existingChan) {
             if (existingChan.id == chan.id) found = true;
           });
           if (!found) {
-            session.data.ConfbridgeChannels?.push(chan);
-            session.data.ConfbridgeEvents?.push({
+            session.data.confBridgeChannels?.push(chan);
+            session.data.confBridgeEvents?.push({
               event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
               eventTime: utcDateNow(),
             });
@@ -320,11 +320,11 @@ export const useSessionEvents = () => {
         });
       } else if (msgJson.type == 'ConfbridgeLeave') {
         msgJson.channels.forEach(function (chan) {
-          session.data.ConfbridgeChannels?.forEach(function (existingChan, i) {
+          session.data.confBridgeChannels?.forEach(function (existingChan, i) {
             if (existingChan.id == chan.id) {
-              session.data.ConfbridgeChannels?.splice(i, 1);
+              session.data.confBridgeChannels?.splice(i, 1);
               console.log(chan.caller.name, 'Left the conference');
-              session.data.ConfbridgeEvents?.push({
+              session.data.confBridgeEvents?.push({
                 event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
                 eventTime: utcDateNow(),
               });
@@ -353,7 +353,7 @@ export const useSessionEvents = () => {
         }
       } else if (msgJson.type == 'ConfbridgeMute') {
         msgJson.channels.forEach(function (chan) {
-          session.data.ConfbridgeChannels?.forEach(function (existingChan) {
+          session.data.confBridgeChannels?.forEach(function (existingChan) {
             if (existingChan.id == chan.id) {
               console.log(existingChan.caller.name, 'is now muted');
               existingChan.muted = true;
@@ -363,7 +363,7 @@ export const useSessionEvents = () => {
         //   RedrawStage(lineObj.LineNumber, false); TODO #SH
       } else if (msgJson.type === 'ConfbridgeUnmute') {
         msgJson.channels.forEach(function (chan) {
-          session.data.ConfbridgeChannels?.forEach(function (existingChan) {
+          session.data.confBridgeChannels?.forEach(function (existingChan) {
             if (existingChan.id == chan.id) {
               console.log(existingChan.caller.name, 'is now unmuted');
               existingChan.muted = false;
