@@ -21,7 +21,7 @@ import {
   UserAgent,
 } from 'sip.js';
 
-export const useSessionMethods = () => {
+export const useSessionMethods = <MetaDataType extends object = object>() => {
   const configs = useSipStore((state) => state.configs);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
   const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
@@ -633,7 +633,7 @@ export const useSessionMethods = () => {
   function dialByLine(
     type: 'audio' | 'video',
     dialNumber: string,
-    metaData: object = {},
+    metaData?: MetaDataType,
     extraHeaders?: Array<string>,
   ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
@@ -654,7 +654,7 @@ export const useSessionMethods = () => {
 
     // Create a Buddy if one is not already existing
     // Create a Line
-    const lineObj = new Line(getNewLineNumber(), dialNumber, metaData);
+    const lineObj = new Line(getNewLineNumber(), dialNumber, metaData ?? {});
 
     // Start Call Invite
     if (type === 'audio') {

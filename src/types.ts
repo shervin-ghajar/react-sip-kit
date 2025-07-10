@@ -1,8 +1,8 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
-import { useSessionMethods, useSessionEvents } from './hooks';
-import { SipSessionType, SipStoreStateType } from './store/types';
-import { UserAgent, Registerer, Subscriber } from 'sip.js';
+import { useSessionEvents, useSessionMethods } from './hooks';
+import { LineType, SipSessionType } from './store/types';
+import { Registerer, Subscriber, UserAgent } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
   isReRegister: boolean;
@@ -36,13 +36,14 @@ export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
   configs: SipProviderConfigs<T>;
 }
 
-export interface SipContextType {
-  lines: SipStoreStateType['lines'];
-  session: SipContextSessionType;
+export interface SipContextType<MetaDataType extends object = object> {
+  status: 'connected' | 'disconnected';
+  lines: LineType<MetaDataType>[];
+  session: SipContextSessionType<MetaDataType>;
   transport: SipContextTransportType;
 }
-export interface SipContextSessionType {
-  methods: Omit<ReturnType<typeof useSessionMethods>, 'receiveCall'>;
+export interface SipContextSessionType<MetaDataType extends object = object> {
+  methods: Omit<ReturnType<typeof useSessionMethods<MetaDataType>>, 'receiveCall'>;
   events: ReturnType<typeof useSessionEvents>;
 }
 export interface SipContextTransportType {

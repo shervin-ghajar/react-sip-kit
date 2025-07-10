@@ -7,16 +7,16 @@ import {
   onTransportDisconnected,
   reconnectTransport,
 } from './events/transport';
-import { useSessionMethods, useSessionEvents } from './hooks';
+import { useSessionEvents, useSessionMethods } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import { deepMerge } from './utils';
-import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
-import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
-export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) => {
+export const SipProvider = ({ children, configs }: SipProviderProps) => {
   const store = useSipStore();
   const {
     userAgent,
@@ -187,6 +187,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
   return (
     <SipContext.Provider
       value={{
+        status: userAgent?.isConnected() ? 'connected' : 'disconnected',
         lines: store.lines,
         session: {
           methods,
@@ -202,8 +203,9 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
   );
 };
 
-export const useSipProvider = () => {
+export const useSipProvider = <MetaDataType extends object = object>() => {
   const context = useContext(SipContext);
   if (!context) throw new Error('useSipProvider must be used within a SipProvider');
-  return context;
+
+  return context as SipContextType<MetaDataType>;
 };
