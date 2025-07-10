@@ -1,27 +1,31 @@
 import './App.css';
 import { Audio, Video } from './components';
-import { useSipProvider } from './core/services/sip';
-import { LineType } from './core/services/sip/store/types';
+import { useSipProvider } from './provider';
+import { LineType } from './store/types';
 
+interface MetaDataType {
+  displayName: string;
+}
 function App({ username }: { username: string }) {
   const {
-    store: { lines, userAgent },
-    methods: {
-      answerAudioSession,
-      answerVideoSession,
-      dialByLine,
-      endSession,
-      muteSession,
-      unmuteSession,
-      holdSession,
-      unholdSession,
-      startTransferSession,
-      cancelAttendedTransferSession,
-      attendedTransferSession,
+    lines,
+    status,
+    session: {
+      methods: {
+        answerAudioSession,
+        answerVideoSession,
+        dialByLine,
+        endSession,
+        muteSession,
+        unmuteSession,
+        holdSession,
+        unholdSession,
+        startTransferSession,
+        cancelAttendedTransferSession,
+        attendedTransferSession,
+      },
     },
-  } = useSipProvider();
-
-  console.log({ lines, isConnected: userAgent?.isConnected() });
+  } = useSipProvider<MetaDataType>();
 
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call
@@ -33,8 +37,8 @@ function App({ username }: { username: string }) {
   const renderLines = () => {
     return lines.map((line) => {
       const callStarted = line.sipSession?.data.started;
-      const isVideoCall = !!line.sipSession?.data.withvideo || false;
-      const isOutbound = line.sipSession?.data.calldirection === 'outbound';
+      const isVideoCall = !!line.sipSession?.data.withVideo || false;
+      const isOutbound = line.sipSession?.data.callDirection === 'outbound';
       const isMute = line.sipSession?.data.isMute;
       const isHold = line.sipSession?.isOnHold;
       console.log({ callStarted }, line.sipSession?.data);
@@ -55,8 +59,8 @@ function App({ username }: { username: string }) {
             </div>
           )}
           <div>
-            <p>Name: {line.DisplayName}</p>
-            <p>Number: {line.DisplayNumber}</p>
+            <p>Name: {line.metaData?.displayName}</p>
+            <p>Number: {line.displayNumber}</p>
           </div>
           {callStarted ? (
             <div style={{ gap: 4, display: 'flex', justifyContent: 'center' }}>
@@ -130,7 +134,7 @@ function App({ username }: { username: string }) {
       }}
     >
       <h2>
-        Web Phone {username} {userAgent?.isConnected() ? 'connected' : 'disconnected'}
+        Web Phone {username} {status}
       </h2>
       <div
         style={{

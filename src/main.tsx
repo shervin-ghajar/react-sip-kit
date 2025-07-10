@@ -1,6 +1,6 @@
 import App from './App.tsx';
-import { SipProvider } from './core/services/sip/provider.tsx';
 import './index.css';
+import { SipProvider } from './provider.tsx';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -10,13 +10,15 @@ const Providers = () => {
   return (
     <StrictMode>
       <SipProvider
-        config={{
-          domain: '192.168.82.31',
-          username: username,
-          password: username,
-          wssServer: '192.168.82.31',
-          webSocketPort: '8089',
-          serverPath: '/ws',
+        configs={{
+          account: {
+            domain: '192.168.82.31',
+            username: username,
+            password: username,
+            wssServer: '192.168.82.31',
+            webSocketPort: '8089',
+            serverPath: '/ws',
+          },
         }}
       >
         <App username={username} />
