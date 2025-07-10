@@ -1,3 +1,4 @@
+import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
@@ -19,7 +20,6 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
   const store = useSipStore();
   const {
     userAgent,
-    configs: defaultConfigs,
     devicesInfo: {
       hasAudioDevice,
       hasSpeakerDevice,
@@ -31,8 +31,8 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
     setSipStore,
   } = store;
   const mergedConfigs = useMemo(
-    () => deepMerge(defaultConfigs, configs as SipConfigs),
-    [configs, defaultConfigs],
+    () => deepMerge(defaultSipConfigs, configs as SipConfigs),
+    [configs],
   );
   const methods = useSessionMethods();
   const events = useSessionEvents();
