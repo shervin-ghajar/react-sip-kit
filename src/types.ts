@@ -17,7 +17,7 @@ export interface SipUserAgent extends UserAgent {
   registrationCompleted: boolean;
   registering: boolean;
   transport: UserAgent['transport'] & {
-    ReconnectionAttempts: number;
+    reconnectionAttempts: number;
     attemptingReconnection: boolean;
   };
   BlfSubs: any[];

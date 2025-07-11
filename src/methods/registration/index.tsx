@@ -4,12 +4,9 @@ import { SipUserAgent } from '../../types';
 import clone from 'clone';
 
 /* -------------------------------------------------------------------------- */
-export function Register(userAgent?: SipUserAgent) {
+export function register(userAgent?: SipUserAgent) {
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-  if (clonedUserAgent == null) return;
-  if (clonedUserAgent.registering == true) return;
-  if (clonedUserAgent.isRegistered()) return;
-  console.log('Sending Registration...');
+  if (!clonedUserAgent || clonedUserAgent?.registering || clonedUserAgent.isRegistered()) return;
   clonedUserAgent.registering = true;
   clonedUserAgent.registerer.register({
     requestDelegate: {

@@ -1,4 +1,4 @@
-import { Register } from '../../methods/registration';
+import { register } from '../../methods/registration';
 import { getSipStore, getSipStoreConfigs, getSipStoreUserAgent, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
 import clone from 'clone';
@@ -11,17 +11,18 @@ export function onTransportConnected(userAgent?: SipUserAgent) {
   // Reset the ReconnectionAttempts
   clonedUserAgent.isReRegister = false;
   clonedUserAgent.transport.attemptingReconnection = false;
-  clonedUserAgent.transport.ReconnectionAttempts =
-    getSipStoreConfigs().registration.transportReconnectionAttempts;
+  clonedUserAgent.transport.reconnectionAttempts =
+    getSipStoreConfigs().registration.transportReconnectionAttempts - 1;
 
   // Auto start register
   if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
-    window.setTimeout(function () {
-      Register(clonedUserAgent);
-    }, 500);
+    if (clonedUserAgent.transport.reconnectionAttempts > 0)
+      window.setTimeout(function () {
+        register(clonedUserAgent);
+      }, getSipStoreConfigs().registration.transportReconnectionTimeout);
   } else {
     console.warn(
-      'onTransportConnected: Register() called, but attemptingReconnection is true or registering is true',
+      'onTransportConnected: register() called, but attemptingReconnection is true or registering is true',
     );
   }
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
@@ -92,9 +93,9 @@ export function reconnectTransport(userAgent?: SipUserAgent) {
     'Waiting to Re-connect...',
     getSipStoreConfigs().registration.transportReconnectionAttempts,
     'Attempt remaining',
-    clonedUserAgent.transport.ReconnectionAttempts,
+    clonedUserAgent.transport.reconnectionAttempts,
   );
-  clonedUserAgent.transport.ReconnectionAttempts =
-    clonedUserAgent.transport.ReconnectionAttempts - 1;
+  clonedUserAgent.transport.reconnectionAttempts =
+    clonedUserAgent.transport.reconnectionAttempts - 1;
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }

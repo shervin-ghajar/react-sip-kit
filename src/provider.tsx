@@ -84,7 +84,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     ua.sessions = ua._sessions; // Assign sessions
     ua.registrationCompleted = false;
     ua.registering = false;
-    ua.transport.ReconnectionAttempts =
+    ua.transport.reconnectionAttempts =
       mergedConfigs.registration.transportReconnectionAttempts || 0;
     ua.transport.attemptingReconnection = false;
     ua.BlfSubs = [];
