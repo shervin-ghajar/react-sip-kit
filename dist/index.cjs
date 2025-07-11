@@ -1,7 +1,54 @@
 'use strict';
 
-var jsxRuntime = require('react/jsx-runtime');
 var React = require('react');
+var jsxRuntime = require('react/jsx-runtime');
+
+class Line {
+    lineNumber; // Unique identifier for the line
+    displayNumber; // DID or number associated with the call
+    metaData; // Associated buddy object (if any)
+    sipSession; // SIP.js Session object for the call
+    localSoundMeter; // Placeholder for local audio level meter (if applicable)
+    remoteSoundMeter; // Placeholder for remote audio level meter (if applicable)
+    constructor(lineNumber, displayNumber, metaData) {
+        this.lineNumber = lineNumber;
+        this.displayNumber = displayNumber;
+        this.metaData = metaData;
+        this.sipSession = null;
+        this.localSoundMeter = null;
+        this.remoteSoundMeter = null;
+    }
+}
+
+class AudioBlobs {
+    static instance;
+    audioBlobs;
+    constructor(overwrite) {
+        this.audioBlobs = {
+            Alert: overwrite?.['Alert'] ?? {
+                file: 'Alert.mp3',
+                url: './src/assets/media/Alert.mp3',
+            },
+            Ringtone: overwrite?.['Ringtone'] ?? {
+                file: 'Ringtone_1.mp3',
+                url: './src/assets/media/Ringtone.mp3',
+            },
+            CallWaiting: overwrite?.['CallWaiting'] ?? {
+                file: 'Tone_CallWaiting.mp3',
+                url: './src/assets/media/CallWaiting.mp3',
+            },
+        };
+    }
+    static getInstance(overwrite) {
+        if (!AudioBlobs.instance) {
+            AudioBlobs.instance = new AudioBlobs(overwrite);
+        }
+        return AudioBlobs.instance;
+    }
+    getAudios() {
+        return this.audioBlobs;
+    }
+}
 
 const defaultAccountConfig = {
     username: '',
@@ -115,53 +162,6 @@ const defaultSipConfigs = {
     xmpp: defaultXmppConfig,
     permissions: defaultPermissionsConfig,
 };
-
-class Line {
-    lineNumber; // Unique identifier for the line
-    displayNumber; // DID or number associated with the call
-    metaData; // Associated buddy object (if any)
-    sipSession; // SIP.js Session object for the call
-    localSoundMeter; // Placeholder for local audio level meter (if applicable)
-    remoteSoundMeter; // Placeholder for remote audio level meter (if applicable)
-    constructor(lineNumber, displayNumber, metaData) {
-        this.lineNumber = lineNumber;
-        this.displayNumber = displayNumber;
-        this.metaData = metaData;
-        this.sipSession = null;
-        this.localSoundMeter = null;
-        this.remoteSoundMeter = null;
-    }
-}
-
-class AudioBlobs {
-    static instance;
-    audioBlobs;
-    constructor(overwrite) {
-        this.audioBlobs = {
-            Alert: overwrite?.['Alert'] ?? {
-                file: 'Alert.mp3',
-                url: './src/assets/media/Alert.mp3',
-            },
-            Ringtone: overwrite?.['Ringtone'] ?? {
-                file: 'Ringtone_1.mp3',
-                url: './src/assets/media/Ringtone.mp3',
-            },
-            CallWaiting: overwrite?.['CallWaiting'] ?? {
-                file: 'Tone_CallWaiting.mp3',
-                url: './src/assets/media/CallWaiting.mp3',
-            },
-        };
-    }
-    static getInstance(overwrite) {
-        if (!AudioBlobs.instance) {
-            AudioBlobs.instance = new AudioBlobs(overwrite);
-        }
-        return AudioBlobs.instance;
-    }
-    getAudios() {
-        return this.audioBlobs;
-    }
-}
 
 const createStoreImpl = (createState) => {
   let state;
@@ -298,429 +298,6 @@ const getSipStoreConfigs = () => {
 
 function getDefaultExportFromCjs (x) {
 	return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
-}
-
-var clone$1 = {exports: {}};
-
-var hasRequiredClone;
-
-function requireClone () {
-	if (hasRequiredClone) return clone$1.exports;
-	hasRequiredClone = 1;
-	(function (module) {
-		var clone = (function() {
-
-		function _instanceof(obj, type) {
-		  return type != null && obj instanceof type;
-		}
-
-		var nativeMap;
-		try {
-		  nativeMap = Map;
-		} catch(_) {
-		  // maybe a reference error because no `Map`. Give it a dummy value that no
-		  // value will ever be an instanceof.
-		  nativeMap = function() {};
-		}
-
-		var nativeSet;
-		try {
-		  nativeSet = Set;
-		} catch(_) {
-		  nativeSet = function() {};
-		}
-
-		var nativePromise;
-		try {
-		  nativePromise = Promise;
-		} catch(_) {
-		  nativePromise = function() {};
-		}
-
-		/**
-		 * Clones (copies) an Object using deep copying.
-		 *
-		 * This function supports circular references by default, but if you are certain
-		 * there are no circular references in your object, you can save some CPU time
-		 * by calling clone(obj, false).
-		 *
-		 * Caution: if `circular` is false and `parent` contains circular references,
-		 * your program may enter an infinite loop and crash.
-		 *
-		 * @param `parent` - the object to be cloned
-		 * @param `circular` - set to true if the object to be cloned may contain
-		 *    circular references. (optional - true by default)
-		 * @param `depth` - set to a number if the object is only to be cloned to
-		 *    a particular depth. (optional - defaults to Infinity)
-		 * @param `prototype` - sets the prototype to be used when cloning an object.
-		 *    (optional - defaults to parent prototype).
-		 * @param `includeNonEnumerable` - set to true if the non-enumerable properties
-		 *    should be cloned as well. Non-enumerable properties on the prototype
-		 *    chain will be ignored. (optional - false by default)
-		*/
-		function clone(parent, circular, depth, prototype, includeNonEnumerable) {
-		  if (typeof circular === 'object') {
-		    depth = circular.depth;
-		    prototype = circular.prototype;
-		    includeNonEnumerable = circular.includeNonEnumerable;
-		    circular = circular.circular;
-		  }
-		  // maintain two arrays for circular references, where corresponding parents
-		  // and children have the same index
-		  var allParents = [];
-		  var allChildren = [];
-
-		  var useBuffer = typeof Buffer != 'undefined';
-
-		  if (typeof circular == 'undefined')
-		    circular = true;
-
-		  if (typeof depth == 'undefined')
-		    depth = Infinity;
-
-		  // recurse this function so we don't reset allParents and allChildren
-		  function _clone(parent, depth) {
-		    // cloning null always returns null
-		    if (parent === null)
-		      return null;
-
-		    if (depth === 0)
-		      return parent;
-
-		    var child;
-		    var proto;
-		    if (typeof parent != 'object') {
-		      return parent;
-		    }
-
-		    if (_instanceof(parent, nativeMap)) {
-		      child = new nativeMap();
-		    } else if (_instanceof(parent, nativeSet)) {
-		      child = new nativeSet();
-		    } else if (_instanceof(parent, nativePromise)) {
-		      child = new nativePromise(function (resolve, reject) {
-		        parent.then(function(value) {
-		          resolve(_clone(value, depth - 1));
-		        }, function(err) {
-		          reject(_clone(err, depth - 1));
-		        });
-		      });
-		    } else if (clone.__isArray(parent)) {
-		      child = [];
-		    } else if (clone.__isRegExp(parent)) {
-		      child = new RegExp(parent.source, __getRegExpFlags(parent));
-		      if (parent.lastIndex) child.lastIndex = parent.lastIndex;
-		    } else if (clone.__isDate(parent)) {
-		      child = new Date(parent.getTime());
-		    } else if (useBuffer && Buffer.isBuffer(parent)) {
-		      if (Buffer.allocUnsafe) {
-		        // Node.js >= 4.5.0
-		        child = Buffer.allocUnsafe(parent.length);
-		      } else {
-		        // Older Node.js versions
-		        child = new Buffer(parent.length);
-		      }
-		      parent.copy(child);
-		      return child;
-		    } else if (_instanceof(parent, Error)) {
-		      child = Object.create(parent);
-		    } else {
-		      if (typeof prototype == 'undefined') {
-		        proto = Object.getPrototypeOf(parent);
-		        child = Object.create(proto);
-		      }
-		      else {
-		        child = Object.create(prototype);
-		        proto = prototype;
-		      }
-		    }
-
-		    if (circular) {
-		      var index = allParents.indexOf(parent);
-
-		      if (index != -1) {
-		        return allChildren[index];
-		      }
-		      allParents.push(parent);
-		      allChildren.push(child);
-		    }
-
-		    if (_instanceof(parent, nativeMap)) {
-		      parent.forEach(function(value, key) {
-		        var keyChild = _clone(key, depth - 1);
-		        var valueChild = _clone(value, depth - 1);
-		        child.set(keyChild, valueChild);
-		      });
-		    }
-		    if (_instanceof(parent, nativeSet)) {
-		      parent.forEach(function(value) {
-		        var entryChild = _clone(value, depth - 1);
-		        child.add(entryChild);
-		      });
-		    }
-
-		    for (var i in parent) {
-		      var attrs;
-		      if (proto) {
-		        attrs = Object.getOwnPropertyDescriptor(proto, i);
-		      }
-
-		      if (attrs && attrs.set == null) {
-		        continue;
-		      }
-		      child[i] = _clone(parent[i], depth - 1);
-		    }
-
-		    if (Object.getOwnPropertySymbols) {
-		      var symbols = Object.getOwnPropertySymbols(parent);
-		      for (var i = 0; i < symbols.length; i++) {
-		        // Don't need to worry about cloning a symbol because it is a primitive,
-		        // like a number or string.
-		        var symbol = symbols[i];
-		        var descriptor = Object.getOwnPropertyDescriptor(parent, symbol);
-		        if (descriptor && !descriptor.enumerable && !includeNonEnumerable) {
-		          continue;
-		        }
-		        child[symbol] = _clone(parent[symbol], depth - 1);
-		        if (!descriptor.enumerable) {
-		          Object.defineProperty(child, symbol, {
-		            enumerable: false
-		          });
-		        }
-		      }
-		    }
-
-		    if (includeNonEnumerable) {
-		      var allPropertyNames = Object.getOwnPropertyNames(parent);
-		      for (var i = 0; i < allPropertyNames.length; i++) {
-		        var propertyName = allPropertyNames[i];
-		        var descriptor = Object.getOwnPropertyDescriptor(parent, propertyName);
-		        if (descriptor && descriptor.enumerable) {
-		          continue;
-		        }
-		        child[propertyName] = _clone(parent[propertyName], depth - 1);
-		        Object.defineProperty(child, propertyName, {
-		          enumerable: false
-		        });
-		      }
-		    }
-
-		    return child;
-		  }
-
-		  return _clone(parent, depth);
-		}
-
-		/**
-		 * Simple flat clone using prototype, accepts only objects, usefull for property
-		 * override on FLAT configuration object (no nested props).
-		 *
-		 * USE WITH CAUTION! This may not behave as you wish if you do not know how this
-		 * works.
-		 */
-		clone.clonePrototype = function clonePrototype(parent) {
-		  if (parent === null)
-		    return null;
-
-		  var c = function () {};
-		  c.prototype = parent;
-		  return new c();
-		};
-
-		// private utility functions
-
-		function __objToStr(o) {
-		  return Object.prototype.toString.call(o);
-		}
-		clone.__objToStr = __objToStr;
-
-		function __isDate(o) {
-		  return typeof o === 'object' && __objToStr(o) === '[object Date]';
-		}
-		clone.__isDate = __isDate;
-
-		function __isArray(o) {
-		  return typeof o === 'object' && __objToStr(o) === '[object Array]';
-		}
-		clone.__isArray = __isArray;
-
-		function __isRegExp(o) {
-		  return typeof o === 'object' && __objToStr(o) === '[object RegExp]';
-		}
-		clone.__isRegExp = __isRegExp;
-
-		function __getRegExpFlags(re) {
-		  var flags = '';
-		  if (re.global) flags += 'g';
-		  if (re.ignoreCase) flags += 'i';
-		  if (re.multiline) flags += 'm';
-		  return flags;
-		}
-		clone.__getRegExpFlags = __getRegExpFlags;
-
-		return clone;
-		})();
-
-		if (module.exports) {
-		  module.exports = clone;
-		} 
-	} (clone$1));
-	return clone$1.exports;
-}
-
-var cloneExports = requireClone();
-var clone = /*@__PURE__*/getDefaultExportFromCjs(cloneExports);
-
-// Registration Events
-// ===================
-/**
- * Called when account is registered
- */
-function onRegistered(userAgent) {
-    // This code fires on re-register after session timeout
-    // to ensure that events are not fired multiple times
-    // a isReRegister state is kept.
-    // TODO: This check appears obsolete
-    const clonedUserAgent = clone(userAgent);
-    clonedUserAgent.registrationCompleted = true;
-    if (!clonedUserAgent.isReRegister) {
-        console.log('Registered!');
-        // Start Subscribe Loop
-        // setTimeout(function () {
-        //   SubscribeAll(clonedUserAgent);
-        // }, 500); //TODO subscription disabled for now
-        clonedUserAgent.registering = false;
-    }
-    else {
-        clonedUserAgent.registering = false;
-        console.log('ReRegistered!');
-    }
-    clonedUserAgent.isReRegister = true;
-    setSipStore({ userAgent: clonedUserAgent });
-}
-/**
- * Called if UserAgent can connect, but not register.
- * @param {string} response Incoming request message
- * @param {string} cause Cause message. Unused
- **/
-function onRegisterFailed(response, cause) {
-    const clonedUserAgent = clone(getSipStoreUserAgent());
-    if (clonedUserAgent)
-        clonedUserAgent.registering = false;
-    setSipStore({ userAgent: clonedUserAgent });
-}
-/**
- * Called when Unregister is requested
- */
-function onUnregistered(userAgent) {
-    const clonedUserAgent = clone(userAgent);
-    // We set this flag here so that the re-register attempts are fully completed.
-    clonedUserAgent.isReRegister = false;
-    setSipStore({ userAgent: clonedUserAgent });
-}
-
-/* -------------------------------------------------------------------------- */
-function register(userAgent) {
-    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-    if (!clonedUserAgent || clonedUserAgent?.registering || clonedUserAgent.isRegistered())
-        return;
-    clonedUserAgent.registering = true;
-    clonedUserAgent.registerer.register({
-        requestDelegate: {
-            onReject(sip) {
-                onRegisterFailed(sip.message.reasonPhrase, sip.message.statusCode);
-            },
-        },
-    });
-    if (!userAgent)
-        setSipStore({ userAgent: clonedUserAgent });
-}
-
-/* -------------------------------------------------------------------------- */
-function onTransportConnected(userAgent) {
-    console.log('Connected to Web Socket!');
-    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-    if (!clonedUserAgent)
-        return;
-    // Reset the reconnectionAttempts
-    clonedUserAgent.isReRegister = false;
-    clonedUserAgent.transport.attemptingReconnection = false;
-    clonedUserAgent.transport.reconnectionAttempts =
-        getSipStoreConfigs().registration.transportReconnectionAttempts;
-    // Auto start register
-    if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
-        if (clonedUserAgent.transport.reconnectionAttempts > 0)
-            window.setTimeout(function () {
-                register(clonedUserAgent);
-            }, getSipStoreConfigs().registration.transportReconnectionTimeout);
-    }
-    else {
-        console.warn('onTransportConnected: register() called, but attemptingReconnection is true or registering is true');
-    }
-    if (!userAgent)
-        setSipStore({ userAgent: clonedUserAgent });
-}
-function onTransportConnectError(error, userAgent) {
-    console.warn('WebSocket Connection Failed:', error);
-    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-    if (!clonedUserAgent)
-        return;
-    // We set this flag here so that the re-register attempts are fully completed.
-    clonedUserAgent.isReRegister = false;
-    // If there is an issue with the WS connection
-    // We unregister, so that we register again once its up
-    console.log('Unregister...');
-    try {
-        clonedUserAgent.registerer.unregister();
-    }
-    catch (e) {
-        // I know!!!
-    }
-    reconnectTransport(clonedUserAgent);
-    if (!userAgent)
-        setSipStore({ userAgent: clonedUserAgent });
-}
-function onTransportDisconnected(userAgent) {
-    console.log('Disconnected from Web Socket!');
-    const clonedUserAgent = clone(userAgent);
-    clonedUserAgent.isReRegister = false;
-    setSipStore({ userAgent: clonedUserAgent });
-}
-function reconnectTransport(userAgent) {
-    const transportReconnectionTimeout = getSipStore().configs?.registration?.transportReconnectionTimeout;
-    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-    if (!clonedUserAgent)
-        return;
-    clonedUserAgent.registering = false; // if the transport was down, you will not be registered
-    if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
-        // Asked to re-connect, but ws is connected
-        onTransportConnected(clonedUserAgent);
-        return;
-    }
-    console.log('Reconnect Transport...');
-    setTimeout(function () {
-        console.log('ReConnecting to WebSocket...', { timeout: transportReconnectionTimeout * 1000 });
-        if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
-            // Already Connected
-            console.log('Transport Already Connected...');
-            onTransportConnected(clonedUserAgent);
-            return;
-        }
-        else {
-            clonedUserAgent.transport.attemptingReconnection = true;
-            clonedUserAgent.reconnect().catch(function (error) {
-                clonedUserAgent.transport.attemptingReconnection = false;
-                console.warn('Failed to reconnect', error);
-                // Try Again
-                reconnectTransport(clonedUserAgent);
-            });
-        }
-    }, getSipStoreConfigs().registration.transportReconnectionTimeout);
-    console.log('Waiting to Re-connect...', getSipStoreConfigs().registration.transportReconnectionAttempts, 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
-    clonedUserAgent.transport.reconnectionAttempts =
-        clonedUserAgent.transport.reconnectionAttempts - 1;
-    if (!userAgent)
-        setSipStore({ userAgent: clonedUserAgent });
 }
 
 var dayjs_min$1 = {exports: {}};
@@ -19168,6 +18745,429 @@ const useSessionMethods = () => {
     };
 };
 
+var clone$1 = {exports: {}};
+
+var hasRequiredClone;
+
+function requireClone () {
+	if (hasRequiredClone) return clone$1.exports;
+	hasRequiredClone = 1;
+	(function (module) {
+		var clone = (function() {
+
+		function _instanceof(obj, type) {
+		  return type != null && obj instanceof type;
+		}
+
+		var nativeMap;
+		try {
+		  nativeMap = Map;
+		} catch(_) {
+		  // maybe a reference error because no `Map`. Give it a dummy value that no
+		  // value will ever be an instanceof.
+		  nativeMap = function() {};
+		}
+
+		var nativeSet;
+		try {
+		  nativeSet = Set;
+		} catch(_) {
+		  nativeSet = function() {};
+		}
+
+		var nativePromise;
+		try {
+		  nativePromise = Promise;
+		} catch(_) {
+		  nativePromise = function() {};
+		}
+
+		/**
+		 * Clones (copies) an Object using deep copying.
+		 *
+		 * This function supports circular references by default, but if you are certain
+		 * there are no circular references in your object, you can save some CPU time
+		 * by calling clone(obj, false).
+		 *
+		 * Caution: if `circular` is false and `parent` contains circular references,
+		 * your program may enter an infinite loop and crash.
+		 *
+		 * @param `parent` - the object to be cloned
+		 * @param `circular` - set to true if the object to be cloned may contain
+		 *    circular references. (optional - true by default)
+		 * @param `depth` - set to a number if the object is only to be cloned to
+		 *    a particular depth. (optional - defaults to Infinity)
+		 * @param `prototype` - sets the prototype to be used when cloning an object.
+		 *    (optional - defaults to parent prototype).
+		 * @param `includeNonEnumerable` - set to true if the non-enumerable properties
+		 *    should be cloned as well. Non-enumerable properties on the prototype
+		 *    chain will be ignored. (optional - false by default)
+		*/
+		function clone(parent, circular, depth, prototype, includeNonEnumerable) {
+		  if (typeof circular === 'object') {
+		    depth = circular.depth;
+		    prototype = circular.prototype;
+		    includeNonEnumerable = circular.includeNonEnumerable;
+		    circular = circular.circular;
+		  }
+		  // maintain two arrays for circular references, where corresponding parents
+		  // and children have the same index
+		  var allParents = [];
+		  var allChildren = [];
+
+		  var useBuffer = typeof Buffer != 'undefined';
+
+		  if (typeof circular == 'undefined')
+		    circular = true;
+
+		  if (typeof depth == 'undefined')
+		    depth = Infinity;
+
+		  // recurse this function so we don't reset allParents and allChildren
+		  function _clone(parent, depth) {
+		    // cloning null always returns null
+		    if (parent === null)
+		      return null;
+
+		    if (depth === 0)
+		      return parent;
+
+		    var child;
+		    var proto;
+		    if (typeof parent != 'object') {
+		      return parent;
+		    }
+
+		    if (_instanceof(parent, nativeMap)) {
+		      child = new nativeMap();
+		    } else if (_instanceof(parent, nativeSet)) {
+		      child = new nativeSet();
+		    } else if (_instanceof(parent, nativePromise)) {
+		      child = new nativePromise(function (resolve, reject) {
+		        parent.then(function(value) {
+		          resolve(_clone(value, depth - 1));
+		        }, function(err) {
+		          reject(_clone(err, depth - 1));
+		        });
+		      });
+		    } else if (clone.__isArray(parent)) {
+		      child = [];
+		    } else if (clone.__isRegExp(parent)) {
+		      child = new RegExp(parent.source, __getRegExpFlags(parent));
+		      if (parent.lastIndex) child.lastIndex = parent.lastIndex;
+		    } else if (clone.__isDate(parent)) {
+		      child = new Date(parent.getTime());
+		    } else if (useBuffer && Buffer.isBuffer(parent)) {
+		      if (Buffer.allocUnsafe) {
+		        // Node.js >= 4.5.0
+		        child = Buffer.allocUnsafe(parent.length);
+		      } else {
+		        // Older Node.js versions
+		        child = new Buffer(parent.length);
+		      }
+		      parent.copy(child);
+		      return child;
+		    } else if (_instanceof(parent, Error)) {
+		      child = Object.create(parent);
+		    } else {
+		      if (typeof prototype == 'undefined') {
+		        proto = Object.getPrototypeOf(parent);
+		        child = Object.create(proto);
+		      }
+		      else {
+		        child = Object.create(prototype);
+		        proto = prototype;
+		      }
+		    }
+
+		    if (circular) {
+		      var index = allParents.indexOf(parent);
+
+		      if (index != -1) {
+		        return allChildren[index];
+		      }
+		      allParents.push(parent);
+		      allChildren.push(child);
+		    }
+
+		    if (_instanceof(parent, nativeMap)) {
+		      parent.forEach(function(value, key) {
+		        var keyChild = _clone(key, depth - 1);
+		        var valueChild = _clone(value, depth - 1);
+		        child.set(keyChild, valueChild);
+		      });
+		    }
+		    if (_instanceof(parent, nativeSet)) {
+		      parent.forEach(function(value) {
+		        var entryChild = _clone(value, depth - 1);
+		        child.add(entryChild);
+		      });
+		    }
+
+		    for (var i in parent) {
+		      var attrs;
+		      if (proto) {
+		        attrs = Object.getOwnPropertyDescriptor(proto, i);
+		      }
+
+		      if (attrs && attrs.set == null) {
+		        continue;
+		      }
+		      child[i] = _clone(parent[i], depth - 1);
+		    }
+
+		    if (Object.getOwnPropertySymbols) {
+		      var symbols = Object.getOwnPropertySymbols(parent);
+		      for (var i = 0; i < symbols.length; i++) {
+		        // Don't need to worry about cloning a symbol because it is a primitive,
+		        // like a number or string.
+		        var symbol = symbols[i];
+		        var descriptor = Object.getOwnPropertyDescriptor(parent, symbol);
+		        if (descriptor && !descriptor.enumerable && !includeNonEnumerable) {
+		          continue;
+		        }
+		        child[symbol] = _clone(parent[symbol], depth - 1);
+		        if (!descriptor.enumerable) {
+		          Object.defineProperty(child, symbol, {
+		            enumerable: false
+		          });
+		        }
+		      }
+		    }
+
+		    if (includeNonEnumerable) {
+		      var allPropertyNames = Object.getOwnPropertyNames(parent);
+		      for (var i = 0; i < allPropertyNames.length; i++) {
+		        var propertyName = allPropertyNames[i];
+		        var descriptor = Object.getOwnPropertyDescriptor(parent, propertyName);
+		        if (descriptor && descriptor.enumerable) {
+		          continue;
+		        }
+		        child[propertyName] = _clone(parent[propertyName], depth - 1);
+		        Object.defineProperty(child, propertyName, {
+		          enumerable: false
+		        });
+		      }
+		    }
+
+		    return child;
+		  }
+
+		  return _clone(parent, depth);
+		}
+
+		/**
+		 * Simple flat clone using prototype, accepts only objects, usefull for property
+		 * override on FLAT configuration object (no nested props).
+		 *
+		 * USE WITH CAUTION! This may not behave as you wish if you do not know how this
+		 * works.
+		 */
+		clone.clonePrototype = function clonePrototype(parent) {
+		  if (parent === null)
+		    return null;
+
+		  var c = function () {};
+		  c.prototype = parent;
+		  return new c();
+		};
+
+		// private utility functions
+
+		function __objToStr(o) {
+		  return Object.prototype.toString.call(o);
+		}
+		clone.__objToStr = __objToStr;
+
+		function __isDate(o) {
+		  return typeof o === 'object' && __objToStr(o) === '[object Date]';
+		}
+		clone.__isDate = __isDate;
+
+		function __isArray(o) {
+		  return typeof o === 'object' && __objToStr(o) === '[object Array]';
+		}
+		clone.__isArray = __isArray;
+
+		function __isRegExp(o) {
+		  return typeof o === 'object' && __objToStr(o) === '[object RegExp]';
+		}
+		clone.__isRegExp = __isRegExp;
+
+		function __getRegExpFlags(re) {
+		  var flags = '';
+		  if (re.global) flags += 'g';
+		  if (re.ignoreCase) flags += 'i';
+		  if (re.multiline) flags += 'm';
+		  return flags;
+		}
+		clone.__getRegExpFlags = __getRegExpFlags;
+
+		return clone;
+		})();
+
+		if (module.exports) {
+		  module.exports = clone;
+		} 
+	} (clone$1));
+	return clone$1.exports;
+}
+
+var cloneExports = requireClone();
+var clone = /*@__PURE__*/getDefaultExportFromCjs(cloneExports);
+
+// Registration Events
+// ===================
+/**
+ * Called when account is registered
+ */
+function onRegistered(userAgent) {
+    // This code fires on re-register after session timeout
+    // to ensure that events are not fired multiple times
+    // a isReRegister state is kept.
+    // TODO: This check appears obsolete
+    const clonedUserAgent = clone(userAgent);
+    clonedUserAgent.registrationCompleted = true;
+    if (!clonedUserAgent.isReRegister) {
+        console.log('Registered!');
+        // Start Subscribe Loop
+        // setTimeout(function () {
+        //   SubscribeAll(clonedUserAgent);
+        // }, 500); //TODO subscription disabled for now
+        clonedUserAgent.registering = false;
+    }
+    else {
+        clonedUserAgent.registering = false;
+        console.log('ReRegistered!');
+    }
+    clonedUserAgent.isReRegister = true;
+    setSipStore({ userAgent: clonedUserAgent });
+}
+/**
+ * Called if UserAgent can connect, but not register.
+ * @param {string} response Incoming request message
+ * @param {string} cause Cause message. Unused
+ **/
+function onRegisterFailed(response, cause) {
+    const clonedUserAgent = clone(getSipStoreUserAgent());
+    if (clonedUserAgent)
+        clonedUserAgent.registering = false;
+    setSipStore({ userAgent: clonedUserAgent });
+}
+/**
+ * Called when Unregister is requested
+ */
+function onUnregistered(userAgent) {
+    const clonedUserAgent = clone(userAgent);
+    // We set this flag here so that the re-register attempts are fully completed.
+    clonedUserAgent.isReRegister = false;
+    setSipStore({ userAgent: clonedUserAgent });
+}
+
+/* -------------------------------------------------------------------------- */
+function register(userAgent) {
+    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
+    if (!clonedUserAgent || clonedUserAgent?.registering || clonedUserAgent.isRegistered())
+        return;
+    clonedUserAgent.registering = true;
+    clonedUserAgent.registerer.register({
+        requestDelegate: {
+            onReject(sip) {
+                onRegisterFailed(sip.message.reasonPhrase, sip.message.statusCode);
+            },
+        },
+    });
+    if (!userAgent)
+        setSipStore({ userAgent: clonedUserAgent });
+}
+
+/* -------------------------------------------------------------------------- */
+function onTransportConnected(userAgent) {
+    console.log('Connected to Web Socket!');
+    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
+    if (!clonedUserAgent)
+        return;
+    // Reset the reconnectionAttempts
+    clonedUserAgent.isReRegister = false;
+    clonedUserAgent.transport.attemptingReconnection = false;
+    clonedUserAgent.transport.reconnectionAttempts =
+        getSipStoreConfigs().registration.transportReconnectionAttempts;
+    // Auto start register
+    if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
+        if (clonedUserAgent.transport.reconnectionAttempts > 0)
+            window.setTimeout(function () {
+                register(clonedUserAgent);
+            }, getSipStoreConfigs().registration.transportReconnectionTimeout);
+    }
+    else {
+        console.warn('onTransportConnected: register() called, but attemptingReconnection is true or registering is true');
+    }
+    if (!userAgent)
+        setSipStore({ userAgent: clonedUserAgent });
+}
+function onTransportConnectError(error, userAgent) {
+    console.warn('WebSocket Connection Failed:', error);
+    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
+    if (!clonedUserAgent)
+        return;
+    // We set this flag here so that the re-register attempts are fully completed.
+    clonedUserAgent.isReRegister = false;
+    // If there is an issue with the WS connection
+    // We unregister, so that we register again once its up
+    console.log('Unregister...');
+    try {
+        clonedUserAgent.registerer.unregister();
+    }
+    catch (e) {
+        // I know!!!
+    }
+    reconnectTransport(clonedUserAgent);
+    if (!userAgent)
+        setSipStore({ userAgent: clonedUserAgent });
+}
+function onTransportDisconnected(userAgent) {
+    console.log('Disconnected from Web Socket!');
+    const clonedUserAgent = clone(userAgent);
+    clonedUserAgent.isReRegister = false;
+    setSipStore({ userAgent: clonedUserAgent });
+}
+function reconnectTransport(userAgent) {
+    const transportReconnectionTimeout = getSipStore().configs?.registration?.transportReconnectionTimeout;
+    const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
+    if (!clonedUserAgent)
+        return;
+    clonedUserAgent.registering = false; // if the transport was down, you will not be registered
+    if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
+        // Asked to re-connect, but ws is connected
+        onTransportConnected(clonedUserAgent);
+        return;
+    }
+    console.log('Reconnect Transport...');
+    setTimeout(function () {
+        console.log('ReConnecting to WebSocket...', { timeout: transportReconnectionTimeout * 1000 });
+        if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
+            // Already Connected
+            console.log('Transport Already Connected...');
+            onTransportConnected(clonedUserAgent);
+            return;
+        }
+        else {
+            clonedUserAgent.transport.attemptingReconnection = true;
+            clonedUserAgent.reconnect().catch(function (error) {
+                clonedUserAgent.transport.attemptingReconnection = false;
+                console.warn('Failed to reconnect', error);
+                // Try Again
+                reconnectTransport(clonedUserAgent);
+            });
+        }
+    }, getSipStoreConfigs().registration.transportReconnectionTimeout);
+    console.log('Waiting to Re-connect...', getSipStoreConfigs().registration.transportReconnectionAttempts, 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
+    clonedUserAgent.transport.reconnectionAttempts =
+        clonedUserAgent.transport.reconnectionAttempts - 1;
+    if (!userAgent)
+        setSipStore({ userAgent: clonedUserAgent });
+}
+
 /* -------------------------------------------------------------------------- */
 // Detect Devices
 function detectDevices(callback) {
@@ -19229,8 +19229,7 @@ const SipProvider = ({ children, configs }) => {
     const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
     const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
     const mergedConfigs = React.useMemo(() => deepMerge(defaultSipConfigs, configs), [configs]);
-    const methods = useSessionMethods();
-    const events = useSessionEvents();
+    const { receiveCall } = useSessionMethods();
     React.useEffect(() => {
         setSipStore({ configs: mergedConfigs });
         (async function () {
@@ -19260,7 +19259,7 @@ const SipProvider = ({ children, configs }) => {
             authorizationUsername: mergedConfigs.account.username,
             authorizationPassword: mergedConfigs.account.password,
             delegate: {
-                onInvite: methods.receiveCall,
+                onInvite: receiveCall,
                 onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
             },
         });
@@ -19372,10 +19371,6 @@ const SipProvider = ({ children, configs }) => {
     return (jsxRuntime.jsx(SipContext.Provider, { value: {
             status: userAgent?.isConnected() ? 'connected' : 'disconnected',
             lines,
-            session: {
-                methods,
-                events,
-            },
             transport: {
                 reconnectTransport,
             },
@@ -19399,4 +19394,6 @@ const Video = ({ lineNumber, ...rest }) => {
 exports.AudioStream = Audio$1;
 exports.SipProvider = SipProvider;
 exports.VideoStream = Video;
+exports.useSessionEvents = useSessionEvents;
+exports.useSessionMethods = useSessionMethods;
 exports.useSipProvider = useSipProvider;

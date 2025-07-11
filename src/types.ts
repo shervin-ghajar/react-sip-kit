@@ -39,7 +39,6 @@ export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
 export interface SipContextType<MetaDataType extends object = object> {
   status: 'connected' | 'disconnected';
   lines: LineType<MetaDataType>[];
-  session: SipContextSessionType<MetaDataType>;
   transport: SipContextTransportType;
 }
 export interface SipContextSessionType<MetaDataType extends object = object> {
