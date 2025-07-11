@@ -1068,11 +1068,11 @@ function onTransportConnected(userAgent) {
     const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
     if (!clonedUserAgent)
         return;
-    // Reset the ReconnectionAttempts
+    // Reset the reconnectionAttempts
     clonedUserAgent.isReRegister = false;
     clonedUserAgent.transport.attemptingReconnection = false;
     clonedUserAgent.transport.reconnectionAttempts =
-        getSipStoreConfigs().registration.transportReconnectionAttempts - 1;
+        getSipStoreConfigs().registration.transportReconnectionAttempts;
     // Auto start register
     if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
         if (clonedUserAgent.transport.reconnectionAttempts > 0)
@@ -1141,7 +1141,7 @@ function reconnectTransport(userAgent) {
                 reconnectTransport(clonedUserAgent);
             });
         }
-    }, getSipStoreConfigs().registration.transportReconnectionAttempts * 1000);
+    }, getSipStoreConfigs().registration.transportReconnectionTimeout);
     console.log('Waiting to Re-connect...', getSipStoreConfigs().registration.transportReconnectionAttempts, 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
     clonedUserAgent.transport.reconnectionAttempts =
         clonedUserAgent.transport.reconnectionAttempts - 1;
@@ -1242,7 +1242,7 @@ function utcDateNow() {
 const useSessionEvents = () => {
     const updateLine = useSipStore((state) => state.updateLine);
     const audioBlobs = useSipStore((state) => state.audioBlobs);
-    const { media: { maxVideoBandwidth, audioOutputDeviceId }, } = useSipStore((state) => state.configs);
+    const { maxVideoBandwidth, audioOutputDeviceId } = useSipStore((state) => state.configs.media);
     function onInviteCancel(lineObj, response, callback) {
         // Remote Party Canceled while ringing...
         // Check to see if this call has been completed elsewhere
@@ -19645,8 +19645,15 @@ async function getMediaPermissions(media) {
 
 const SipContext = React.createContext(undefined);
 const SipProvider = ({ children, configs }) => {
-    const store = useSipStore();
-    const { userAgent, devicesInfo: { hasAudioDevice, hasSpeakerDevice, hasVideoDevice, audioInputDevices, videoInputDevices, speakerDevices, }, setSipStore, } = store;
+    const userAgent = useSipStore((state) => state.userAgent);
+    const lines = useSipStore((state) => state.lines);
+    const setSipStore = useSipStore((state) => state.setSipStore);
+    const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
+    const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
+    const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
+    const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
+    const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
+    const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
     const mergedConfigs = React.useMemo(() => deepMerge(defaultSipConfigs, configs), [configs]);
     const methods = useSessionMethods();
     const events = useSessionEvents();
@@ -19790,7 +19797,7 @@ const SipProvider = ({ children, configs }) => {
     };
     return (jsxRuntimeExports.jsx(SipContext.Provider, { value: {
             status: userAgent?.isConnected() ? 'connected' : 'disconnected',
-            lines: store.lines,
+            lines,
             session: {
                 methods,
                 events,

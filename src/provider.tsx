@@ -17,19 +17,16 @@ import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.j
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
 export const SipProvider = ({ children, configs }: SipProviderProps) => {
-  const store = useSipStore();
-  const {
-    userAgent,
-    devicesInfo: {
-      hasAudioDevice,
-      hasSpeakerDevice,
-      hasVideoDevice,
-      audioInputDevices,
-      videoInputDevices,
-      speakerDevices,
-    },
-    setSipStore,
-  } = store;
+  const userAgent = useSipStore((state) => state.userAgent);
+  const lines = useSipStore((state) => state.lines);
+  const setSipStore = useSipStore((state) => state.setSipStore);
+  const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
+  const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
+  const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
+  const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
+  const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
+  const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
+
   const mergedConfigs = useMemo(
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
@@ -188,7 +185,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     <SipContext.Provider
       value={{
         status: userAgent?.isConnected() ? 'connected' : 'disconnected',
-        lines: store.lines,
+        lines,
         session: {
           methods,
           events,

@@ -8,11 +8,11 @@ export function onTransportConnected(userAgent?: SipUserAgent) {
   console.log('Connected to Web Socket!');
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (!clonedUserAgent) return;
-  // Reset the ReconnectionAttempts
+  // Reset the reconnectionAttempts
   clonedUserAgent.isReRegister = false;
   clonedUserAgent.transport.attemptingReconnection = false;
   clonedUserAgent.transport.reconnectionAttempts =
-    getSipStoreConfigs().registration.transportReconnectionAttempts - 1;
+    getSipStoreConfigs().registration.transportReconnectionAttempts;
 
   // Auto start register
   if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
@@ -28,7 +28,7 @@ export function onTransportConnected(userAgent?: SipUserAgent) {
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
 
-export function onTransportConnectError(error: any, userAgent?: SipUserAgent) {
+export function onTransportConnectError(error: Error, userAgent?: SipUserAgent) {
   console.warn('WebSocket Connection Failed:', error);
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (!clonedUserAgent) return;
@@ -87,7 +87,7 @@ export function reconnectTransport(userAgent?: SipUserAgent) {
         reconnectTransport(clonedUserAgent);
       });
     }
-  }, getSipStoreConfigs().registration.transportReconnectionAttempts * 1000);
+  }, getSipStoreConfigs().registration.transportReconnectionTimeout);
 
   console.log(
     'Waiting to Re-connect...',
