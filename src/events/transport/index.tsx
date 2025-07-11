@@ -1,4 +1,4 @@
-import { Register } from '../../methods/registration';
+import { register } from '../../methods/registration';
 import { getSipStore, getSipStoreConfigs, getSipStoreUserAgent, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
 import clone from 'clone';
@@ -8,26 +8,27 @@ export function onTransportConnected(userAgent?: SipUserAgent) {
   console.log('Connected to Web Socket!');
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (!clonedUserAgent) return;
-  // Reset the ReconnectionAttempts
+  // Reset the reconnectionAttempts
   clonedUserAgent.isReRegister = false;
   clonedUserAgent.transport.attemptingReconnection = false;
-  clonedUserAgent.transport.ReconnectionAttempts =
+  clonedUserAgent.transport.reconnectionAttempts =
     getSipStoreConfigs().registration.transportReconnectionAttempts;
 
   // Auto start register
   if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
-    window.setTimeout(function () {
-      Register(clonedUserAgent);
-    }, 500);
+    if (clonedUserAgent.transport.reconnectionAttempts > 0)
+      window.setTimeout(function () {
+        register(clonedUserAgent);
+      }, getSipStoreConfigs().registration.transportReconnectionTimeout);
   } else {
     console.warn(
-      'onTransportConnected: Register() called, but attemptingReconnection is true or registering is true',
+      'onTransportConnected: register() called, but attemptingReconnection is true or registering is true',
     );
   }
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
 
-export function onTransportConnectError(error: any, userAgent?: SipUserAgent) {
+export function onTransportConnectError(error: Error, userAgent?: SipUserAgent) {
   console.warn('WebSocket Connection Failed:', error);
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (!clonedUserAgent) return;
@@ -86,15 +87,15 @@ export function reconnectTransport(userAgent?: SipUserAgent) {
         reconnectTransport(clonedUserAgent);
       });
     }
-  }, getSipStoreConfigs().registration.transportReconnectionAttempts * 1000);
+  }, getSipStoreConfigs().registration.transportReconnectionTimeout);
 
   console.log(
     'Waiting to Re-connect...',
     getSipStoreConfigs().registration.transportReconnectionAttempts,
     'Attempt remaining',
-    clonedUserAgent.transport.ReconnectionAttempts,
+    clonedUserAgent.transport.reconnectionAttempts,
   );
-  clonedUserAgent.transport.ReconnectionAttempts =
-    clonedUserAgent.transport.ReconnectionAttempts - 1;
+  clonedUserAgent.transport.reconnectionAttempts =
+    clonedUserAgent.transport.reconnectionAttempts - 1;
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }

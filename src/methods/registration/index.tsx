@@ -4,7 +4,7 @@ import { SipUserAgent } from '../../types';
 import clone from 'clone';
 
 /* -------------------------------------------------------------------------- */
-export function Register(userAgent?: SipUserAgent) {
+export function register(userAgent?: SipUserAgent) {
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
   if (clonedUserAgent == null) return;
   if (clonedUserAgent.registering == true) return;

@@ -2,17 +2,14 @@ import { detectDevices } from '../../methods/initialization';
 import { useSipStore } from '../../store';
 
 export const useDetectDevices = () => {
-  const {
-    configs: {
-      features: { enableVideo },
-    },
-    hasAudioDevice,
-    audioInputDevices,
-    hasSpeakerDevice,
-    speakerDevices,
-    hasVideoDevice,
-    videoInputDevices,
-  } = useSipStore((state) => ({ configs: state.configs, ...state.devicesInfo }));
+  const enableVideo = useSipStore((state) => state.configs.features.enableVideo);
+  const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
+  const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
+  const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
+  const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
+  const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
+  const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
+
   return detectDevices((deviceInfos) => {
     console.log({ deviceInfos });
     if (!deviceInfos) return;

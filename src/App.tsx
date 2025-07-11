@@ -1,5 +1,6 @@
 import './App.css';
 import { Audio, Video } from './components';
+import { useSessionMethods } from './hooks';
 import { useSipProvider } from './provider';
 import { LineType } from './store/types';
 
@@ -7,25 +8,20 @@ interface MetaDataType {
   displayName: string;
 }
 function App({ username }: { username: string }) {
+  const { lines, status } = useSipProvider<MetaDataType>();
   const {
-    lines,
-    status,
-    session: {
-      methods: {
-        answerAudioSession,
-        answerVideoSession,
-        dialByLine,
-        endSession,
-        muteSession,
-        unmuteSession,
-        holdSession,
-        unholdSession,
-        startTransferSession,
-        cancelAttendedTransferSession,
-        attendedTransferSession,
-      },
-    },
-  } = useSipProvider<MetaDataType>();
+    answerAudioSession,
+    answerVideoSession,
+    dialByLine,
+    endSession,
+    muteSession,
+    unmuteSession,
+    holdSession,
+    unholdSession,
+    startTransferSession,
+    cancelAttendedTransferSession,
+    attendedTransferSession,
+  } = useSessionMethods();
 
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call

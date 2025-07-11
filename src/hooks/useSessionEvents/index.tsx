@@ -9,9 +9,7 @@ import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 export const useSessionEvents = () => {
   const updateLine = useSipStore((state) => state.updateLine);
   const audioBlobs = useSipStore((state) => state.audioBlobs);
-  const {
-    media: { maxVideoBandwidth, audioOutputDeviceId },
-  } = useSipStore((state) => state.configs);
+  const { maxVideoBandwidth, audioOutputDeviceId } = useSipStore((state) => state.configs.media);
 
   function onInviteCancel(
     lineObj: LineType,

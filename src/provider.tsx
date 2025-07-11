@@ -10,7 +10,6 @@ import {
 import { useSessionEvents, useSessionMethods } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
-import { LineType } from './store/types';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import { deepMerge } from './utils';
 import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
@@ -18,25 +17,21 @@ import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.j
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
 export const SipProvider = ({ children, configs }: SipProviderProps) => {
-  const store = useSipStore();
-  const {
-    userAgent,
-    devicesInfo: {
-      hasAudioDevice,
-      hasSpeakerDevice,
-      hasVideoDevice,
-      audioInputDevices,
-      videoInputDevices,
-      speakerDevices,
-    },
-    setSipStore,
-  } = store;
+  const userAgent = useSipStore((state) => state.userAgent);
+  const lines = useSipStore((state) => state.lines);
+  const setSipStore = useSipStore((state) => state.setSipStore);
+  const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
+  const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
+  const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
+  const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
+  const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
+  const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
+
   const mergedConfigs = useMemo(
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
   );
-  const methods = useSessionMethods();
-  const events = useSessionEvents();
+  const { receiveCall } = useSessionMethods();
 
   useEffect(() => {
     setSipStore({ configs: mergedConfigs });
@@ -73,7 +68,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
       authorizationUsername: mergedConfigs.account.username,
       authorizationPassword: mergedConfigs.account.password,
       delegate: {
-        onInvite: methods.receiveCall as any,
+        onInvite: receiveCall as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -85,7 +80,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     ua.sessions = ua._sessions; // Assign sessions
     ua.registrationCompleted = false;
     ua.registering = false;
-    ua.transport.ReconnectionAttempts =
+    ua.transport.reconnectionAttempts =
       mergedConfigs.registration.transportReconnectionAttempts || 0;
     ua.transport.attemptingReconnection = false;
     ua.BlfSubs = [];
@@ -189,11 +184,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     <SipContext.Provider
       value={{
         status: userAgent?.isConnected() ? 'connected' : 'disconnected',
-        lines: store.lines,
-        session: {
-          methods,
-          events,
-        },
+        lines,
         transport: {
           reconnectTransport,
         },
