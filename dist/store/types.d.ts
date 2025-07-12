@@ -26,7 +26,8 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    initiateMediaStreams: () => void;
+    initiateLocalMediaStreams: () => void;
+    initiateRemoteMediaStreams: () => void;
 }
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
     hold: boolean;
@@ -36,7 +37,8 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    initiateMediaStreams: () => void;
+    initiateLocalMediaStreams: () => void;
+    initiateRemoteMediaStreams: () => void;
 }
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
     peerConnection: RTCPeerConnection;

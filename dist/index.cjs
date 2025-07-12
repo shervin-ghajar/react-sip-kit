@@ -443,7 +443,7 @@ const useSessionEvents = () => {
         session.data.startTime = startTime;
         session.isOnHold = false;
         session.data.started = true;
-        session.initiateMediaStreams = () => {
+        session.initiateLocalMediaStreams = () => {
             if (includeVideo) {
                 // Preview our stream from peer connection
                 const localVideoStream = new MediaStream();
@@ -736,76 +736,78 @@ const useSessionEvents = () => {
         if (!session)
             return;
         // TODO: look at detecting video, so that UI switches to audio/video automatically.
-        const pc = session.sessionDescriptionHandler.peerConnection;
-        // Create MediaStreams for audio and video
-        const remoteAudioStream = new MediaStream();
-        const remoteVideoStream = new MediaStream();
-        // Add tracks to MediaStreams
-        pc.getTransceivers().forEach((transceiver) => {
-            const receiver = transceiver.receiver;
-            if (receiver.track) {
-                if (receiver.track.kind === 'audio') {
-                    console.log('Adding Remote Audio Track');
-                    remoteAudioStream.addTrack(receiver.track);
-                }
-                if (includeVideo && receiver.track.kind === 'video') {
-                    if (transceiver.mid) {
-                        console.log('Adding Remote Video Track', receiver.track.readyState);
-                        receiver.track.mid = transceiver.mid;
-                        remoteVideoStream.addTrack(receiver.track);
+        session.initiateRemoteMediaStreams = () => {
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            // Create MediaStreams for audio and video
+            const remoteAudioStream = new MediaStream();
+            const remoteVideoStream = new MediaStream();
+            // Add tracks to MediaStreams
+            pc.getTransceivers().forEach((transceiver) => {
+                const receiver = transceiver.receiver;
+                if (receiver.track) {
+                    if (receiver.track.kind === 'audio') {
+                        console.log('Adding Remote Audio Track');
+                        remoteAudioStream.addTrack(receiver.track);
+                    }
+                    if (includeVideo && receiver.track.kind === 'video') {
+                        if (transceiver.mid) {
+                            console.log('Adding Remote Video Track', receiver.track.readyState);
+                            receiver.track.mid = transceiver.mid;
+                            remoteVideoStream.addTrack(receiver.track);
+                        }
                     }
                 }
-            }
-        });
-        // Attach Audio Stream
-        if (remoteAudioStream.getAudioTracks().length > 0) {
-            const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
-            if (remoteAudio) {
-                remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
-                remoteAudio.srcObject = remoteAudioStream;
-                remoteAudio.onloadedmetadata = () => {
-                    if (typeof remoteAudio.sinkId !== 'undefined') {
-                        remoteAudio
-                            .setSinkId(audioOutputDeviceId)
-                            .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-                            .catch((e) => console.warn('Error using setSinkId:', e));
-                    }
-                    remoteAudio.play();
-                };
-            }
-        }
-        // Attach Video Stream
-        if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
-            const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-            let videoContainer = document.getElementById(videoContainerId);
-            if (!videoContainer)
-                return;
-            // Clear existing videos
-            videoContainer.innerHTML = '';
-            remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack, index) => {
-                const thisRemoteVideoStream = new MediaStream();
-                thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
-                thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-                thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-                const videoElement = document.createElement('video');
-                videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
-                videoElement.srcObject = thisRemoteVideoStream;
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                videoElement.muted = true; // Ensure autoplay works in browsers
-                videoElement.className = 'video-element'; // Add styling class
-                videoElement.onloadedmetadata = () => {
-                    videoElement.play().catch((error) => {
-                        console.error('Error playing video:', error);
-                    });
-                };
-                videoContainer.appendChild(videoElement);
             });
-        }
-        else {
-            console.warn('No Video Tracks Found');
-        }
-        updateLine(lineObj);
+            // Attach Audio Stream
+            if (remoteAudioStream.getAudioTracks().length > 0) {
+                const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
+                if (remoteAudio) {
+                    remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
+                    remoteAudio.srcObject = remoteAudioStream;
+                    remoteAudio.onloadedmetadata = () => {
+                        if (typeof remoteAudio.sinkId !== 'undefined') {
+                            remoteAudio
+                                .setSinkId(audioOutputDeviceId)
+                                .then(() => console.log('sinkId applied:', audioOutputDeviceId))
+                                .catch((e) => console.warn('Error using setSinkId:', e));
+                        }
+                        remoteAudio.play();
+                    };
+                }
+            }
+            // Attach Video Stream
+            if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
+                const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
+                let videoContainer = document.getElementById(videoContainerId);
+                if (!videoContainer)
+                    return;
+                // Clear existing videos
+                videoContainer.innerHTML = '';
+                remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack, index) => {
+                    const thisRemoteVideoStream = new MediaStream();
+                    thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
+                    thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
+                    thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
+                    const videoElement = document.createElement('video');
+                    videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
+                    videoElement.srcObject = thisRemoteVideoStream;
+                    videoElement.autoplay = true;
+                    videoElement.playsInline = true;
+                    videoElement.muted = true; // Ensure autoplay works in browsers
+                    videoElement.className = 'video-element'; // Add styling class
+                    videoElement.onloadedmetadata = () => {
+                        videoElement.play().catch((error) => {
+                            console.error('Error playing video:', error);
+                        });
+                    };
+                    videoContainer.appendChild(videoElement);
+                });
+            }
+            else {
+                console.warn('No Video Tracks Found');
+            }
+            updateLine(lineObj);
+        };
     }
     function onTransferSessionDescriptionHandlerCreated(lineObj, session, sdh, includeVideo) {
         if (sdh) {
