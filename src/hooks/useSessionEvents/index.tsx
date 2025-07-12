@@ -1,7 +1,7 @@
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
-import { dayJs, utcDateNow } from '../../utils';
+import { dayJs, utcDateNow, waitForElement } from '../../utils';
 import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
@@ -56,7 +56,11 @@ export const useSessionEvents = () => {
     callback?.();
   }
   // // Both Incoming an outgoing INVITE
-  function onInviteAccepted(lineObj: LineType, includeVideo: boolean, response?: IncomingResponse) {
+  async function onInviteAccepted(
+    lineObj: LineType,
+    includeVideo: boolean,
+    response?: IncomingResponse,
+  ) {
     // Call in progress
     console.log('onInviteAccepted');
     const session = lineObj.sipSession;
@@ -83,9 +87,9 @@ export const useSessionEvents = () => {
           localVideoStream.addTrack(sender.track);
         }
       });
-      const localVideo = document.getElementById(
+      const localVideo = (await waitForElement(
         `line-${lineObj.lineNumber}-localVideo`,
-      ) as HTMLVideoElement;
+      )) as HTMLVideoElement;
       console.log('onInviteAccepted', { localVideo, localVideoStream });
       if (localVideo) {
         localVideo.srcObject = localVideoStream;
@@ -411,7 +415,7 @@ export const useSessionEvents = () => {
     }
   }
 
-  function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
+  async function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
     // Gets remote tracks
     console.log('onTrackAddedEvent');
     const session = lineObj.sipSession;
@@ -444,27 +448,29 @@ export const useSessionEvents = () => {
 
     // Attach Audio Stream
     if (remoteAudioStream.getAudioTracks().length > 0) {
-      const remoteAudio = document.getElementById(
+      const remoteAudio = (await waitForElement(
         `line-${lineObj.lineNumber}-remoteAudio`,
-      ) as HTMLAudioElement;
-      remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
-      remoteAudio.srcObject = remoteAudioStream;
+      )) as HTMLAudioElement;
+      if (remoteAudio) {
+        remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
+        remoteAudio.srcObject = remoteAudioStream;
 
-      remoteAudio.onloadedmetadata = () => {
-        if (typeof remoteAudio.sinkId !== 'undefined') {
-          remoteAudio
-            .setSinkId(audioOutputDeviceId)
-            .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-            .catch((e) => console.warn('Error using setSinkId:', e));
-        }
-        remoteAudio.play();
-      };
+        remoteAudio.onloadedmetadata = () => {
+          if (typeof remoteAudio.sinkId !== 'undefined') {
+            remoteAudio
+              .setSinkId(audioOutputDeviceId)
+              .then(() => console.log('sinkId applied:', audioOutputDeviceId))
+              .catch((e) => console.warn('Error using setSinkId:', e));
+          }
+          remoteAudio.play();
+        };
+      }
     }
 
     // Attach Video Stream
     if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
       const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-      let videoContainer = document.getElementById(videoContainerId);
+      let videoContainer = await waitForElement(videoContainerId);
 
       if (!videoContainer) return;
       // Clear existing videos
