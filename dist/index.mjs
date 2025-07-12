@@ -220,13 +220,14 @@ const useSipStore = create((set, get) => ({
     setSipStore: (newState) => set((state) => ({ ...state, ...newState })),
     setUserAgent: (userAgent) => set((state) => ({ ...state, userAgent })),
     addLine: (newLine) => set((state) => ({ ...state, lines: [...state.lines, newLine] })),
-    updateLine: (updatedLine) => {
+    updateLine: (updatedLine, callback) => {
         const updatedLines = get().lines.map((line) => {
             if (line.lineNumber === updatedLine.lineNumber)
                 return { ...updatedLine };
             return line;
         });
         set((state) => ({ ...state, lines: updatedLines }));
+        callback?.();
     },
     removeLine: (lineNumber) => {
         console.log('removeLine');
@@ -381,31 +382,6 @@ function utcDateNow() {
     return dayJs().utc().format('YYYY-MM-DD HH:mm:ss UTC');
 }
 
-/**
- * Resolve as soon as an element matching `selector` appears in the DOM.
- * Rejects after `timeoutMs` (default: 5 s) so we don’t wait forever.
- */
-function waitForElement(selector, timeoutMs = 3000, root = document) {
-    return new Promise((resolve, reject) => {
-        const existing = root.querySelector(selector);
-        if (existing)
-            return resolve(existing);
-        const timer = setTimeout(() => {
-            observer.disconnect();
-            reject(new Error(`Timeout waiting for ${selector}`));
-        }, timeoutMs);
-        const observer = new MutationObserver(() => {
-            const el = root.querySelector(selector);
-            if (el) {
-                clearTimeout(timer);
-                observer.disconnect();
-                resolve(el);
-            }
-        });
-        observer.observe(root, { childList: true, subtree: true });
-    });
-}
-
 const useSessionEvents = () => {
     const updateLine = useSipStore((state) => state.updateLine);
     const audioBlobs = useSipStore((state) => state.audioBlobs);
@@ -465,41 +441,44 @@ const useSessionEvents = () => {
         session.data.startTime = startTime;
         session.isOnHold = false;
         session.data.started = true;
-        if (includeVideo) {
-            // Preview our stream from peer connection
-            const localVideoStream = new MediaStream();
-            const pc = session.sessionDescriptionHandler.peerConnection;
-            pc.getSenders().forEach(function (sender) {
-                if (sender.track && sender.track.kind === 'video') {
-                    localVideoStream.addTrack(sender.track);
-                }
-            });
-            const localVideo = (await waitForElement(`line-${lineObj.lineNumber}-localVideo`));
-            console.log('onInviteAccepted', { localVideo, localVideoStream });
-            if (localVideo) {
-                localVideo.srcObject = localVideoStream;
-                localVideo.onloadedmetadata = function (e) {
-                    console.log('onInviteAccepted', 'play');
-                    localVideo.play();
-                };
-            }
-            // Apply Call Bandwidth Limits
-            if (maxVideoBandwidth > -1) {
+        session.initiateMediaStreams = () => {
+            if (includeVideo) {
+                // Preview our stream from peer connection
+                const localVideoStream = new MediaStream();
+                const pc = session.sessionDescriptionHandler.peerConnection;
                 pc.getSenders().forEach(function (sender) {
                     if (sender.track && sender.track.kind === 'video') {
-                        const parameters = sender.getParameters();
-                        if (!parameters.encodings)
-                            parameters.encodings = [{}];
-                        parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
-                        console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
-                        // Only going to try without re-negotiations
-                        sender.setParameters(parameters).catch(function (e) {
-                            console.warn('Cannot apply Bandwidth Limits', e);
-                        });
+                        localVideoStream.addTrack(sender.track);
                     }
                 });
+                const localVideo = document.getElementById(`line-${lineObj.lineNumber}-localVideo`);
+                console.log('onInviteAccepted', { localVideo, localVideoStream });
+                if (localVideo) {
+                    localVideo.srcObject = localVideoStream;
+                    localVideo.onloadedmetadata = function (e) {
+                        console.log('onInviteAccepted', 'play');
+                        localVideo.play();
+                    };
+                }
+                // Apply Call Bandwidth Limits
+                if (maxVideoBandwidth > -1) {
+                    pc.getSenders().forEach(function (sender) {
+                        if (sender.track && sender.track.kind === 'video') {
+                            const parameters = sender.getParameters();
+                            if (!parameters.encodings)
+                                parameters.encodings = [{}];
+                            parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
+                            console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
+                            // Only going to try without re-negotiations
+                            sender.setParameters(parameters).catch(function (e) {
+                                console.warn('Cannot apply Bandwidth Limits', e);
+                            });
+                        }
+                    });
+                }
             }
-        }
+            updateLine(lineObj);
+        };
         // Start Call Recording
         // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
         // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
@@ -778,7 +757,7 @@ const useSessionEvents = () => {
         });
         // Attach Audio Stream
         if (remoteAudioStream.getAudioTracks().length > 0) {
-            const remoteAudio = (await waitForElement(`line-${lineObj.lineNumber}-remoteAudio`));
+            const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
             if (remoteAudio) {
                 remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
                 remoteAudio.srcObject = remoteAudioStream;
@@ -796,7 +775,7 @@ const useSessionEvents = () => {
         // Attach Video Stream
         if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
             const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-            let videoContainer = await waitForElement(videoContainerId);
+            let videoContainer = document.getElementById(videoContainerId);
             if (!videoContainer)
                 return;
             // Clear existing videos

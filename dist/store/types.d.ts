@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { SipUserAgent } from '../types';
+import { CallbackFunction, SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
 import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescriptionHandlerOptions } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
@@ -13,7 +13,7 @@ export interface SipStoreStateType {
     setSipStore: (state: Partial<SipStoreStateType>) => void;
     setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
     addLine: (line: LineType) => void;
-    updateLine: (line: LineType) => void;
+    updateLine: (line: LineType, callback?: CallbackFunction) => void;
     removeLine: (lineNum: LineType['lineNumber']) => void;
     findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
     getSessions: () => SipUserAgent['sessions'] | null;
@@ -26,6 +26,7 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
+    initiateMediaStreams: () => void;
 }
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
     hold: boolean;
@@ -35,6 +36,7 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
+    initiateMediaStreams: () => void;
 }
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
     peerConnection: RTCPeerConnection;
