@@ -7,7 +7,7 @@ import {
   onTransportDisconnected,
   reconnectTransport,
 } from './events/transport';
-import { useSessionEvents, useSessionMethods } from './hooks';
+import { useSessionMethods } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
@@ -127,10 +127,10 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
           break;
       }
     });
-    ua.start();
-    Object.defineProperty(ua, '_key', {
-      enumerable: false,
-      value: 1,
+
+    console.log('User Agent Connecting to WebSocket...');
+    ua.start().catch(function (error) {
+      onTransportConnectError(error);
     });
     console.log('createUserAgent', { ua });
     updateUserAgent(ua);
