@@ -276,13 +276,6 @@ const setSipStore = (state) => {
 };
 /**
  *
- * Get sip store for none functional components
- */
-const getSipStore = () => {
-    return useSipStore.getState();
-};
-/**
- *
  * Get sip store userAgent for none functional components
  */
 const getSipStoreUserAgent = () => {
@@ -19067,8 +19060,13 @@ function onUnregistered(userAgent) {
 /* -------------------------------------------------------------------------- */
 function register(userAgent) {
     const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-    if (!clonedUserAgent || clonedUserAgent?.registering || clonedUserAgent.isRegistered())
+    if (clonedUserAgent == null)
         return;
+    if (clonedUserAgent.registering == true)
+        return;
+    if (clonedUserAgent.isRegistered())
+        return;
+    console.log('Sending Registration...');
     clonedUserAgent.registering = true;
     clonedUserAgent.registerer.register({
         requestDelegate: {
@@ -19091,13 +19089,12 @@ function onTransportConnected(userAgent) {
     clonedUserAgent.isReRegister = false;
     clonedUserAgent.transport.attemptingReconnection = false;
     clonedUserAgent.transport.reconnectionAttempts =
-        getSipStoreConfigs().registration.transportReconnectionAttempts;
+        defaultSipConfigs.registration.transportReconnectionAttempts;
     // Auto start register
-    if (clonedUserAgent.transport.attemptingReconnection && clonedUserAgent.registering) {
-        if (clonedUserAgent.transport.reconnectionAttempts > 0)
-            window.setTimeout(function () {
-                register(clonedUserAgent);
-            }, getSipStoreConfigs().registration.transportReconnectionTimeout);
+    if (!clonedUserAgent.transport.attemptingReconnection && !clonedUserAgent.registering) {
+        window.setTimeout(function () {
+            register(clonedUserAgent);
+        }, 500);
     }
     else {
         console.warn('onTransportConnected: register() called, but attemptingReconnection is true or registering is true');
@@ -19132,7 +19129,6 @@ function onTransportDisconnected(userAgent) {
     setSipStore({ userAgent: clonedUserAgent });
 }
 function reconnectTransport(userAgent) {
-    const transportReconnectionTimeout = getSipStore().configs?.registration?.transportReconnectionTimeout;
     const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
     if (!clonedUserAgent)
         return;
@@ -19144,14 +19140,14 @@ function reconnectTransport(userAgent) {
     }
     console.log('Reconnect Transport...');
     setTimeout(function () {
-        console.log('ReConnecting to WebSocket...', { timeout: transportReconnectionTimeout * 1000 });
+        console.log('ReConnecting to WebSocket...');
         if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
             // Already Connected
             console.log('Transport Already Connected...');
             onTransportConnected(clonedUserAgent);
             return;
         }
-        else {
+        else if (clonedUserAgent.transport.reconnectionAttempts > 0) {
             clonedUserAgent.transport.attemptingReconnection = true;
             clonedUserAgent.reconnect().catch(function (error) {
                 clonedUserAgent.transport.attemptingReconnection = false;
@@ -19161,7 +19157,7 @@ function reconnectTransport(userAgent) {
             });
         }
     }, getSipStoreConfigs().registration.transportReconnectionTimeout);
-    console.log('Waiting to Re-connect...', getSipStoreConfigs().registration.transportReconnectionAttempts, 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
+    console.log('Waiting to Re-connect...', 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
     clonedUserAgent.transport.reconnectionAttempts =
         clonedUserAgent.transport.reconnectionAttempts - 1;
     if (!userAgent)
@@ -19314,10 +19310,9 @@ const SipProvider = ({ children, configs }) => {
                     break;
             }
         });
-        ua.start();
-        Object.defineProperty(ua, '_key', {
-            enumerable: false,
-            value: 1,
+        console.log('User Agent Connecting to WebSocket...');
+        ua.start().catch(function (error) {
+            onTransportConnectError(error);
         });
         console.log('createUserAgent', { ua });
         updateUserAgent(ua);

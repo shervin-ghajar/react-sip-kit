@@ -6,7 +6,10 @@ import clone from 'clone';
 /* -------------------------------------------------------------------------- */
 export function register(userAgent?: SipUserAgent) {
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-  if (!clonedUserAgent || clonedUserAgent?.registering || clonedUserAgent.isRegistered()) return;
+  if (clonedUserAgent == null) return;
+  if (clonedUserAgent.registering == true) return;
+  if (clonedUserAgent.isRegistered()) return;
+  console.log('Sending Registration...');
   clonedUserAgent.registering = true;
   clonedUserAgent.registerer.register({
     requestDelegate: {
@@ -17,7 +20,7 @@ export function register(userAgent?: SipUserAgent) {
   });
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
 }
-export function Unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) {
+export function unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) {
   const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
 
   if (clonedUserAgent == null || !clonedUserAgent.isRegistered()) return;
@@ -37,4 +40,13 @@ export function Unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) 
   clonedUserAgent.registering = false;
   clonedUserAgent.isReRegister = false;
   if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
+}
+
+export function refreshRegistration() {
+  unregister();
+  console.log('Unregister complete...');
+  window.setTimeout(function () {
+    console.log('Starting registration...');
+    register();
+  }, 1000);
 }
