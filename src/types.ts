@@ -49,4 +49,4 @@ export interface SipContextTransportType {
   reconnectTransport: typeof reconnectTransport;
 }
 
-export type CallbackFunction<T> = (value?: T) => void;
+export type CallbackFunction<T = any> = (value?: T) => void;

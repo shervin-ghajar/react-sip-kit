@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { SipUserAgent } from '../types';
+import { CallbackFunction, SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
 import {
   Invitation,
@@ -22,7 +22,7 @@ export interface SipStoreStateType {
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
   addLine: (line: LineType) => void;
-  updateLine: (line: LineType) => void;
+  updateLine: (line: LineType, callback?: CallbackFunction) => void;
   removeLine: (lineNum: LineType['lineNumber']) => void;
   // Getter
   findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;

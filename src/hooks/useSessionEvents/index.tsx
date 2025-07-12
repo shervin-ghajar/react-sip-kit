@@ -77,46 +77,47 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-
-    if (includeVideo) {
-      // Preview our stream from peer connection
-      const localVideoStream = new MediaStream();
-      const pc = session.sessionDescriptionHandler.peerConnection;
-      pc.getSenders().forEach(function (sender) {
-        if (sender.track && sender.track.kind === 'video') {
-          localVideoStream.addTrack(sender.track);
-        }
-      });
-      const localVideo = (await waitForElement(
-        `line-${lineObj.lineNumber}-localVideo`,
-      )) as HTMLVideoElement;
-      console.log('onInviteAccepted', { localVideo, localVideoStream });
-      if (localVideo) {
-        localVideo.srcObject = localVideoStream;
-        localVideo.onloadedmetadata = function (e) {
-          console.log('onInviteAccepted', 'play');
-          localVideo.play();
-        };
-      }
-
-      // Apply Call Bandwidth Limits
-      if (maxVideoBandwidth > -1) {
+    updateLine(lineObj, async () => {
+      if (includeVideo) {
+        // Preview our stream from peer connection
+        const localVideoStream = new MediaStream();
+        const pc = session.sessionDescriptionHandler.peerConnection;
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
-            const parameters = sender.getParameters();
-            if (!parameters.encodings) parameters.encodings = [{}];
-            parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
-
-            console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
-
-            // Only going to try without re-negotiations
-            sender.setParameters(parameters).catch(function (e: any) {
-              console.warn('Cannot apply Bandwidth Limits', e);
-            });
+            localVideoStream.addTrack(sender.track);
           }
         });
+        const localVideo = await waitForElement<HTMLVideoElement>(
+          `line-${lineObj.lineNumber}-localVideo`,
+        );
+        console.log('onInviteAccepted', { localVideo, localVideoStream });
+        if (localVideo) {
+          localVideo.srcObject = localVideoStream;
+          localVideo.onloadedmetadata = function (e) {
+            console.log('onInviteAccepted', 'play');
+            localVideo.play();
+          };
+        }
+
+        // Apply Call Bandwidth Limits
+        if (maxVideoBandwidth > -1) {
+          pc.getSenders().forEach(function (sender) {
+            if (sender.track && sender.track.kind === 'video') {
+              const parameters = sender.getParameters();
+              if (!parameters.encodings) parameters.encodings = [{}];
+              parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
+
+              console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
+
+              // Only going to try without re-negotiations
+              sender.setParameters(parameters).catch(function (e: any) {
+                console.warn('Cannot apply Bandwidth Limits', e);
+              });
+            }
+          });
+        }
       }
-    }
+    }); // for updating previous mutations before mediaStream
 
     // Start Call Recording
     // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
@@ -448,9 +449,9 @@ export const useSessionEvents = () => {
 
     // Attach Audio Stream
     if (remoteAudioStream.getAudioTracks().length > 0) {
-      const remoteAudio = (await waitForElement(
+      const remoteAudio = await waitForElement<HTMLAudioElement>(
         `line-${lineObj.lineNumber}-remoteAudio`,
-      )) as HTMLAudioElement;
+      );
       if (remoteAudio) {
         remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
         remoteAudio.srcObject = remoteAudioStream;

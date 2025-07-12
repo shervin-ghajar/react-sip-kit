@@ -4,7 +4,7 @@
  */
 export function waitForElement<T extends Element = Element>(
   selector: string,
-  timeoutMs = 3000,
+  timeoutMs = 5000,
   root: Document | Element = document,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
