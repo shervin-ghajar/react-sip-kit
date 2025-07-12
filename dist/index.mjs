@@ -381,6 +381,31 @@ function utcDateNow() {
     return dayJs().utc().format('YYYY-MM-DD HH:mm:ss UTC');
 }
 
+/**
+ * Resolve as soon as an element matching `selector` appears in the DOM.
+ * Rejects after `timeoutMs` (default: 5 s) so we don’t wait forever.
+ */
+function waitForElement(selector, timeoutMs = 3000, root = document) {
+    return new Promise((resolve, reject) => {
+        const existing = root.querySelector(selector);
+        if (existing)
+            return resolve(existing);
+        const timer = setTimeout(() => {
+            observer.disconnect();
+            reject(new Error(`Timeout waiting for ${selector}`));
+        }, timeoutMs);
+        const observer = new MutationObserver(() => {
+            const el = root.querySelector(selector);
+            if (el) {
+                clearTimeout(timer);
+                observer.disconnect();
+                resolve(el);
+            }
+        });
+        observer.observe(root, { childList: true, subtree: true });
+    });
+}
+
 const useSessionEvents = () => {
     const updateLine = useSipStore((state) => state.updateLine);
     const audioBlobs = useSipStore((state) => state.audioBlobs);
@@ -424,7 +449,7 @@ const useSessionEvents = () => {
         callback?.();
     }
     // // Both Incoming an outgoing INVITE
-    function onInviteAccepted(lineObj, includeVideo, response) {
+    async function onInviteAccepted(lineObj, includeVideo, response) {
         // Call in progress
         console.log('onInviteAccepted');
         const session = lineObj.sipSession;
@@ -449,7 +474,7 @@ const useSessionEvents = () => {
                     localVideoStream.addTrack(sender.track);
                 }
             });
-            const localVideo = document.getElementById(`line-${lineObj.lineNumber}-localVideo`);
+            const localVideo = (await waitForElement(`line-${lineObj.lineNumber}-localVideo`));
             console.log('onInviteAccepted', { localVideo, localVideoStream });
             if (localVideo) {
                 localVideo.srcObject = localVideoStream;
@@ -723,7 +748,7 @@ const useSessionEvents = () => {
             console.warn('onSessionDescriptionHandler fired without a sessionDescriptionHandler');
         }
     }
-    function onTrackAddedEvent(lineObj, includeVideo) {
+    async function onTrackAddedEvent(lineObj, includeVideo) {
         // Gets remote tracks
         console.log('onTrackAddedEvent');
         const session = lineObj.sipSession;
@@ -753,23 +778,25 @@ const useSessionEvents = () => {
         });
         // Attach Audio Stream
         if (remoteAudioStream.getAudioTracks().length > 0) {
-            const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
-            remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
-            remoteAudio.srcObject = remoteAudioStream;
-            remoteAudio.onloadedmetadata = () => {
-                if (typeof remoteAudio.sinkId !== 'undefined') {
-                    remoteAudio
-                        .setSinkId(audioOutputDeviceId)
-                        .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-                        .catch((e) => console.warn('Error using setSinkId:', e));
-                }
-                remoteAudio.play();
-            };
+            const remoteAudio = (await waitForElement(`line-${lineObj.lineNumber}-remoteAudio`));
+            if (remoteAudio) {
+                remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
+                remoteAudio.srcObject = remoteAudioStream;
+                remoteAudio.onloadedmetadata = () => {
+                    if (typeof remoteAudio.sinkId !== 'undefined') {
+                        remoteAudio
+                            .setSinkId(audioOutputDeviceId)
+                            .then(() => console.log('sinkId applied:', audioOutputDeviceId))
+                            .catch((e) => console.warn('Error using setSinkId:', e));
+                    }
+                    remoteAudio.play();
+                };
+            }
         }
         // Attach Video Stream
         if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
             const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-            let videoContainer = document.getElementById(videoContainerId);
+            let videoContainer = await waitForElement(videoContainerId);
             if (!videoContainer)
                 return;
             // Clear existing videos
