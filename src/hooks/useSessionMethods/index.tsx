@@ -66,14 +66,14 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     const startTime = dayJs.utc();
     // Create or update buddy based on DID
-    const lineObj = new Line(getNewLineNumber(), callerID, session.data.metaData ?? {});
+    const lineObj = new Line(getNewLineNumber(), callerID, session?.data?.metaData ?? {});
     lineObj.sipSession = session as SipInvitationType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
     lineObj.sipSession.data.callDirection = 'inbound';
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
-    lineObj.sipSession.data.metaData = lineObj?.metaData;
+    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
@@ -519,7 +519,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.metaData = lineObj?.metaData;
+    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
