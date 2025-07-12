@@ -1,7 +1,7 @@
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
-import { dayJs, utcDateNow, waitForElement } from '../../utils';
+import { dayJs, utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
@@ -77,7 +77,8 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-    updateLine(lineObj, async () => {
+
+    session.initiateMediaStreams = () => {
       if (includeVideo) {
         // Preview our stream from peer connection
         const localVideoStream = new MediaStream();
@@ -87,9 +88,9 @@ export const useSessionEvents = () => {
             localVideoStream.addTrack(sender.track);
           }
         });
-        const localVideo = await waitForElement<HTMLVideoElement>(
+        const localVideo = document.getElementById(
           `line-${lineObj.lineNumber}-localVideo`,
-        );
+        ) as HTMLVideoElement;
         console.log('onInviteAccepted', { localVideo, localVideoStream });
         if (localVideo) {
           localVideo.srcObject = localVideoStream;
@@ -117,7 +118,8 @@ export const useSessionEvents = () => {
           });
         }
       }
-    }); // for updating previous mutations before mediaStream
+      updateLine(lineObj);
+    };
 
     // Start Call Recording
     // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
@@ -449,9 +451,9 @@ export const useSessionEvents = () => {
 
     // Attach Audio Stream
     if (remoteAudioStream.getAudioTracks().length > 0) {
-      const remoteAudio = await waitForElement<HTMLAudioElement>(
+      const remoteAudio = document.getElementById(
         `line-${lineObj.lineNumber}-remoteAudio`,
-      );
+      ) as HTMLAudioElement;
       if (remoteAudio) {
         remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
         remoteAudio.srcObject = remoteAudioStream;
@@ -471,7 +473,7 @@ export const useSessionEvents = () => {
     // Attach Video Stream
     if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
       const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-      let videoContainer = await waitForElement(videoContainerId);
+      let videoContainer = document.getElementById(videoContainerId);
 
       if (!videoContainer) return;
       // Clear existing videos

@@ -39,6 +39,7 @@ export interface SipInvitationType
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
+  initiateMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -49,6 +50,7 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
+  initiateMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
