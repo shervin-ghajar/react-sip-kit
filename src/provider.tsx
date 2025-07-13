@@ -31,7 +31,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
   );
-  const { receiveCall } = useSessionMethods();
+  const { receiveSession } = useSessionMethods();
 
   useEffect(() => {
     setSipStore({ configs: mergedConfigs });
@@ -68,7 +68,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
       authorizationUsername: mergedConfigs.account.username,
       authorizationPassword: mergedConfigs.account.password,
       delegate: {
-        onInvite: receiveCall as any,
+        onInvite: receiveSession as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
