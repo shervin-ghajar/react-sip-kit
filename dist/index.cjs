@@ -17412,8 +17412,8 @@ const useSessionMethods = () => {
      * @param session
      * @returns
      */
-    function receiveCall(session) {
-        console.log('receiveCall', { session });
+    function receiveSession(session) {
+        console.log('receiveSession', { session });
         const callerID = session.remoteIdentity.displayName || session.remoteIdentity.uri.user || '';
         let did = session.remoteIdentity.uri.user ?? '';
         console.log(`Incoming call from: ${callerID}`);
@@ -17859,7 +17859,6 @@ const useSessionMethods = () => {
         };
         const inviterOptions = {
             requestDelegate: {
-                // OutgoingRequestDelegate
                 onTrying: function (sip) {
                     onInviteTrying(lineObj, sip);
                 },
@@ -17880,24 +17879,14 @@ const useSessionMethods = () => {
         lineObj.sipSession.invite(inviterOptions).catch(function (e) {
             console.warn('Failed to send INVITE:', e);
         });
-        // updateLine(lineObj);
-        // TODO  #SH ui integration
-        // $('#line-' + lineObj.LineNumber + '-btn-settings').removeAttr('disabled');
-        // $('#line-' + lineObj.LineNumber + '-btn-audioCall').prop('disabled', 'disabled');
-        // $('#line-' + lineObj.LineNumber + '-btn-videoCall').prop('disabled', 'disabled');
-        // $('#line-' + lineObj.LineNumber + '-btn-search').removeAttr('disabled');
-        // $('#line-' + lineObj.LineNumber + '-progress').show();
-        // $('#line-' + lineObj.LineNumber + '-msg').show();
-        // UpdateUI();
-        // UpdateBuddyList();
-        // updateLineScroll(lineObj.LineNumber);
+        // updateLine(lineObj); TODO
     }
     /**
      * Handle reject calls
      * @param lineNumber
      * @returns
      */
-    function rejectCall(lineNumber) {
+    function rejectSession(lineNumber) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null) {
             console.warn('Unable to find line (' + lineNumber + ')');
@@ -17908,7 +17897,7 @@ const useSessionMethods = () => {
             return;
         if (session.state == SessionState.Established) {
             session.bye().catch(function (e) {
-                console.warn('Problem in rejectCall(), could not bye() call', e, session);
+                console.warn('Problem in rejectSession(), could not bye() call', e, session);
             });
         }
         else {
@@ -17918,7 +17907,7 @@ const useSessionMethods = () => {
                 reasonPhrase: 'Busy Here',
             })
                 .catch(function (e) {
-                console.warn('Problem in rejectCall(), could not reject() call', e, session);
+                console.warn('Problem in rejectSession(), could not reject() call', e, session);
             });
         }
         session.data.terminateBy = 'us';
@@ -18125,26 +18114,43 @@ const useSessionMethods = () => {
         // $('#line-' + lineNum + '-btn-Unmute').show();
         // $('#line-' + lineNum + '-btn-Mute').hide();
         const session = lineObj.sipSession;
-        const pc = session.sessionDescriptionHandler.peerConnection;
-        pc.getSenders().forEach(function (RTCRtpSender) {
-            if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                const track = RTCRtpSender.track;
-                if (track.IsMixedTrack == true) {
-                    if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-                        console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                        session.data.audioSourceTrack.enabled = false;
+        const options = {
+            requestDelegate: {
+                onAccept: function () {
+                    if (session &&
+                        session.sessionDescriptionHandler &&
+                        session.sessionDescriptionHandler.peerConnection) {
+                        const pc = session.sessionDescriptionHandler.peerConnection;
+                        pc.getSenders().forEach(function (RTCRtpSender) {
+                            if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+                                const track = RTCRtpSender.track;
+                                if (track.IsMixedTrack == true) {
+                                    if (session.data.audioSourceTrack &&
+                                        session.data.audioSourceTrack.kind == 'audio') {
+                                        console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                                        session.data.audioSourceTrack.enabled = false;
+                                    }
+                                }
+                                console.log('Muting Audio Track : ' + track.label);
+                                track.enabled = false;
+                            }
+                        });
                     }
-                }
-                console.log('Muting Audio Track : ' + track.label);
-                track.enabled = false;
-            }
+                    if (!session.data.mute)
+                        session.data.mute = [];
+                    session.data.mute.push({ event: 'mute', eventTime: utcDateNow() });
+                    session.data.isMute = true;
+                },
+                onReject: function () {
+                    session.data.isMute = false;
+                    console.warn('Failed to put the call mute', lineNumber);
+                },
+            },
+        };
+        session.invite(options).catch(function (error) {
+            session.data.isMute = false;
+            console.warn('Error attempting to take to call un-mute', error);
         });
-        if (!session.data.mute)
-            session.data.mute = [];
-        session.data.mute.push({ event: 'mute', eventTime: utcDateNow() });
-        session.data.isMute = true;
-        // $('#line-' + lineNum + '-msg').html(lang.call_on_mute);
-        // updateLineScroll(lineNumber);
         updateLine(lineObj);
     }
     /**
@@ -18156,31 +18162,44 @@ const useSessionMethods = () => {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null || lineObj.sipSession == null)
             return;
-        // $('#line-' + lineNum + '-btn-Unmute').hide();
-        // $('#line-' + lineNum + '-btn-Mute').show();
         const session = lineObj.sipSession;
-        const pc = session.sessionDescriptionHandler.peerConnection;
-        pc.getSenders().forEach(function (RTCRtpSender) {
-            if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                const track = RTCRtpSender.track;
-                if (track.IsMixedTrack == true) {
-                    if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-                        console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                        session.data.audioSourceTrack.enabled = true;
+        const options = {
+            requestDelegate: {
+                onAccept: function () {
+                    if (session &&
+                        session.sessionDescriptionHandler &&
+                        session.sessionDescriptionHandler.peerConnection) {
+                        const pc = session.sessionDescriptionHandler.peerConnection;
+                        pc.getSenders().forEach(function (RTCRtpSender) {
+                            if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+                                const track = RTCRtpSender.track;
+                                if (track.IsMixedTrack == true) {
+                                    if (session.data.audioSourceTrack &&
+                                        session.data.audioSourceTrack.kind == 'audio') {
+                                        console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                                        session.data.audioSourceTrack.enabled = true;
+                                    }
+                                }
+                                console.log('Unmuting Audio Track : ' + track.label);
+                                track.enabled = true;
+                            }
+                        });
                     }
-                }
-                console.log('Unmuting Audio Track : ' + track.label);
-                track.enabled = true;
-            }
+                    if (!session.data.mute)
+                        session.data.mute = [];
+                    session.data.mute.push({ event: 'unmute', eventTime: utcDateNow() });
+                    session.data.isMute = false;
+                },
+                onReject: function () {
+                    session.data.isMute = false;
+                    console.warn('Failed to put the call un-mute', lineNumber);
+                },
+            },
+        };
+        session.invite(options).catch(function (error) {
+            session.data.isMute = false;
+            console.warn('Error attempting to take to call un-mute', error);
         });
-        if (!session.data.mute)
-            session.data.mute = [];
-        session.data.mute.push({ event: 'unmute', eventTime: utcDateNow() });
-        session.data.isMute = false;
-        // $('#line-' + lineNum + '-msg').html(lang.call_off_mute);
-        // updateLineScroll(lineNumber);
-        // Custom Web hook
-        // if (typeof web_hook_on_modify !== 'undefined') web_hook_on_modify('unmute', session);
         updateLine(lineObj);
     }
     /* ------------------------------- CANCEL/END/TEARDOWN ------------------------------- */
@@ -18241,7 +18260,7 @@ const useSessionMethods = () => {
                         reasonPhrase: 'Busy Here',
                     })
                         .catch(function (e) {
-                        console.warn('Problem in rejectCall(), could not reject() call', e, session);
+                        console.warn('Problem in rejectSession(), could not reject() call', e, session);
                     });
                     session.data.terminateBy = 'us';
                     session.data.reasonCode = 486;
@@ -18251,7 +18270,7 @@ const useSessionMethods = () => {
                 break;
             case SessionState.Established:
                 session.bye().catch(function (e) {
-                    console.warn('Problem in rejectCall(), could not bye() call', e, session);
+                    console.warn('Problem in rejectSession(), could not bye() call', e, session);
                 });
                 session.data.terminateBy = 'us';
                 session.data.reasonCode = 486;
@@ -18725,12 +18744,12 @@ const useSessionMethods = () => {
     }
     /* -------------------------------------------------------------------------- */
     return {
-        receiveCall,
+        receiveSession,
         answerAudioSession,
         answerVideoSession,
         makeAudioSession,
         makeVideoSession,
-        rejectCall,
+        rejectSession,
         dialByLine,
         endSession,
         holdSession,
@@ -19233,7 +19252,7 @@ const SipProvider = ({ children, configs }) => {
     const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
     const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
     const mergedConfigs = React.useMemo(() => deepMerge(defaultSipConfigs, configs), [configs]);
-    const { receiveCall } = useSessionMethods();
+    const { receiveSession } = useSessionMethods();
     React.useEffect(() => {
         setSipStore({ configs: mergedConfigs });
         (async function () {
@@ -19263,7 +19282,7 @@ const SipProvider = ({ children, configs }) => {
             authorizationUsername: mergedConfigs.account.username,
             authorizationPassword: mergedConfigs.account.password,
             delegate: {
-                onInvite: receiveCall,
+                onInvite: receiveSession,
                 onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
             },
         });
