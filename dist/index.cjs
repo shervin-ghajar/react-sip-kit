@@ -439,7 +439,7 @@ const useSessionEvents = () => {
             session.data.earlyMedia.load();
             session.data.earlyMedia = null;
         }
-        const startTime = dayJs.utc();
+        const startTime = dayJs.utc().toISOString();
         session.data.startTime = startTime;
         session.isOnHold = false;
         session.data.started = true;
@@ -17391,6 +17391,28 @@ class UserAgent {
     }
 }
 
+/**
+ * The modifier that should be used when the session would like to place the call on hold.
+ * @param description - The description that will be modified.
+ */
+function holdModifier(description) {
+    if (!description.sdp || !description.type) {
+        throw new Error("Invalid SDP");
+    }
+    let sdp = description.sdp;
+    const type = description.type;
+    if (sdp) {
+        if (!/a=(sendrecv|sendonly|recvonly|inactive)/.test(sdp)) {
+            sdp = sdp.replace(/(m=[^\r]*\r\n)/g, "$1a=sendonly\r\n");
+        }
+        else {
+            sdp = sdp.replace(/a=sendrecv\r\n/g, "a=sendonly\r\n");
+            sdp = sdp.replace(/a=recvonly\r\n/g, "a=inactive\r\n");
+        }
+    }
+    return Promise.resolve({ sdp, type });
+}
+
 const useSessionMethods = () => {
     const configs = useSipStore((state) => state.configs);
     const findLineByNumber = useSipStore((state) => state.findLineByNumber);
@@ -17417,7 +17439,7 @@ const useSessionMethods = () => {
         const callerID = session.remoteIdentity.displayName || session.remoteIdentity.uri.user || '';
         let did = session.remoteIdentity.uri.user ?? '';
         console.log(`Incoming call from: ${callerID}`);
-        const startTime = dayJs.utc();
+        dayJs.utc().toISOString();
         // Create or update buddy based on DID
         const lineObj = new Line(getNewLineNumber(), callerID, session?.data?.metaData ?? {});
         lineObj.sipSession = session;
@@ -17427,7 +17449,6 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.terminateBy = '';
         lineObj.sipSession.data.src = did;
         lineObj.sipSession.data.metaData = lineObj.metaData;
-        lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
         lineObj.sipSession.data.earlyReject = false;
         // Detect Video
         lineObj.sipSession.data.withVideo = false;
@@ -17676,7 +17697,7 @@ const useSessionMethods = () => {
         const spdOptions = makeAudioSpdOptions({ extraHeaders });
         if (!spdOptions)
             return;
-        let startTime = dayJs.utc();
+        let startTime = dayJs.utc().toISOString();
         // Invite
         console.log('INVITE (audio): ' + dialledNumber + '@' + configs.account.domain);
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
@@ -17686,7 +17707,7 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.metaData = lineObj.metaData;
         lineObj.sipSession.data.callDirection = 'outbound';
         lineObj.sipSession.data.dialledNumber = dialledNumber;
-        lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+        lineObj.sipSession.data.startTime = startTime;
         lineObj.sipSession.data.videoSourceDevice = null;
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -17824,7 +17845,7 @@ const useSessionMethods = () => {
         const spdOptions = makeVideoSpdOptions({ extraHeaders });
         if (!spdOptions)
             return;
-        const startTime = dayJs.utc();
+        const startTime = dayJs.utc().toISOString();
         // Invite
         console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
@@ -17835,7 +17856,7 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.metaData = lineObj.metaData;
         lineObj.sipSession.data.callDirection = 'outbound';
         lineObj.sipSession.data.dialledNumber = dialledNumber;
-        lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+        lineObj.sipSession.data.startTime = startTime;
         lineObj.sipSession.data.videoSourceDevice = configs.media.videoInputDeviceId;
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -18111,10 +18132,9 @@ const useSessionMethods = () => {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null || lineObj.sipSession == null)
             return;
-        // $('#line-' + lineNum + '-btn-Unmute').show();
-        // $('#line-' + lineNum + '-btn-Mute').hide();
         const session = lineObj.sipSession;
         const options = {
+            sessionDescriptionHandlerModifiers: [],
             requestDelegate: {
                 onAccept: function () {
                     if (session &&
@@ -18164,6 +18184,7 @@ const useSessionMethods = () => {
             return;
         const session = lineObj.sipSession;
         const options = {
+            sessionDescriptionHandlerModifiers: [holdModifier],
             requestDelegate: {
                 onAccept: function () {
                     if (session &&

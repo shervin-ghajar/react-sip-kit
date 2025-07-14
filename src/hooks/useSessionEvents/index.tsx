@@ -72,12 +72,11 @@ export const useSessionEvents = () => {
       session.data.earlyMedia = null;
     }
 
-    const startTime = dayJs.utc();
+    const startTime = dayJs.utc().toISOString();
     session.data.startTime = startTime;
 
     session.isOnHold = false;
     session.data.started = true;
-
     session.initiateLocalMediaStreams = () => {
       if (includeVideo) {
         // Preview our stream from peer connection

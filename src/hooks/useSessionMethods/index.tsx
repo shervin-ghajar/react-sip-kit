@@ -19,6 +19,7 @@ import {
   SessionState,
   URI,
   UserAgent,
+  Web,
 } from 'sip.js';
 
 export const useSessionMethods = <MetaDataType extends object = object>() => {
@@ -64,7 +65,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     console.log(`Incoming call from: ${callerID}`);
 
-    const startTime = dayJs.utc();
+    const startTime = dayJs.utc().toISOString();
     // Create or update buddy based on DID
     const lineObj = new Line(getNewLineNumber(), callerID, session?.data?.metaData ?? {});
     lineObj.sipSession = session as SipInvitationType;
@@ -74,7 +75,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
     lineObj.sipSession.data.metaData = lineObj.metaData;
-    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
     lineObj.sipSession.data.withVideo = false;
@@ -339,7 +339,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     const spdOptions = makeAudioSpdOptions({ extraHeaders });
     if (!spdOptions) return;
-    let startTime = dayJs.utc();
+    let startTime = dayJs.utc().toISOString();
 
     // Invite
     console.log('INVITE (audio): ' + dialledNumber + '@' + configs.account.domain);
@@ -352,7 +352,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
-    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+    lineObj.sipSession.data.startTime = startTime;
     lineObj.sipSession.data.videoSourceDevice = null;
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -506,7 +506,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     const spdOptions = makeVideoSpdOptions({ extraHeaders });
     if (!spdOptions) return;
 
-    const startTime = dayJs.utc();
+    const startTime = dayJs.utc().toISOString();
 
     // Invite
     console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
@@ -522,7 +522,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
-    lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
+    lineObj.sipSession.data.startTime = startTime;
 
     lineObj.sipSession.data.videoSourceDevice = configs.media.videoInputDeviceId;
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
@@ -829,12 +829,10 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
 
-    // $('#line-' + lineNum + '-btn-Unmute').show();
-    // $('#line-' + lineNum + '-btn-Mute').hide();
-
     const session = lineObj.sipSession;
 
     const options = {
+      sessionDescriptionHandlerModifiers: [],
       requestDelegate: {
         onAccept: function () {
           if (
@@ -892,6 +890,8 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     const session = lineObj.sipSession;
 
     const options = {
+      sessionDescriptionHandlerModifiers: [Web.holdModifier],
+
       requestDelegate: {
         onAccept: function () {
           if (

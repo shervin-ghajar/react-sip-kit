@@ -1,7 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
 import { CallbackFunction, SipUserAgent } from '../types';
-import { Dayjs } from 'dayjs';
 import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescriptionHandlerOptions } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
@@ -61,14 +60,13 @@ export interface SipSessionDataType {
     terminateBy: string;
     src: string;
     metaData: LineType['metaData'];
-    callstart: string;
     earlyReject: boolean;
     withVideo: boolean;
     reasonCode: number;
     reasonText: string;
     teardownComplete: boolean;
     childsession: SipSessionType | null;
-    startTime: Dayjs;
+    startTime: string;
     started: boolean;
     hold: Array<{
         event: 'hold' | 'unhold';

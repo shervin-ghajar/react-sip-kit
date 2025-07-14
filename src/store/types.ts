@@ -79,14 +79,13 @@ export interface SipSessionDataType {
   terminateBy: string;
   src: string;
   metaData: LineType['metaData'];
-  callstart: string;
   earlyReject: boolean;
   withVideo: boolean;
   reasonCode: number;
   reasonText: string;
   teardownComplete: boolean;
   childsession: SipSessionType | null;
-  startTime: Dayjs;
+  startTime: string;
   started: boolean;
   hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
   isHold: boolean;
