@@ -81,7 +81,7 @@ const defaultMediaConfig = {
     echoCancellation: true,
     noiseSuppression: true,
     mirrorVideo: 'auto',
-    maxVideoBandwidth: 1500,
+    maxVideoBandwidth: 2048,
     startVideoFullScreen: false,
 };
 const defaultPolicyConfig = {
@@ -92,8 +92,8 @@ const defaultPolicyConfig = {
     intercomPolicy: 'off',
 };
 const defaultRegistrationConfig = {
-    transportConnectionTimeout: 5000,
-    transportReconnectionAttempts: 3,
+    transportConnectionTimeout: 15000,
+    transportReconnectionAttempts: 999,
     transportReconnectionTimeout: 3000,
     registerExpires: 3600,
     registerExtraHeaders: '',
@@ -109,17 +109,17 @@ const defaultRegistrationConfig = {
     voicemailDid: '',
     subscribeVoicemailExpires: 3600,
     inviteExtraHeaders: '',
-    noAnswerTimeout: 30,
+    noAnswerTimeout: 120,
 };
 const defaultStorageConfig = {
-    streamBuffer: 1024,
-    maxDataStoreDays: 30,
+    streamBuffer: 50,
+    maxDataStoreDays: 0,
     posterJpegQuality: 80,
 };
 const defaultRecordingConfig = {
-    videoResampleSize: '1280x720',
-    recordingVideoSize: '1280x720',
-    recordingVideoFps: 30,
+    videoResampleSize: 'HD',
+    recordingVideoSize: 'HD',
+    recordingVideoFps: 12,
     recordingLayout: 'grid',
 };
 const defaultAdvancedConfig = {
