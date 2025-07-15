@@ -43,10 +43,9 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
     peerConnection: RTCPeerConnection;
     peerConnectionDelegate: any;
 }
-export interface LineType<T extends object = object> {
+export interface LineType {
     lineNumber: number;
     displayNumber: string;
-    metaData: Partial<T>;
     sipSession: SipInvitationType | SipInviterType | null;
     localSoundMeter: any;
     remoteSoundMeter: any;
@@ -59,7 +58,6 @@ export interface SipSessionDataType {
     callDirection: 'inbound' | 'outbound';
     terminateBy: string;
     src: string;
-    metaData: LineType['metaData'];
     earlyReject: boolean;
     withVideo: boolean;
     reasonCode: number;
