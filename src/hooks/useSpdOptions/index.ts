@@ -93,12 +93,12 @@ export const useSpdOptions = () => {
         },
       };
 
-      // Configure Audio
       if (extraHeaders) {
         option.extraHeaders = extraHeaders;
       } else {
         option.extraHeaders = [];
       }
+      // Configure Audio
       options.answerAudioSpdOptions({ option });
       // Added to the SIP Headers
       if (inviteExtraHeaders && inviteExtraHeaders !== '' && inviteExtraHeaders !== '{}') {

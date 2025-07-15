@@ -195,9 +195,9 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
   );
 };
 
-export const useSipProvider = <MetaDataType extends object = object>() => {
+export const useSipProvider = () => {
   const context = useContext(SipContext);
   if (!context) throw new Error('useSipProvider must be used within a SipProvider');
 
-  return context as SipContextType<MetaDataType>;
+  return context as SipContextType;
 };

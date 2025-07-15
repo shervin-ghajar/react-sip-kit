@@ -22,7 +22,7 @@ import {
   Web,
 } from 'sip.js';
 
-export const useSessionMethods = <MetaDataType extends object = object>() => {
+export const useSessionMethods = () => {
   const configs = useSipStore((state) => state.configs);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
   const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
@@ -67,14 +67,13 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     const startTime = dayJs.utc().toISOString();
     // Create or update buddy based on DID
-    const lineObj = new Line(getNewLineNumber(), callerID, session?.data?.metaData ?? {});
+    const lineObj = new Line(getNewLineNumber(), callerID);
     lineObj.sipSession = session as SipInvitationType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
     lineObj.sipSession.data.callDirection = 'inbound';
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
-    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
     lineObj.sipSession.data.withVideo = false;
@@ -349,7 +348,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.startTime = startTime;
@@ -410,20 +408,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
       console.warn('Failed to send INVITE:', e);
     });
     // updateLine(lineObj);
-    // $('#line-' + lineObj.LineNumber + '-btn-settings').removeAttr('disabled'); TODO #SH ui integration
-    // $('#line-' + lineObj.LineNumber + '-btn-audioCall').prop('disabled', 'disabled');
-    // $('#line-' + lineObj.LineNumber + '-btn-videoCall').prop('disabled', 'disabled');
-    // $('#line-' + lineObj.LineNumber + '-btn-search').removeAttr('disabled');
-
-    // $('#line-' + lineObj.LineNumber + '-progress').show();
-    // $('#line-' + lineObj.LineNumber + '-msg').show();
-
-    // UpdateUI();
-    // UpdateBuddyList();
-    // updateLineScroll(lineObj.LineNumber);
-
-    // // Custom Web hook
-    // if (typeof web_hook_on_invite !== 'undefined') web_hook_on_invite(lineObj.sipSession);
   }
 
   /**
@@ -519,7 +503,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.startTime = startTime;
@@ -613,19 +596,13 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
    * Handle Dial User By Line Number
    * @param type
    * @param dialNumber
-   * @param metaData
    * @param extraHeaders
    * @returns
    */
-  function dialByLine(
-    type: 'audio' | 'video',
-    dialNumber: string,
-    metaData?: MetaDataType,
-    extraHeaders?: Array<string>,
-  ) {
+  function dialByLine(type: 'audio' | 'video', dialNumber: string, extraHeaders?: Array<string>) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
-      alert('userAgent not registered');
+      alert('SIP userAgent not registered');
       return;
     }
 
@@ -641,7 +618,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     // Create a Buddy if one is not already existing
     // Create a Line
-    const lineObj = new Line(getNewLineNumber(), dialNumber, metaData ?? {});
+    const lineObj = new Line(getNewLineNumber(), dialNumber);
 
     // Start Call Invite
     if (type === 'audio') {

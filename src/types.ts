@@ -36,13 +36,13 @@ export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
   configs: SipProviderConfigs<T>;
 }
 
-export interface SipContextType<MetaDataType extends object = object> {
+export interface SipContextType {
   status: 'connected' | 'disconnected';
-  lines: LineType<MetaDataType>[];
+  lines: LineType[];
   transport: SipContextTransportType;
 }
-export interface SipContextSessionType<MetaDataType extends object = object> {
-  methods: Omit<ReturnType<typeof useSessionMethods<MetaDataType>>, 'receiveCall'>;
+export interface SipContextSessionType {
+  methods: Omit<ReturnType<typeof useSessionMethods>, 'receiveCall'>;
   events: ReturnType<typeof useSessionEvents>;
 }
 export interface SipContextTransportType {
