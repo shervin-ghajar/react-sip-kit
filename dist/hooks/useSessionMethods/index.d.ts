@@ -5,6 +5,7 @@ export declare const useSessionMethods: () => {
     answerVideoSession: (lineNumber: LineType["lineNumber"]) => void;
     makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
     makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
+    toggleVideoSession: (lineObj: LineType, extraHeaders?: string[]) => Promise<void>;
     rejectSession: (lineNumber: LineType["lineNumber"]) => void;
     dialByLine: (type: "audio" | "video", dialNumber: string, extraHeaders?: Array<string>) => void;
     endSession: (lineNumber: LineType["lineNumber"]) => void;
