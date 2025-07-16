@@ -729,10 +729,10 @@ const useSessionEvents = () => {
                     lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = body.value;
                     break;
                 case SendMessageSessionEnum.VIDEO_TOGGLE:
-                    lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = body.value;
+                    lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = body.value;
                     break;
                 case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
-                    lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = body.value;
+                    lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = body.value;
                     break;
                 default:
                     response.reject();
@@ -17471,12 +17471,13 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.terminateBy = '';
         lineObj.sipSession.data.src = did;
         lineObj.sipSession.data.earlyReject = false;
-        lineObj.sipSession.data.remoteMediaStreamStatus = {
+        //MediaStreamStatus
+        lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
             soundEnabled: false,
             videoEnabled: false,
         };
-        lineObj.sipSession.data.localMediaStreamStatus = {
+        lineObj.sipSession.data.remoteMediaStreamStatus = {
             screenShareEnabled: false,
             soundEnabled: false,
             videoEnabled: false,
@@ -17686,9 +17687,17 @@ const useSessionMethods = () => {
         const spdOptions = answerAudioSpdOptions();
         if (!spdOptions)
             return console.error('answerAudioSession spdOptions is undefined');
-        // Save Devices
-        if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.videoEnabled = false;
+        // MediaStreamStatus
+        session.data.localMediaStreamStatus = {
+            screenShareEnabled: false,
+            soundEnabled: hasAudioDevice,
+            videoEnabled: false,
+        };
+        session.data.remoteMediaStreamStatus = {
+            screenShareEnabled: false,
+            soundEnabled: true,
+            videoEnabled: false,
+        };
         session.data.videoSourceDevice = null;
         session.data.audioSourceDevice = configs.media.audioInputDeviceId;
         session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -17742,14 +17751,15 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
         lineObj.sipSession.data.terminateBy = 'them';
-        lineObj.sipSession.data.remoteMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: false,
-            videoEnabled: false,
-        };
+        // MediaStreamStatus
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
-            soundEnabled: false,
+            soundEnabled: hasAudioDevice,
+            videoEnabled: false,
+        };
+        lineObj.sipSession.data.remoteMediaStreamStatus = {
+            screenShareEnabled: false,
+            soundEnabled: true,
             videoEnabled: false,
         };
         lineObj.sipSession.data.earlyReject = false;
@@ -17831,12 +17841,12 @@ const useSessionMethods = () => {
         // TODO
         session.data.remoteMediaStreamStatus = {
             screenShareEnabled: false,
-            soundEnabled: false,
+            soundEnabled: true,
             videoEnabled: true,
         };
         session.data.localMediaStreamStatus = {
             screenShareEnabled: false,
-            soundEnabled: false,
+            soundEnabled: hasAudioDevice,
             videoEnabled: hasVideoDevice,
         };
         session.data.videoSourceDevice = configs.media.videoInputDeviceId;
@@ -17897,15 +17907,15 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
         lineObj.sipSession.data.terminateBy = 'them';
-        lineObj.sipSession.data.remoteMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: false,
-            videoEnabled: true,
-        };
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
-            soundEnabled: false,
-            videoEnabled: false,
+            soundEnabled: hasAudioDevice,
+            videoEnabled: hasVideoDevice,
+        };
+        lineObj.sipSession.data.remoteMediaStreamStatus = {
+            screenShareEnabled: false,
+            soundEnabled: true,
+            videoEnabled: true,
         };
         lineObj.sipSession.data.earlyReject = false;
         lineObj.sipSession.isOnHold = false;
@@ -18212,6 +18222,26 @@ const useSessionMethods = () => {
         if (lineObj == null || lineObj.sipSession == null)
             return;
         const session = lineObj.sipSession;
+        if (session &&
+            session.sessionDescriptionHandler &&
+            session.sessionDescriptionHandler.peerConnection) {
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            pc.getSenders().forEach(function (RTCRtpSender) {
+                if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+                    const track = RTCRtpSender.track;
+                    if (track.IsMixedTrack == true) {
+                        if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+                            console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                            session.data.audioSourceTrack.enabled = false;
+                        }
+                    }
+                    console.log('Muting Audio Track : ' + track.label);
+                    track.enabled = false;
+                }
+            });
+        }
+        if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = false;
         sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, false);
         updateLine(lineObj);
     }
@@ -18225,6 +18255,26 @@ const useSessionMethods = () => {
         if (lineObj == null || lineObj.sipSession == null)
             return;
         const session = lineObj.sipSession;
+        if (session &&
+            session.sessionDescriptionHandler &&
+            session.sessionDescriptionHandler.peerConnection) {
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            pc.getSenders().forEach(function (RTCRtpSender) {
+                if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+                    const track = RTCRtpSender.track;
+                    if (track.IsMixedTrack == true) {
+                        if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+                            console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                            session.data.audioSourceTrack.enabled = true;
+                        }
+                    }
+                    console.log('Unmuting Audio Track : ' + track.label);
+                    track.enabled = true;
+                }
+            });
+        }
+        if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = true;
         sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, true);
         updateLine(lineObj);
     }

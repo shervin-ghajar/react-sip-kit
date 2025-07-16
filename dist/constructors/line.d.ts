@@ -1,5 +1,5 @@
 import { LineType, SipInvitationType } from '../store/types';
-export declare class Line<T extends Partial<object>> implements LineType {
+export declare class Line implements LineType {
     lineNumber: number;
     displayNumber: string;
     sipSession: SipInvitationType | null;
