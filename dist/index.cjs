@@ -289,7 +289,7 @@ const getSipStoreConfigs = () => {
 };
 
 /* -------------------------------------------------------------------------- */
-function sendMessageSession(session, type, body) {
+function sendMessageSession(session, type, value) {
     if (!session)
         return;
     session.message({
@@ -300,7 +300,7 @@ function sendMessageSession(session, type, body) {
         requestOptions: {
             body: {
                 contentType: 'text/plain',
-                content: JSON.stringify({ type, body }),
+                content: JSON.stringify({ type, value }),
                 contentDisposition: 'render',
             },
         },
