@@ -1,15 +1,17 @@
 export enum SendMessageSessionEnum {
-  'MIC_TOGGLE' = 'MIC_TOGGLE',
-  'CAMERA_TOGGLE' = 'CAMERA_TOGGLE',
+  'SOUND_TOGGLE' = 'SOUND_TOGGLE',
+  'VIDEO_TOGGLE' = 'VIDEO_TOGGLE',
   'SCREEN_SHARE_TOGGLE' = 'SCREEN_SHARE_TOGGLE',
 }
 export type SendMessageSessionBodyType = {
-  [SendMessageSessionEnum.MIC_TOGGLE]: { muted: boolean };
-  [SendMessageSessionEnum.CAMERA_TOGGLE]: { cameraOn: boolean };
-  [SendMessageSessionEnum.SCREEN_SHARE_TOGGLE]: { sharing: boolean };
+  [SendMessageSessionEnum.SOUND_TOGGLE]: boolean;
+  [SendMessageSessionEnum.VIDEO_TOGGLE]: boolean;
+  [SendMessageSessionEnum.SCREEN_SHARE_TOGGLE]: boolean;
 };
 
-export type SendMessageRequestContent<T extends SendMessageSessionEnum> = {
+export type SendMessageRequestBody<
+  T extends SendMessageSessionEnum = SendMessageSessionEnum.SOUND_TOGGLE,
+> = {
   type: T;
-  body: SendMessageSessionBodyType[T];
+  value: SendMessageSessionBodyType[T];
 };

@@ -104,7 +104,6 @@ export function teardownSession(lineObj: LineType) {
   removeLine(lineObj.lineNumber);
 }
 /* -------------------------------------------------------------------------- */
-
 export function sendMessageSession<T extends SendMessageSessionEnum>(
   session: LineType['sipSession'],
   type: T,

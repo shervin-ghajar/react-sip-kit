@@ -58,9 +58,9 @@ function App({ username }: { username: string }) {
   const renderLines = () => {
     return lines.map((line) => {
       const callStarted = line.sipSession?.data.started;
-      const isVideoCall = !!line.sipSession?.data.withVideo || false;
+      const isVideoCall = !!line.sipSession?.data.localMediaStreamStatus?.videoEnabled || false;
       const isOutbound = line.sipSession?.data.callDirection === 'outbound';
-      const isMute = line.sipSession?.data.isMute;
+      const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
       const isHold = line.sipSession?.isOnHold;
       console.log({ callStarted }, line.sipSession?.data);
       return (

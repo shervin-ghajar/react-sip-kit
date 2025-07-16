@@ -1,3 +1,4 @@
+import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
@@ -56,7 +57,11 @@ export const useSessionEvents = () => {
     callback?.();
   }
   // // Both Incoming an outgoing INVITE
-  function onInviteAccepted(lineObj: LineType, includeVideo: boolean, response?: IncomingResponse) {
+  async function onInviteAccepted(
+    lineObj: LineType,
+    includeVideo: boolean,
+    response?: IncomingResponse,
+  ) {
     // Call in progress
     console.log('onInviteAccepted');
     const session = lineObj.sipSession;
@@ -68,51 +73,53 @@ export const useSessionEvents = () => {
       session.data.earlyMedia = null;
     }
 
-    const startTime = dayJs.utc();
+    const startTime = dayJs.utc().toISOString();
     session.data.startTime = startTime;
 
     session.isOnHold = false;
     session.data.started = true;
-
-    if (includeVideo) {
-      // Preview our stream from peer connection
-      const localVideoStream = new MediaStream();
-      const pc = session.sessionDescriptionHandler.peerConnection;
-      pc.getSenders().forEach(function (sender) {
-        if (sender.track && sender.track.kind === 'video') {
-          localVideoStream.addTrack(sender.track);
-        }
-      });
-      const localVideo = document.getElementById(
-        `line-${lineObj.lineNumber}-localVideo`,
-      ) as HTMLVideoElement;
-      console.log('onInviteAccepted', { localVideo, localVideoStream });
-      if (localVideo) {
-        localVideo.srcObject = localVideoStream;
-        localVideo.onloadedmetadata = function (e) {
-          console.log('onInviteAccepted', 'play');
-          localVideo.play();
-        };
-      }
-
-      // Apply Call Bandwidth Limits
-      if (maxVideoBandwidth > -1) {
+    session.initiateLocalMediaStreams = () => {
+      if (includeVideo) {
+        // Preview our stream from peer connection
+        const localVideoStream = new MediaStream();
+        const pc = session.sessionDescriptionHandler.peerConnection;
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
-            const parameters = sender.getParameters();
-            if (!parameters.encodings) parameters.encodings = [{}];
-            parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
-
-            console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
-
-            // Only going to try without re-negotiations
-            sender.setParameters(parameters).catch(function (e: any) {
-              console.warn('Cannot apply Bandwidth Limits', e);
-            });
+            localVideoStream.addTrack(sender.track);
           }
         });
+        const localVideo = document.getElementById(
+          `line-${lineObj.lineNumber}-localVideo`,
+        ) as HTMLVideoElement;
+        console.log('onInviteAccepted', { localVideo, localVideoStream });
+        if (localVideo) {
+          localVideo.srcObject = localVideoStream;
+          localVideo.onloadedmetadata = function (e) {
+            console.log('onInviteAccepted', 'play');
+            localVideo.play();
+          };
+        }
+
+        // Apply Call Bandwidth Limits
+        if (maxVideoBandwidth > -1) {
+          pc.getSenders().forEach(function (sender) {
+            if (sender.track && sender.track.kind === 'video') {
+              const parameters = sender.getParameters();
+              if (!parameters.encodings) parameters.encodings = [{}];
+              parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
+
+              console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
+
+              // Only going to try without re-negotiations
+              sender.setParameters(parameters).catch(function (e: any) {
+                console.warn('Cannot apply Bandwidth Limits', e);
+              });
+            }
+          });
+        }
       }
-    }
+      updateLine(lineObj);
+    };
 
     // Start Call Recording
     // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
@@ -257,8 +264,6 @@ export const useSessionEvents = () => {
       response.request.headers['Content-Type'].length >= 1
         ? response.request.headers['Content-Type'][0].parsed
         : 'Unknown';
-
-    console.log('onMessage', response.request.body, messageType);
     if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
       // Conference Events JSON
       const msgJson = JSON.parse(response.request.body) as {
@@ -379,7 +384,29 @@ export const useSessionEvents = () => {
 
       response.accept();
     } else if (messageType.indexOf('text/plain') > -1) {
-      console.log('MAJID');
+      if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
+      const body = JSON.parse(response.request.body);
+      switch (body.type as SendMessageSessionEnum) {
+        case SendMessageSessionEnum.SOUND_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
+          ).value;
+          break;
+        case SendMessageSessionEnum.VIDEO_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
+          ).value;
+
+          break;
+        case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
+          ).value;
+          break;
+        default:
+          response.reject();
+          break;
+      }
       response.accept();
     } else {
       console.warn('Unknown message type');
@@ -417,91 +444,93 @@ export const useSessionEvents = () => {
     }
   }
 
-  function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
+  async function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
     // Gets remote tracks
     console.log('onTrackAddedEvent');
     const session = lineObj.sipSession;
     if (!session) return;
     // TODO: look at detecting video, so that UI switches to audio/video automatically.
+    session.initiateRemoteMediaStreams = () => {
+      const pc = session.sessionDescriptionHandler.peerConnection;
 
-    const pc = session.sessionDescriptionHandler.peerConnection;
+      // Create MediaStreams for audio and video
+      const remoteAudioStream = new MediaStream();
+      const remoteVideoStream = new MediaStream();
 
-    // Create MediaStreams for audio and video
-    const remoteAudioStream = new MediaStream();
-    const remoteVideoStream = new MediaStream();
-
-    // Add tracks to MediaStreams
-    pc.getTransceivers().forEach((transceiver) => {
-      const receiver = transceiver.receiver;
-      if (receiver.track) {
-        if (receiver.track.kind === 'audio') {
-          console.log('Adding Remote Audio Track');
-          remoteAudioStream.addTrack(receiver.track);
-        }
-        if (includeVideo && receiver.track.kind === 'video') {
-          if (transceiver.mid) {
-            console.log('Adding Remote Video Track', receiver.track.readyState);
-            (receiver.track as any).mid = transceiver.mid;
-            remoteVideoStream.addTrack(receiver.track);
+      // Add tracks to MediaStreams
+      pc.getTransceivers().forEach((transceiver) => {
+        const receiver = transceiver.receiver;
+        if (receiver.track) {
+          if (receiver.track.kind === 'audio') {
+            console.log('Adding Remote Audio Track');
+            remoteAudioStream.addTrack(receiver.track);
+          }
+          if (includeVideo && receiver.track.kind === 'video') {
+            if (transceiver.mid) {
+              console.log('Adding Remote Video Track', receiver.track.readyState);
+              (receiver.track as any).mid = transceiver.mid;
+              remoteVideoStream.addTrack(receiver.track);
+            }
           }
         }
-      }
-    });
-
-    // Attach Audio Stream
-    if (remoteAudioStream.getAudioTracks().length > 0) {
-      const remoteAudio = document.getElementById(
-        `line-${lineObj.lineNumber}-remoteAudio`,
-      ) as HTMLAudioElement;
-      remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
-      remoteAudio.srcObject = remoteAudioStream;
-
-      remoteAudio.onloadedmetadata = () => {
-        if (typeof remoteAudio.sinkId !== 'undefined') {
-          remoteAudio
-            .setSinkId(audioOutputDeviceId)
-            .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-            .catch((e) => console.warn('Error using setSinkId:', e));
-        }
-        remoteAudio.play();
-      };
-    }
-
-    // Attach Video Stream
-    if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
-      const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-      let videoContainer = document.getElementById(videoContainerId);
-
-      if (!videoContainer) return;
-      // Clear existing videos
-      videoContainer.innerHTML = '';
-
-      remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
-        const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
-        thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
-        thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-        thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-        const videoElement = document.createElement('video');
-        videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
-        videoElement.srcObject = thisRemoteVideoStream;
-        videoElement.autoplay = true;
-        videoElement.playsInline = true;
-        videoElement.muted = true; // Ensure autoplay works in browsers
-        videoElement.className = 'video-element'; // Add styling class
-
-        videoElement.onloadedmetadata = () => {
-          videoElement.play().catch((error) => {
-            console.error('Error playing video:', error);
-          });
-        };
-
-        videoContainer.appendChild(videoElement);
       });
-    } else {
-      console.warn('No Video Tracks Found');
-    }
 
-    updateLine(lineObj);
+      // Attach Audio Stream
+      if (remoteAudioStream.getAudioTracks().length > 0) {
+        const remoteAudio = document.getElementById(
+          `line-${lineObj.lineNumber}-remoteAudio`,
+        ) as HTMLAudioElement;
+        if (remoteAudio) {
+          remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
+          remoteAudio.srcObject = remoteAudioStream;
+
+          remoteAudio.onloadedmetadata = () => {
+            if (typeof remoteAudio.sinkId !== 'undefined') {
+              remoteAudio
+                .setSinkId(audioOutputDeviceId)
+                .then(() => console.log('sinkId applied:', audioOutputDeviceId))
+                .catch((e) => console.warn('Error using setSinkId:', e));
+            }
+            remoteAudio.play();
+          };
+        }
+      }
+
+      // Attach Video Stream
+      if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
+        const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
+        let videoContainer = document.getElementById(videoContainerId);
+
+        if (!videoContainer) return;
+        // Clear existing videos
+        videoContainer.innerHTML = '';
+
+        remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
+          const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
+          thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
+          thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
+          thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
+          const videoElement = document.createElement('video');
+          videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
+          videoElement.srcObject = thisRemoteVideoStream;
+          videoElement.autoplay = true;
+          videoElement.playsInline = true;
+          videoElement.muted = true; // Ensure autoplay works in browsers
+          videoElement.className = 'video-element'; // Add styling class
+
+          videoElement.onloadedmetadata = () => {
+            videoElement.play().catch((error) => {
+              console.error('Error playing video:', error);
+            });
+          };
+
+          videoContainer.appendChild(videoElement);
+        });
+      } else {
+        console.warn('No Video Tracks Found');
+      }
+      updateLine(lineObj);
+    };
   }
 
   function onTransferSessionDescriptionHandlerCreated(
