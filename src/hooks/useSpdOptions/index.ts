@@ -62,7 +62,6 @@ export const useSpdOptions = () => {
           console.warn(
             'The audio device you used before is no longer available, default settings applied.',
           );
-          localStorage.setItem('AudioSrcId', 'default');
         }
       }
       // Add additional Constraints
@@ -141,7 +140,6 @@ export const useSpdOptions = () => {
           console.warn(
             'The video device you used before is no longer available, default settings applied.',
           );
-          localStorage.setItem('VideoSrcId', 'default'); // resets for later and subsequent calls
         }
       }
       // Add additional Constraints
