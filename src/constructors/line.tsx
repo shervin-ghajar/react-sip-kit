@@ -1,6 +1,6 @@
 import { LineType, SipInvitationType } from '../store/types';
 
-export class Line<T extends Partial<object>> implements LineType<T> {
+export class Line implements LineType {
   lineNumber: number; // Unique identifier for the line
   displayNumber: string; // DID or number associated with the call
   sipSession: SipInvitationType | null; // SIP.js Session object for the call

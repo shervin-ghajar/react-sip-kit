@@ -393,13 +393,13 @@ export const useSessionEvents = () => {
           ).value;
           break;
         case SendMessageSessionEnum.VIDEO_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+          lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
             body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
           ).value;
 
           break;
         case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+          lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
             body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
           ).value;
           break;

@@ -383,7 +383,7 @@ export const useSessionMethods = () => {
     };
     lineObj.sipSession.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
+      soundEnabled: true,
       videoEnabled: false,
     };
     lineObj.sipSession.data.earlyReject = false;
@@ -917,6 +917,7 @@ export const useSessionMethods = () => {
     }
     if (session.data.localMediaStreamStatus)
       session.data.localMediaStreamStatus.soundEnabled = false;
+
     sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, false);
     updateLine(lineObj);
   }
