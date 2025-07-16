@@ -76,12 +76,13 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
     lineObj.sipSession.data.earlyReject = false;
-    lineObj.sipSession.data.remoteMediaStreamStatus = {
+    //MediaStreamStatus
+    lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: false,
       videoEnabled: false,
     };
-    lineObj.sipSession.data.localMediaStreamStatus = {
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: false,
       videoEnabled: false,
@@ -304,9 +305,17 @@ export const useSessionMethods = () => {
     // Start SIP handling
     const spdOptions = answerAudioSpdOptions();
     if (!spdOptions) return console.error('answerAudioSession spdOptions is undefined');
-    // Save Devices
-    if (session.data.localMediaStreamStatus)
-      session.data.localMediaStreamStatus.videoEnabled = false;
+    // MediaStreamStatus
+    session.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: hasAudioDevice,
+      videoEnabled: false,
+    };
+    session.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: true,
+      videoEnabled: false,
+    };
     session.data.videoSourceDevice = null;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -366,12 +375,13 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.data.remoteMediaStreamStatus = {
+    // MediaStreamStatus
+    lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
+      soundEnabled: hasAudioDevice,
       videoEnabled: false,
     };
-    lineObj.sipSession.data.localMediaStreamStatus = {
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: false,
       videoEnabled: false,
@@ -461,13 +471,13 @@ export const useSessionMethods = () => {
     // TODO
     session.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
+      soundEnabled: true,
       videoEnabled: true,
     };
 
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
+      soundEnabled: hasAudioDevice,
       videoEnabled: hasVideoDevice,
     };
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
@@ -540,15 +550,15 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.data.remoteMediaStreamStatus = {
-      screenShareEnabled: false,
-      soundEnabled: false,
-      videoEnabled: true,
-    };
     lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
-      videoEnabled: false,
+      soundEnabled: hasAudioDevice,
+      videoEnabled: hasVideoDevice,
+    };
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: true,
+      videoEnabled: true,
     };
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
@@ -884,46 +894,29 @@ export const useSessionMethods = () => {
     if (lineObj == null || lineObj.sipSession == null) return;
 
     const session = lineObj.sipSession;
-    const options = {
-      sessionDescriptionHandlerModifiers: [],
-      requestDelegate: {
-        onAccept: function () {
-          if (
-            session &&
-            session.sessionDescriptionHandler &&
-            session.sessionDescriptionHandler.peerConnection
-          ) {
-            const pc = session.sessionDescriptionHandler.peerConnection;
-            pc.getSenders().forEach(function (RTCRtpSender) {
-              if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                const track = RTCRtpSender.track as MediaStreamTrackType;
+    if (
+      session &&
+      session.sessionDescriptionHandler &&
+      session.sessionDescriptionHandler.peerConnection
+    ) {
+      const pc = session.sessionDescriptionHandler.peerConnection;
+      pc.getSenders().forEach(function (RTCRtpSender) {
+        if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+          const track = RTCRtpSender.track as MediaStreamTrackType;
 
-                if (track.IsMixedTrack == true) {
-                  if (
-                    session.data.audioSourceTrack &&
-                    session.data.audioSourceTrack.kind == 'audio'
-                  ) {
-                    console.log(
-                      'Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label,
-                    );
-                    session.data.audioSourceTrack.enabled = false;
-                  }
-                }
-                console.log('Muting Audio Track : ' + track.label);
-                track.enabled = false;
-              }
-            });
+          if (track.IsMixedTrack == true) {
+            if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+              console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+              session.data.audioSourceTrack.enabled = false;
+            }
           }
-          if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = false;
-        },
-        onReject: function () {
-          if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = true;
-          console.warn('Failed to put the call mute', lineNumber);
-        },
-      },
-    };
+          console.log('Muting Audio Track : ' + track.label);
+          track.enabled = false;
+        }
+      });
+    }
+    if (session.data.localMediaStreamStatus)
+      session.data.localMediaStreamStatus.soundEnabled = false;
     sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, false);
     updateLine(lineObj);
   }
@@ -939,47 +932,30 @@ export const useSessionMethods = () => {
 
     const session = lineObj.sipSession;
 
-    const options = {
-      sessionDescriptionHandlerModifiers: [Web.holdModifier],
+    if (
+      session &&
+      session.sessionDescriptionHandler &&
+      session.sessionDescriptionHandler.peerConnection
+    ) {
+      const pc = session.sessionDescriptionHandler.peerConnection;
+      pc.getSenders().forEach(function (RTCRtpSender) {
+        if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+          const track = RTCRtpSender.track as MediaStreamTrackType;
 
-      requestDelegate: {
-        onAccept: function () {
-          if (
-            session &&
-            session.sessionDescriptionHandler &&
-            session.sessionDescriptionHandler.peerConnection
-          ) {
-            const pc = session.sessionDescriptionHandler.peerConnection;
-            pc.getSenders().forEach(function (RTCRtpSender) {
-              if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                const track = RTCRtpSender.track as MediaStreamTrackType;
-
-                if (track.IsMixedTrack == true) {
-                  if (
-                    session.data.audioSourceTrack &&
-                    session.data.audioSourceTrack.kind == 'audio'
-                  ) {
-                    console.log(
-                      'Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label,
-                    );
-                    session.data.audioSourceTrack.enabled = true;
-                  }
-                }
-                console.log('Unmuting Audio Track : ' + track.label);
-                track.enabled = true;
-              }
-            });
+          if (track.IsMixedTrack == true) {
+            if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+              console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+              session.data.audioSourceTrack.enabled = true;
+            }
           }
-          if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = true;
-        },
-        onReject: function () {
-          if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = false;
-          console.warn('Failed to put the call un-mute', lineNumber);
-        },
-      },
-    };
+          console.log('Unmuting Audio Track : ' + track.label);
+          track.enabled = true;
+        }
+      });
+    }
+    if (session.data.localMediaStreamStatus)
+      session.data.localMediaStreamStatus.soundEnabled = true;
+
     sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, true);
     updateLine(lineObj);
   }
