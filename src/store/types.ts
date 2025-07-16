@@ -78,7 +78,6 @@ export interface SipSessionDataType {
   terminateBy: string;
   src: string;
   earlyReject: boolean;
-  withVideo: boolean;
   reasonCode: number;
   reasonText: string;
   teardownComplete: boolean;
@@ -87,9 +86,9 @@ export interface SipSessionDataType {
   started: boolean;
   hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
   isHold: boolean;
-  mute: Array<{ event: 'mute' | 'unmute'; eventTime: string }>;
-  isMute: boolean;
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
+  localMediaStreamStatus: MediaStremStatus;
+  remoteMediaStreamStatus: MediaStremStatus;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
   audioSourceTrack: any; //TODO
@@ -123,4 +122,10 @@ interface DevicesInfoType {
   audioInputDevices: any[];
   videoInputDevices: any[];
   speakerDevices: any[];
+}
+
+interface MediaStremStatus {
+  soundEnabled: boolean;
+  videoEnabled: boolean;
+  screenShareEnabled: boolean;
 }

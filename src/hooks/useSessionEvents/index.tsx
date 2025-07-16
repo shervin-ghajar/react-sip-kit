@@ -1,3 +1,4 @@
+import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
@@ -382,10 +383,36 @@ export const useSessionEvents = () => {
       console.log('x-myphone-confbridge-chat', response);
 
       response.accept();
+    } else if (messageType.indexOf('text/plain') > -1) {
+      if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
+      const body = JSON.parse(response.request.body);
+      switch (body.type as SendMessageSessionEnum) {
+        case SendMessageSessionEnum.SOUND_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
+          ).value;
+          break;
+        case SendMessageSessionEnum.VIDEO_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
+          ).value;
+
+          break;
+        case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
+          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
+          ).value;
+          break;
+        default:
+          response.reject();
+          break;
+      }
+      response.accept();
     } else {
       console.warn('Unknown message type');
       response.reject();
     }
+    updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   function onSessionDescriptionHandlerCreated(

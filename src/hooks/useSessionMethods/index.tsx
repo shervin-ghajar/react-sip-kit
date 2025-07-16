@@ -1,4 +1,6 @@
 import { Line } from '../../constructors';
+import { sendMessageSession } from '../../methods/session';
+import { SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import {
   LineType,
@@ -75,13 +77,17 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
     lineObj.sipSession.data.earlyReject = false;
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: false,
+    };
     // Detect Video
-    lineObj.sipSession.data.withVideo = false;
     if (configs.features.enableVideo && lineObj.sipSession.request.body) {
       // Asterisk 13 PJ_SIP always sends m=video if endpoint has video codec,
       // even if original invite does not specify video.
       if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
-        lineObj.sipSession.data.withVideo = true;
+        lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
         // The invite may have video, but the buddy may be a contact
       }
     }
@@ -115,7 +121,7 @@ export const useSessionMethods = () => {
           lineObj,
           sdh as SipSessionDescriptionHandler,
           provisional,
-          session.data.withVideo,
+          session?.data?.remoteMediaStreamStatus?.videoEnabled,
         );
       },
     };
@@ -295,7 +301,8 @@ export const useSessionMethods = () => {
     const spdOptions = answerAudioSpdOptions();
     if (!spdOptions) return console.error('answerAudioSession spdOptions is undefined');
     // Save Devices
-    session.data.withVideo = false;
+    if (session.data.localMediaStreamStatus)
+      session.data.localMediaStreamStatus.videoEnabled = false;
     session.data.videoSourceDevice = null;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -355,7 +362,8 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.data.withVideo = false;
+    if (lineObj?.sipSession?.data?.localMediaStreamStatus)
+      lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = false;
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -440,7 +448,8 @@ export const useSessionMethods = () => {
     const spdOptions = answerVideoSpdOptions();
 
     // Save Devices
-    session.data.withVideo = true;
+    if (session?.data?.localMediaStreamStatus)
+      session.data.localMediaStreamStatus.videoEnabled = true;
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -481,7 +490,7 @@ export const useSessionMethods = () => {
       return;
     }
 
-    if (hasVideoDevice == false) {
+    if (!hasVideoDevice) {
       console.warn('No video devices (webcam) found, switching to audio call.');
       makeAudioSession(lineObj, dialledNumber);
       return;
@@ -511,7 +520,8 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.data.withVideo = true;
+    if (lineObj.sipSession?.data?.localMediaStreamStatus)
+      lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = true;
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -558,6 +568,50 @@ export const useSessionMethods = () => {
     // updateLine(lineObj); TODO
   }
 
+  /**
+   * Dynamically adds or removes video from an ongoing SIP session using a re-INVITE.
+   * This allows switching from audio to video (or vice versa) without creating a new session.
+   *
+   * @param lineObj - The line object that holds the active SIP session.
+   * @param extraHeaders
+   */
+  const toggleVideoSession = async (lineObj: LineType, extraHeaders?: string[]) => {
+    const session = lineObj.sipSession;
+
+    // Ensure session exists and is already established
+    if (
+      !session ||
+      session.state !== SessionState.Established ||
+      !session.data.localMediaStreamStatus
+    ) {
+      console.warn('toggleVideo: No active or established session to modify.');
+      return;
+    }
+    const videoEnabled = session.data.localMediaStreamStatus?.videoEnabled;
+    // Define updated media constraints based on the toggle
+    const spdOptions = videoEnabled
+      ? makeVideoSpdOptions({ extraHeaders })
+      : makeAudioSpdOptions({ extraHeaders });
+    if (!spdOptions) return;
+
+    try {
+      // Send a re-INVITE with updated SDP constraints
+      await session.invite(spdOptions);
+
+      // Update internal session data for app state tracking
+      session.data.localMediaStreamStatus.videoEnabled = true;
+      lineObj.sipSession = session;
+      sendMessageSession(
+        session,
+        SendMessageSessionEnum.VIDEO_TOGGLE,
+        session.data.localMediaStreamStatus.videoEnabled,
+      );
+      updateLine(lineObj);
+      console.log(`Video ${videoEnabled ? 'enabled' : 'disabled'} successfully.`);
+    } catch (err) {
+      console.error('Failed to toggle video:', err);
+    }
+  };
   /**
    * Handle reject calls
    * @param lineNumber
@@ -807,7 +861,6 @@ export const useSessionMethods = () => {
     if (lineObj == null || lineObj.sipSession == null) return;
 
     const session = lineObj.sipSession;
-
     const options = {
       sessionDescriptionHandlerModifiers: [],
       requestDelegate: {
@@ -838,20 +891,17 @@ export const useSessionMethods = () => {
               }
             });
           }
-          if (!session.data.mute) session.data.mute = [];
-          session.data.mute.push({ event: 'mute', eventTime: utcDateNow() });
-          session.data.isMute = true;
+          if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = false;
         },
         onReject: function () {
-          session.data.isMute = false;
+          if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = true;
           console.warn('Failed to put the call mute', lineNumber);
         },
       },
     };
-    session.invite(options).catch(function (error) {
-      session.data.isMute = false;
-      console.warn('Error attempting to take to call un-mute', error);
-    });
+    sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, false);
     updateLine(lineObj);
   }
 
@@ -897,20 +947,17 @@ export const useSessionMethods = () => {
               }
             });
           }
-          if (!session.data.mute) session.data.mute = [];
-          session.data.mute.push({ event: 'unmute', eventTime: utcDateNow() });
-          session.data.isMute = false;
+          if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = true;
         },
         onReject: function () {
-          session.data.isMute = false;
+          if (session.data.localMediaStreamStatus)
+            session.data.localMediaStreamStatus.soundEnabled = false;
           console.warn('Failed to put the call un-mute', lineNumber);
         },
       },
     };
-    session.invite(options).catch(function (error) {
-      session.data.isMute = false;
-      console.warn('Error attempting to take to call un-mute', error);
-    });
+    sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, true);
     updateLine(lineObj);
   }
 
@@ -1244,7 +1291,7 @@ export const useSessionMethods = () => {
     }
 
     // Not sure if its possible to transfer a Video call???
-    if (session.data.withVideo) {
+    if (session.data.localMediaStreamStatus?.videoEnabled) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.video = {} as any;
       const video = spdOptions.sessionDescriptionHandlerOptions.constraints
         .video as VideoSessionConstraints;
@@ -1298,7 +1345,7 @@ export const useSessionMethods = () => {
           lineObj,
           session as SipSessionType,
           sdh,
-          session?.data?.withVideo,
+          session?.data?.localMediaStreamStatus?.videoEnabled,
         );
       },
     };
@@ -1517,6 +1564,7 @@ export const useSessionMethods = () => {
     answerVideoSession,
     makeAudioSession,
     makeVideoSession,
+    toggleVideoSession,
     rejectSession,
     dialByLine,
     endSession,
