@@ -93,6 +93,7 @@ export const useSessionMethods = () => {
       // even if original invite does not specify video.
       if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
         lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
+        lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = true;
         // The invite may have video, but the buddy may be a contact
       }
     }
@@ -469,17 +470,18 @@ export const useSessionMethods = () => {
     // Start SIP handling
     const spdOptions = answerVideoSpdOptions();
     // TODO
+
+    session.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: true,
+      videoEnabled: true,
+    };
     session.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: true,
       videoEnabled: true,
     };
 
-    session.data.localMediaStreamStatus = {
-      screenShareEnabled: false,
-      soundEnabled: hasAudioDevice,
-      videoEnabled: hasVideoDevice,
-    };
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
