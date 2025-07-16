@@ -257,6 +257,8 @@ export const useSessionEvents = () => {
       response.request.headers['Content-Type'].length >= 1
         ? response.request.headers['Content-Type'][0].parsed
         : 'Unknown';
+
+    console.log('onMessage', response.request.body, messageType);
     if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
       // Conference Events JSON
       const msgJson = JSON.parse(response.request.body) as {
@@ -376,10 +378,14 @@ export const useSessionEvents = () => {
       console.log('x-myphone-confbridge-chat', response);
 
       response.accept();
+    } else if (messageType.indexOf('text/plain') > -1) {
+      console.log('MAJID');
+      response.accept();
     } else {
       console.warn('Unknown message type');
       response.reject();
     }
+    updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   function onSessionDescriptionHandlerCreated(

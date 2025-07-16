@@ -4,11 +4,36 @@ import { useSessionMethods } from './hooks';
 import { useSipProvider } from './provider';
 import { LineType } from './store/types';
 
-interface MetaDataType {
-  displayName: string;
-}
+const userData = {
+  userId: 'd65a5986-b0de-443f-b8f7-89f61010f3f6',
+  firstName: 'مدیر ',
+  lastName: 'سیستم',
+  userName: 'Admin',
+  phoneNumber: '989128392240',
+  email: 'admin@example.com',
+  isActive: true,
+  customerNumber: '',
+  fileId: 'fe101c3a-d018-4d44-8446-040695915c0f',
+  registerDate: '2024-10-09T16:25:57.7+03:30',
+  userRole: 'Owner',
+  instanceStatus: 'Active',
+  preferredLanguage: 'Farsi',
+  userStatus: {
+    activitySubStatusId: 2,
+    description: null,
+    emotionalEmoji: 0,
+    userStatus: 'Available',
+    subStatusName: 'در حال کار',
+    subStatusKey: 'Available',
+  },
+  userActivityStatus: {
+    lastActivity: '2025-07-15T12:56:18.9058339+03:30',
+    state: 'Active',
+  },
+};
+
 function App({ username }: { username: string }) {
-  const { lines, status } = useSipProvider<MetaDataType>();
+  const { lines, status } = useSipProvider();
   const {
     answerAudioSession,
     answerVideoSession,
@@ -55,7 +80,7 @@ function App({ username }: { username: string }) {
             </div>
           )}
           <div>
-            <p>Name: {line.metaData?.displayName}</p>
+            {/* <p>Name: {line.metaData?.displayName}</p> */}
             <p>Number: {line.displayNumber}</p>
           </div>
           {callStarted ? (

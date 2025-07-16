@@ -21,7 +21,7 @@ import {
   UserAgent,
 } from 'sip.js';
 
-export const useSessionMethods = <MetaDataType extends object = object>() => {
+export const useSessionMethods = () => {
   const configs = useSipStore((state) => state.configs);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
   const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
@@ -66,14 +66,13 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     const startTime = dayJs.utc();
     // Create or update buddy based on DID
-    const lineObj = new Line(getNewLineNumber(), callerID, session.data.metaData ?? {});
+    const lineObj = new Line(getNewLineNumber(), callerID);
     lineObj.sipSession = session as SipInvitationType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
     lineObj.sipSession.data.callDirection = 'inbound';
     lineObj.sipSession.data.terminateBy = '';
     lineObj.sipSession.data.src = did;
-    lineObj.sipSession.data.metaData = lineObj?.metaData;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
     lineObj.sipSession.data.earlyReject = false;
     // Detect Video
@@ -106,6 +105,11 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
       onMessage: function (sip) {
+        console.log('onMessage');
+        const contentType = sip.request.getHeader('Content-Type');
+        if (contentType == 'text/plain') {
+          console.log('onInfo-payload', JSON.parse(sip.request.body));
+        }
         onSessionReceivedMessage(lineObj, sip);
       },
       onInvite: function (sip) {
@@ -349,7 +353,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.metaData = lineObj.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
@@ -519,7 +522,6 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
     lineObj.sipSession.data.line = lineObj.lineNumber;
-    lineObj.sipSession.data.metaData = lineObj?.metaData;
     lineObj.sipSession.data.callDirection = 'outbound';
     lineObj.sipSession.data.dialledNumber = dialledNumber;
     lineObj.sipSession.data.callstart = startTime.format('YYYY-MM-DD HH:mm:ss UTC');
@@ -626,16 +628,10 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
    * Handle Dial User By Line Number
    * @param type
    * @param dialNumber
-   * @param metaData
    * @param extraHeaders
    * @returns
    */
-  function dialByLine(
-    type: 'audio' | 'video',
-    dialNumber: string,
-    metaData?: MetaDataType,
-    extraHeaders?: Array<string>,
-  ) {
+  function dialByLine(type: 'audio' | 'video', dialNumber: string, extraHeaders?: Array<string>) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
       alert('userAgent not registered');
@@ -654,7 +650,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
 
     // Create a Buddy if one is not already existing
     // Create a Line
-    const lineObj = new Line(getNewLineNumber(), dialNumber, metaData ?? {});
+    const lineObj = new Line(getNewLineNumber(), dialNumber);
 
     // Start Call Invite
     if (type === 'audio') {
@@ -869,6 +865,19 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
     // $('#line-' + lineNum + '-msg').html(lang.call_on_mute);
 
     // updateLineScroll(lineNumber);
+    session.message({
+      requestDelegate: {
+        onAccept: () => console.log('INFO accepted'),
+        onReject: () => console.log('INFO rejected'),
+      },
+      requestOptions: {
+        body: {
+          contentType: 'text/plain',
+          content: JSON.stringify({ majid: true }),
+          contentDisposition: 'render',
+        },
+      },
+    });
     updateLine(lineObj);
   }
 
@@ -1284,6 +1293,7 @@ export const useSessionMethods = <MetaDataType extends object = object>() => {
       'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs.account.domain,
     ) as URI;
     const newSession = new Inviter(userAgent, targetURI, spdOptions);
+
     newSession.data = {};
     newSession.delegate = {
       onBye: function () {
