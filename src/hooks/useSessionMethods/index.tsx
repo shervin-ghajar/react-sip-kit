@@ -79,7 +79,7 @@ export const useSessionMethods = () => {
     //MediaStreamStatus
     lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: false,
+      soundEnabled: true,
       videoEnabled: false,
     };
     lineObj.sipSession.data.remoteMediaStreamStatus = {
