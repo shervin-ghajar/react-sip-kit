@@ -492,6 +492,8 @@ export const useSessionEvents = () => {
                 .catch((e) => console.warn('Error using setSinkId:', e));
             }
             remoteAudio.play();
+            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
+              lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = true;
           };
         }
       }
@@ -522,6 +524,8 @@ export const useSessionEvents = () => {
             videoElement.play().catch((error) => {
               console.error('Error playing video:', error);
             });
+            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
+              lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
           };
 
           videoContainer.appendChild(videoElement);

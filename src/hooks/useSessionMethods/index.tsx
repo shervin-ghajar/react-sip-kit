@@ -67,7 +67,6 @@ export const useSessionMethods = () => {
 
     console.log(`Incoming call from: ${callerID}`);
 
-    const startTime = dayJs.utc().toISOString();
     // Create or update buddy based on DID
     const lineObj = new Line(getNewLineNumber(), callerID);
     lineObj.sipSession = session as SipInvitationType;
@@ -78,6 +77,11 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.src = did;
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: false,
+    };
+    lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: false,
       videoEnabled: false,
@@ -362,8 +366,16 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    if (lineObj?.sipSession?.data?.localMediaStreamStatus)
-      lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = false;
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: false,
+    };
+    lineObj.sipSession.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: false,
+    };
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -446,10 +458,18 @@ export const useSessionMethods = () => {
 
     // Start SIP handling
     const spdOptions = answerVideoSpdOptions();
+    // TODO
+    session.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: true,
+    };
 
-    // Save Devices
-    if (session?.data?.localMediaStreamStatus)
-      session.data.localMediaStreamStatus.videoEnabled = true;
+    session.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: hasVideoDevice,
+    };
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -520,8 +540,16 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    if (lineObj.sipSession?.data?.localMediaStreamStatus)
-      lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = true;
+    lineObj.sipSession.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: true,
+    };
+    lineObj.sipSession.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: false,
+      videoEnabled: false,
+    };
     lineObj.sipSession.data.earlyReject = false;
     lineObj.sipSession.isOnHold = false;
     lineObj.sipSession.delegate = {
@@ -600,12 +628,7 @@ export const useSessionMethods = () => {
 
       // Update internal session data for app state tracking
       session.data.localMediaStreamStatus.videoEnabled = true;
-      lineObj.sipSession = session;
-      sendMessageSession(
-        session,
-        SendMessageSessionEnum.VIDEO_TOGGLE,
-        session.data.localMediaStreamStatus.videoEnabled,
-      );
+
       updateLine(lineObj);
       console.log(`Video ${videoEnabled ? 'enabled' : 'disabled'} successfully.`);
     } catch (err) {
