@@ -17518,7 +17518,7 @@ const useSessionMethods = () => {
                 onSessionReinvited(lineObj, sip);
             },
             onSessionDescriptionHandler: function (sdh, provisional) {
-                onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, session?.data?.remoteMediaStreamStatus?.videoEnabled);
+                onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, lineObj?.sipSession?.data?.localMediaStreamStatus?.videoEnabled);
             },
         };
         // incomingInviteRequestDelegate
