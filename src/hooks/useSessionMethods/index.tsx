@@ -127,7 +127,7 @@ export const useSessionMethods = () => {
           lineObj,
           sdh as SipSessionDescriptionHandler,
           provisional,
-          session?.data?.remoteMediaStreamStatus?.videoEnabled,
+          lineObj?.sipSession?.data?.localMediaStreamStatus?.videoEnabled,
         );
       },
     };
