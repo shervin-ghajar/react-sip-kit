@@ -31,7 +31,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
   );
-  const { receiveCall } = useSessionMethods();
+  const { receiveSession } = useSessionMethods();
 
   useEffect(() => {
     setSipStore({ configs: mergedConfigs });
@@ -68,7 +68,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
       authorizationUsername: mergedConfigs.account.username,
       authorizationPassword: mergedConfigs.account.password,
       delegate: {
-        onInvite: receiveCall as any,
+        onInvite: receiveSession as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -195,9 +195,9 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
   );
 };
 
-export const useSipProvider = <MetaDataType extends object = object>() => {
+export const useSipProvider = () => {
   const context = useContext(SipContext);
   if (!context) throw new Error('useSipProvider must be used within a SipProvider');
 
-  return context as SipContextType<MetaDataType>;
+  return context as SipContextType;
 };

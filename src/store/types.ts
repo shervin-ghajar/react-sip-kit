@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { SipUserAgent } from '../types';
+import { CallbackFunction, SipUserAgent } from '../types';
 import { Dayjs } from 'dayjs';
 import {
   Invitation,
@@ -22,7 +22,7 @@ export interface SipStoreStateType {
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
   addLine: (line: LineType) => void;
-  updateLine: (line: LineType) => void;
+  updateLine: (line: LineType, callback?: CallbackFunction) => void;
   removeLine: (lineNum: LineType['lineNumber']) => void;
   // Getter
   findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
@@ -39,6 +39,8 @@ export interface SipInvitationType
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
+  initiateLocalMediaStreams: () => void;
+  initiateRemoteMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -49,6 +51,8 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
+  initiateLocalMediaStreams: () => void;
+  initiateRemoteMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
@@ -56,10 +60,9 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
   peerConnectionDelegate: any;
 }
 /* -------------------------------------------------------------------------- */
-export interface LineType<T extends object = object> {
+export interface LineType {
   lineNumber: number;
   displayNumber: string;
-  metaData: Partial<T>;
   sipSession: SipInvitationType | SipInviterType | null;
   localSoundMeter: any;
   remoteSoundMeter: any;
@@ -74,21 +77,18 @@ export interface SipSessionDataType {
   callDirection: 'inbound' | 'outbound';
   terminateBy: string;
   src: string;
-  metaData: LineType['metaData'];
-  callstart: string;
   earlyReject: boolean;
-  withVideo: boolean;
   reasonCode: number;
   reasonText: string;
   teardownComplete: boolean;
   childsession: SipSessionType | null;
-  startTime: Dayjs;
+  startTime: string;
   started: boolean;
   hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
   isHold: boolean;
-  mute: Array<{ event: 'mute' | 'unmute'; eventTime: string }>;
-  isMute: boolean;
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
+  localMediaStreamStatus: MediaStremStatus;
+  remoteMediaStreamStatus: MediaStremStatus;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
   audioSourceTrack: any; //TODO
@@ -122,4 +122,10 @@ interface DevicesInfoType {
   audioInputDevices: any[];
   videoInputDevices: any[];
   speakerDevices: any[];
+}
+
+interface MediaStremStatus {
+  soundEnabled: boolean;
+  videoEnabled: boolean;
+  screenShareEnabled: boolean;
 }
