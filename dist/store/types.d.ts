@@ -75,7 +75,8 @@ export interface SipSessionDataType {
     remoteMediaStreamStatus: MediaStremStatus;
     dialledNumber: string;
     transfer: Array<SipSessionTransferType>;
-    audioSourceTrack: any;
+    audioSourceTrack: MediaStreamTrack | null;
+    videoSourceTrack: MediaStreamTrack | null;
     earlyMedia: any;
     ringerObj: {
         [key: string]: any;

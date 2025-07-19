@@ -807,7 +807,6 @@ const useSessionEvents = () => {
             if (remoteAudioStream.getAudioTracks().length > 0) {
                 const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
                 if (remoteAudio) {
-                    remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
                     remoteAudio.srcObject = remoteAudioStream;
                     remoteAudio.onloadedmetadata = () => {
                         if (typeof remoteAudio.sinkId !== 'undefined') {
@@ -17961,39 +17960,40 @@ const useSessionMethods = () => {
         // updateLine(lineObj); TODO
     }
     /**
-     * Dynamically adds or removes video from an ongoing SIP session using a re-INVITE.
-     * This allows switching from audio to video (or vice versa) without creating a new session.
+     * Toggling local video source on a videoSession
      *
-     * @param lineObj - The line object that holds the active SIP session.
+     * @param lineObj - The lineNumber object that holds the active SIP session.
      * @param extraHeaders
      */
-    const toggleVideoSession = async (lineObj, extraHeaders) => {
+    const toggleLocalVideoTrack = async (lineNumber) => {
+        const lineObj = findLineByNumber(lineNumber);
+        if (lineObj == null || lineObj.sipSession == null)
+            return;
         const session = lineObj.sipSession;
-        // Ensure session exists and is already established
-        if (!session ||
-            session.state !== SessionState.Established ||
-            !session.data.localMediaStreamStatus) {
-            console.warn('toggleVideo: No active or established session to modify.');
+        if (!session.data.localMediaStreamStatus)
             return;
+        const toggledVideo = !session.data.localMediaStreamStatus.videoEnabled;
+        session.data.localMediaStreamStatus.videoEnabled = toggledVideo; //Toggle sound
+        if (session &&
+            session.sessionDescriptionHandler &&
+            session.sessionDescriptionHandler.peerConnection) {
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            pc.getSenders().forEach(function (RTCRtpSender) {
+                if (RTCRtpSender.track && RTCRtpSender.track.kind == 'video') {
+                    const track = RTCRtpSender.track;
+                    if (track.IsMixedTrack == true) {
+                        if (session.data.videoSourceTrack && session.data.videoSourceTrack.kind == 'audio') {
+                            console.log('Toggle Mixed Audio Track : ' + session.data.videoSourceTrack.label);
+                            session.data.videoSourceTrack.enabled = toggledVideo;
+                        }
+                        console.log('Toggle Audio Track : ' + track.label);
+                    }
+                    track.enabled = toggledVideo;
+                }
+            });
         }
-        const videoEnabled = session.data.localMediaStreamStatus?.videoEnabled;
-        // Define updated media constraints based on the toggle
-        const spdOptions = videoEnabled
-            ? makeVideoSpdOptions({ extraHeaders })
-            : makeAudioSpdOptions({ extraHeaders });
-        if (!spdOptions)
-            return;
-        try {
-            // Send a re-INVITE with updated SDP constraints
-            await session.invite(spdOptions);
-            // Update internal session data for app state tracking
-            session.data.localMediaStreamStatus.videoEnabled = true;
-            updateLine(lineObj);
-            console.log(`Video ${videoEnabled ? 'enabled' : 'disabled'} successfully.`);
-        }
-        catch (err) {
-            console.error('Failed to toggle video:', err);
-        }
+        sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledVideo);
+        updateLine(lineObj);
     };
     /**
      * Handle reject calls
@@ -18030,13 +18030,13 @@ const useSessionMethods = () => {
         teardownSession(lineObj);
     }
     /**
-     * Handle Dial User By Line Number
+     * Handle Dial User By Dial Number
      * @param type
      * @param dialNumber
      * @param extraHeaders
      * @returns
      */
-    function dialByLine(type, dialNumber, extraHeaders) {
+    function dialByNumber(type, dialNumber, extraHeaders) {
         if (userAgent == null || userAgent.isRegistered() == false) {
             // onError //TODO #SH
             alert('SIP userAgent not registered');
@@ -18067,164 +18067,74 @@ const useSessionMethods = () => {
     /*                        In-Session Call Functionality                       */
     /*                           HOLD/MUTE/END/TRANSFER                           */
     /* -------------------------------------------------------------------------- */
-    /* ------------------------------- HOLD/UNHOLD ------------------------------ */
+    /* ------------------------------- TOGGLE-HOLD ------------------------------ */
     /**
-     * Hold Call Session
+     * Toggle Hold Call Session
      * @param lineNumber
+     * @param forcedValue force to be hold/unhold
      * @returns
      */
-    function holdSession(lineNumber) {
+    async function toggleHoldSession(lineNumber, forcedValue) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null || lineObj.sipSession == null)
             return;
         const session = lineObj.sipSession;
-        if (session.isOnHold == true) {
-            console.log('Call is already on hold:', lineNumber);
+        if (session.isOnHold === forcedValue)
             return;
-        }
-        console.log('Putting Call on hold:', lineNumber);
-        session.isOnHold = true;
+        console.log('Toggle Call on hold:', lineNumber);
+        const toggledHold = forcedValue ?? !(session.isOnHold ?? false);
+        session.isOnHold = toggledHold;
         const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
-        sessionDescriptionHandlerOptions.hold = true;
+        sessionDescriptionHandlerOptions.hold = toggledHold;
         session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;
-        const options = {
-            requestDelegate: {
-                onAccept: function () {
-                    if (session &&
-                        session.sessionDescriptionHandler &&
-                        session.sessionDescriptionHandler.peerConnection) {
-                        const pc = session.sessionDescriptionHandler.peerConnection;
-                        // Stop all the inbound streams
-                        pc.getReceivers().forEach(function (RTCRtpReceiver) {
-                            if (RTCRtpReceiver.track)
-                                RTCRtpReceiver.track.enabled = false;
-                        });
-                        // Stop all the outbound streams (especially useful for Conference Calls!!)
-                        pc.getSenders().forEach(function (RTCRtpSender) {
-                            // Mute Audio
-                            const track = RTCRtpSender.track;
-                            if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                                if (track.IsMixedTrack == true) {
-                                    if (session.data.audioSourceTrack &&
-                                        session.data.audioSourceTrack.kind == 'audio') {
-                                        console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                                        session.data.audioSourceTrack.enabled = false;
-                                    }
-                                }
-                                console.log('Muting Audio Track : ' + track.label);
-                                track.enabled = false;
-                            }
-                            // Stop Video
-                            else if (track && track.kind == 'video') {
-                                track.enabled = false;
-                            }
-                        });
+        if (session &&
+            session.sessionDescriptionHandler &&
+            session.sessionDescriptionHandler.peerConnection) {
+            const pc = session.sessionDescriptionHandler.peerConnection;
+            // Stop all the inbound streams
+            pc.getReceivers().forEach(function (RTCRtpReceiver) {
+                if (RTCRtpReceiver.track)
+                    RTCRtpReceiver.track.enabled = toggledHold;
+            });
+            // Stop all the outbound streams (especially useful for Conference Calls!!)
+            pc.getSenders().forEach(function (RTCRtpSender) {
+                // Mute Audio
+                const track = RTCRtpSender.track;
+                if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
+                    if (track.IsMixedTrack == true) {
+                        if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+                            console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                            session.data.audioSourceTrack.enabled = toggledHold;
+                        }
                     }
-                    session.isOnHold = true;
-                    console.log('Call is is on hold:', lineNumber);
-                    // Log Hold
-                    if (!session.data.hold)
-                        session.data.hold = [];
-                    session.data.hold.push({ event: 'hold', eventTime: utcDateNow() });
-                    session.data.isHold = true;
-                    // updateLineScroll(lineNumber);
-                    // Custom Web hook
-                },
-                onReject: function () {
-                    session.isOnHold = false;
-                    console.warn('Failed to put the call on hold:', lineNumber);
-                },
-            },
-        };
-        session.invite(options).catch(function (error) {
-            session.isOnHold = false;
-            console.warn('Error attempting to put the call on hold:', error);
-        });
+                    console.log('Toggle Audio Track : ' + track.label);
+                    track.enabled = toggledHold;
+                }
+                // Stop Video
+                else if (track && track.kind == 'video') {
+                    track.enabled = toggledHold;
+                }
+            });
+        }
+        console.log('Call is is on hold:', lineNumber);
+        session.data.isHold = toggledHold;
         updateLine(lineObj);
     }
+    /* ------------------------------- TOGGLE-MUTE ------------------------------ */
     /**
-     * Un-Hold Call Session
+     * Toggle-Mute Call Session
      * @param lineNumber
      * @returns
      */
-    function unholdSession(lineNumber) {
+    function toggleMuteSession(lineNumber) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null || lineObj.sipSession == null)
             return;
         const session = lineObj.sipSession;
-        if (session.isOnHold == false) {
-            console.log('Call is already off hold:', lineNumber);
+        if (!session.data.localMediaStreamStatus)
             return;
-        }
-        console.log('Taking call off hold:', lineNumber);
-        session.isOnHold = false;
-        const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
-        sessionDescriptionHandlerOptions.hold = false;
-        session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;
-        const options = {
-            requestDelegate: {
-                onAccept: function () {
-                    if (session &&
-                        session.sessionDescriptionHandler &&
-                        session.sessionDescriptionHandler.peerConnection) {
-                        const pc = session.sessionDescriptionHandler.peerConnection;
-                        // Restore all the inbound streams
-                        pc.getReceivers().forEach(function (RTCRtpReceiver) {
-                            if (RTCRtpReceiver.track)
-                                RTCRtpReceiver.track.enabled = true;
-                        });
-                        // Restore all the outbound streams
-                        pc.getSenders().forEach(function (RTCRtpSender) {
-                            // Unmute Audio
-                            const track = RTCRtpSender.track;
-                            if (track && track.kind == 'audio') {
-                                if (track.IsMixedTrack == true) {
-                                    if (session.data.audioSourceTrack &&
-                                        session.data.audioSourceTrack.kind == 'audio') {
-                                        console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                                        session.data.audioSourceTrack.enabled = true;
-                                    }
-                                }
-                                console.log('Unmuting Audio Track : ' + track.label);
-                                track.enabled = true;
-                            }
-                            else if (track && track.kind == 'video') {
-                                track.enabled = true;
-                            }
-                        });
-                    }
-                    session.isOnHold = false;
-                    console.log('Call is off hold:', lineNumber);
-                    // Log Hold
-                    if (!session.data.hold)
-                        session.data.hold = [];
-                    session.data.hold.push({ event: 'unhold', eventTime: utcDateNow() });
-                    session.data.isHold = false;
-                    // updateLineScroll(lineNumber);
-                },
-                onReject: function () {
-                    session.isOnHold = true;
-                    console.warn('Failed to put the call on hold', lineNumber);
-                },
-            },
-        };
-        session.invite(options).catch(function (error) {
-            session.isOnHold = true;
-            console.warn('Error attempting to take to call off hold', error);
-        });
-        updateLine(lineObj);
-    }
-    /* ------------------------------- MUTE/UNMUTE ------------------------------ */
-    /**
-     * Mute Call Session
-     * @param lineNumber
-     * @returns
-     */
-    function muteSession(lineNumber) {
-        const lineObj = findLineByNumber(lineNumber);
-        if (lineObj == null || lineObj.sipSession == null)
-            return;
-        const session = lineObj.sipSession;
+        const toggledSound = !session.data.localMediaStreamStatus.soundEnabled;
+        session.data.localMediaStreamStatus.soundEnabled = toggledSound; //Toggle sound
         if (session &&
             session.sessionDescriptionHandler &&
             session.sessionDescriptionHandler.peerConnection) {
@@ -18234,51 +18144,16 @@ const useSessionMethods = () => {
                     const track = RTCRtpSender.track;
                     if (track.IsMixedTrack == true) {
                         if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-                            console.log('Muting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                            session.data.audioSourceTrack.enabled = false;
+                            console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
+                            session.data.audioSourceTrack.enabled = toggledSound;
                         }
                     }
-                    console.log('Muting Audio Track : ' + track.label);
-                    track.enabled = false;
+                    console.log('Toggle Audio Track : ' + track.label);
+                    track.enabled = toggledSound;
                 }
             });
         }
-        if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = false;
-        sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, false);
-        updateLine(lineObj);
-    }
-    /**
-     * Un-Mute Call Session
-     * @param lineNumber
-     * @returns
-     */
-    function unmuteSession(lineNumber) {
-        const lineObj = findLineByNumber(lineNumber);
-        if (lineObj == null || lineObj.sipSession == null)
-            return;
-        const session = lineObj.sipSession;
-        if (session &&
-            session.sessionDescriptionHandler &&
-            session.sessionDescriptionHandler.peerConnection) {
-            const pc = session.sessionDescriptionHandler.peerConnection;
-            pc.getSenders().forEach(function (RTCRtpSender) {
-                if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-                    const track = RTCRtpSender.track;
-                    if (track.IsMixedTrack == true) {
-                        if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-                            console.log('Unmuting Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-                            session.data.audioSourceTrack.enabled = true;
-                        }
-                    }
-                    console.log('Unmuting Audio Track : ' + track.label);
-                    track.enabled = true;
-                }
-            });
-        }
-        if (session.data.localMediaStreamStatus)
-            session.data.localMediaStreamStatus.soundEnabled = true;
-        sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, true);
+        sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, toggledSound);
         updateLine(lineObj);
     }
     /* ------------------------------- CANCEL/END/TEARDOWN ------------------------------- */
@@ -18463,7 +18338,7 @@ const useSessionMethods = () => {
         // }
         // $('#line-' + lineNum + '-btn-Transfer').hide();
         // $('#line-' + lineNum + '-btn-CancelTransfer').show();
-        holdSession(lineNumber);
+        toggleHoldSession(lineNumber, true);
         // $('#line-' + lineNum + '-txt-FindTransferBuddy').val('');
         // $('#line-' + lineNum + '-txt-FindTransferBuddy')
         //   .parent()
@@ -18512,7 +18387,7 @@ const useSessionMethods = () => {
         // $("#line-" + lineNum + "-session-avatar").css("height", "");
         // $("#line-" + lineNum + "-btn-Transfer").show();
         // $("#line-" + lineNum + "-btn-CancelTransfer").hide();
-        unholdSession(lineNumber);
+        toggleHoldSession(lineNumber, false);
         // $("#line-" + lineNum + "-Transfer").hide();
         // updateLineScroll(lineNumber);
         updateLine(lineObj);
@@ -18828,14 +18703,12 @@ const useSessionMethods = () => {
         answerVideoSession,
         makeAudioSession,
         makeVideoSession,
-        toggleVideoSession,
+        toggleLocalVideoTrack,
         rejectSession,
-        dialByLine,
+        dialByNumber,
         endSession,
-        holdSession,
-        unholdSession,
-        muteSession,
-        unmuteSession,
+        toggleMuteSession,
+        toggleHoldSession,
         cancelSession,
         startTransferSession,
         cancelTransferSession,
