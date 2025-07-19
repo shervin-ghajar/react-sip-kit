@@ -51,8 +51,8 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: () => void;
-  initiateRemoteMediaStreams: () => void;
+  initiateLocalMediaStreams: (includeVideo?: boolean) => void;
+  initiateRemoteMediaStreams: (includeVideo?: boolean) => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
@@ -91,7 +91,8 @@ export interface SipSessionDataType {
   remoteMediaStreamStatus: MediaStremStatus;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: any; //TODO
+  audioSourceTrack: MediaStreamTrack | null;
+  videoSourceTrack: MediaStreamTrack | null;
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
   confBridgeChannels: Array<any>; //TODO

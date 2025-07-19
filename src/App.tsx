@@ -3,145 +3,13 @@ import { Audio, Video } from './components';
 import { useSessionMethods } from './hooks';
 import { useSipProvider } from './provider';
 import { LineType } from './store/types';
-
-const userData = {
-  userId: 'd65a5986-b0de-443f-b8f7-89f61010f3f6',
-  firstName: 'مدیر ',
-  lastName: 'سیستم',
-  userName: 'Admin',
-  phoneNumber: '989128392240',
-  email: 'admin@example.com',
-  isActive: true,
-  customerNumber: '',
-  fileId: 'fe101c3a-d018-4d44-8446-040695915c0f',
-  registerDate: '2024-10-09T16:25:57.7+03:30',
-  userRole: 'Owner',
-  instanceStatus: 'Active',
-  preferredLanguage: 'Farsi',
-  userStatus: {
-    activitySubStatusId: 2,
-    description: null,
-    emotionalEmoji: 0,
-    userStatus: 'Available',
-    subStatusName: 'در حال کار',
-    subStatusKey: 'Available',
-  },
-  userActivityStatus: {
-    lastActivity: '2025-07-15T12:56:18.9058339+03:30',
-    state: 'Active',
-  },
-};
+import { useEffect } from 'react';
 
 function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider();
-  const {
-    answerAudioSession,
-    answerVideoSession,
-    dialByLine,
-    endSession,
-    muteSession,
-    unmuteSession,
-    holdSession,
-    unholdSession,
-    startTransferSession,
-    cancelAttendedTransferSession,
-    attendedTransferSession,
-  } = useSessionMethods();
-
-  const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
-    startTransferSession(line.lineNumber); // just holds the call
-    setTimeout(() => {
-      attendedTransferSession(line, transferNumber);
-    }, 500);
-  };
-
+  const { dialByNumber } = useSessionMethods();
   const renderLines = () => {
-    return lines.map((line) => {
-      const callStarted = line.sipSession?.data.started;
-      const isVideoCall = !!line.sipSession?.data.localMediaStreamStatus?.videoEnabled || false;
-      const isOutbound = line.sipSession?.data.callDirection === 'outbound';
-      const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
-      const isHold = line.sipSession?.isOnHold;
-      console.log({ callStarted }, line.sipSession?.data);
-      return (
-        <div
-          style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 24 }}
-          id={`line-${line.lineNumber}`}
-        >
-          <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
-          {isVideoCall && (
-            <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
-              <Video type="local" lineNumber={line.lineNumber} width={200} height={200} />
-              <Video
-                type="remote"
-                lineNumber={line.lineNumber}
-                style={{ display: 'flex', width: 200, height: 200 }}
-              />
-            </div>
-          )}
-          <div>
-            {/* <p>Name: {line.metaData?.displayName}</p> */}
-            <p>Number: {line.displayNumber}</p>
-          </div>
-          {callStarted ? (
-            <div style={{ gap: 4, display: 'flex', justifyContent: 'center' }}>
-              <button
-                style={{ color: 'red' }}
-                onClick={() => endSession(line.lineNumber)}
-              >{`Cancel Call`}</button>
-              <button
-                style={{ color: 'blue' }}
-                onClick={() =>
-                  isMute ? unmuteSession(line.lineNumber) : muteSession(line.lineNumber)
-                }
-              >{`${isMute ? 'Unmute' : 'Mute'} Call`}</button>
-
-              <button
-                onClick={() =>
-                  isHold ? unholdSession(line.lineNumber) : holdSession(line.lineNumber)
-                }
-              >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-              <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1012)}>
-                {'Transfer To 1012'}
-              </button>
-              <button
-                style={{ color: 'darkred' }}
-                onClick={() => cancelAttendedTransferSession(line, 1012)}
-              >
-                {'Cancel Transfer To 1012'}
-              </button>
-            </div>
-          ) : (
-            !isOutbound && (
-              <>
-                <button
-                  style={{ color: 'green' }}
-                  onClick={() =>
-                    isVideoCall
-                      ? answerVideoSession(line.lineNumber)
-                      : answerAudioSession(line.lineNumber)
-                  }
-                >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
-                <button
-                  style={{ color: 'red' }}
-                  onClick={() => endSession(line.lineNumber)}
-                >{`Reject Call`}</button>
-              </>
-            )
-          )}
-          {!callStarted && (
-            <button
-              style={{ color: 'red' }}
-              onClick={() => endSession(line.lineNumber)}
-            >{`Cancel Call`}</button>
-          )}
-
-          <Audio lineNumber={line.lineNumber} />
-          <Audio type={'transfer'} lineNumber={line.lineNumber} />
-          <Audio type={'conference'} lineNumber={line.lineNumber} />
-        </div>
-      );
-    });
+    return lines.map((line) => <SipLine line={line} />);
   };
   return (
     <div
@@ -178,14 +46,126 @@ function App({ username }: { username: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByLine('audio', '1010')}>{`Call 1010`}</button>
-        <button onClick={() => dialByLine('audio', '1012')}>{`Call 1012`}</button>
+        <button onClick={() => dialByNumber('audio', '1011')}>{`Call 1011`}</button>
+        <button onClick={() => dialByNumber('audio', '1013')}>{`Call 1013`}</button>
 
-        <button onClick={() => dialByLine('video', '1010')}>{`Video Call 1010`}</button>
-        <button onClick={() => dialByLine('video', '1012')}>{`Video Call 1012`}</button>
+        <button onClick={() => dialByNumber('video', '1011')}>{`Video Call 1011`}</button>
+        <button onClick={() => dialByNumber('video', '1013')}>{`Video Call 1013`}</button>
       </div>
     </div>
   );
 }
 /* -------------------------------------------------------------------------- */
 export default App;
+
+const SipLine = ({ line }: { line: LineType }) => {
+  const {
+    answerAudioSession,
+    answerVideoSession,
+    endSession,
+    toggleLocalVideoTrack,
+    toggleMuteSession,
+    toggleHoldSession,
+    startTransferSession,
+    cancelAttendedTransferSession,
+    attendedTransferSession,
+  } = useSessionMethods();
+  const callStarted = line.sipSession?.data.started;
+  const isVideoCall = line.sipSession?.data.localMediaStreamStatus?.videoEnabled;
+  const isOutbound = line.sipSession?.data.callDirection === 'outbound';
+  const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
+  const isHold = line.sipSession?.isOnHold;
+  console.log({ callStarted, isVideoCall }, line.sipSession?.data);
+  const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
+    startTransferSession(line.lineNumber); // just holds the call
+    setTimeout(() => {
+      attendedTransferSession(line, transferNumber);
+    }, 500);
+  };
+
+  useEffect(() => {
+    if (!callStarted) return;
+    setTimeout(() => {
+      line.sipSession?.initiateLocalMediaStreams(isVideoCall);
+      line.sipSession?.initiateRemoteMediaStreams(isVideoCall);
+    }, 3000);
+  }, [callStarted, isVideoCall]);
+
+  return (
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 24 }}
+      id={`line-${line.lineNumber}`}
+    >
+      <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
+      {isVideoCall && (
+        <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
+          <Video type="local" lineNumber={line.lineNumber} width={200} height={200} />
+          <Video
+            type="remote"
+            lineNumber={line.lineNumber}
+            style={{ display: 'flex', width: 200, height: 200 }}
+          />
+        </div>
+      )}
+      <div>
+        {/* <p>Name: {line.metaData?.displayName}</p> */}
+        <p>Number: {line.displayNumber}</p>
+      </div>
+      {callStarted ? (
+        <div style={{ gap: 4, display: 'flex', justifyContent: 'center' }}>
+          <button
+            style={{ color: 'red' }}
+            onClick={() => endSession(line.lineNumber)}
+          >{`Cancel Call`}</button>
+          <button
+            style={{ color: 'blue' }}
+            onClick={() => toggleMuteSession(line.lineNumber)}
+          >{`${isMute ? 'Unmute' : 'Mute'} Call`}</button>
+          <button
+            style={{ color: 'blue' }}
+            onClick={() => toggleLocalVideoTrack(line.lineNumber)}
+          >{`Video ${isVideoCall ? 'ON' : 'OFF'}`}</button>
+          <button
+            onClick={() => toggleHoldSession(line.lineNumber)}
+          >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
+          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1013)}>
+            {'Transfer To 1013'}
+          </button>
+          <button
+            style={{ color: 'darkred' }}
+            onClick={() => cancelAttendedTransferSession(line, 1013)}
+          >
+            {'Cancel Transfer To 1013'}
+          </button>
+        </div>
+      ) : (
+        !isOutbound && (
+          <>
+            <button
+              style={{ color: 'green' }}
+              onClick={() =>
+                isVideoCall
+                  ? answerVideoSession(line.lineNumber)
+                  : answerAudioSession(line.lineNumber)
+              }
+            >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
+            <button
+              style={{ color: 'red' }}
+              onClick={() => endSession(line.lineNumber)}
+            >{`Reject Call`}</button>
+          </>
+        )
+      )}
+      {!callStarted && (
+        <button
+          style={{ color: 'red' }}
+          onClick={() => endSession(line.lineNumber)}
+        >{`Cancel Call`}</button>
+      )}
+
+      <Audio lineNumber={line.lineNumber} />
+      <Audio type={'transfer'} lineNumber={line.lineNumber} />
+      <Audio type={'conference'} lineNumber={line.lineNumber} />
+    </div>
+  );
+};
