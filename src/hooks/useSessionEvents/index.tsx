@@ -481,7 +481,6 @@ export const useSessionEvents = () => {
           `line-${lineObj.lineNumber}-remoteAudio`,
         ) as HTMLAudioElement;
         if (remoteAudio) {
-          remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-remoteAudio`);
           remoteAudio.srcObject = remoteAudioStream;
 
           remoteAudio.onloadedmetadata = () => {
