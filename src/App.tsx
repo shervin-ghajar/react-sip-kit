@@ -85,10 +85,8 @@ const SipLine = ({ line }: { line: LineType }) => {
 
   useEffect(() => {
     if (!callStarted) return;
-    setTimeout(() => {
-      line.sipSession?.initiateLocalMediaStreams(isVideoCall);
-      line.sipSession?.initiateRemoteMediaStreams(isVideoCall);
-    }, 3000);
+    line.sipSession?.initiateLocalMediaStreams();
+    line.sipSession?.initiateRemoteMediaStreams();
   }, [callStarted, isVideoCall]);
 
   return (

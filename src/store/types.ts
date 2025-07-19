@@ -1,7 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
 import { CallbackFunction, SipUserAgent } from '../types';
-import { Dayjs } from 'dayjs';
 import {
   Invitation,
   Inviter,
@@ -51,8 +50,8 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (includeVideo?: boolean) => void;
-  initiateRemoteMediaStreams: (includeVideo?: boolean) => void;
+  initiateLocalMediaStreams: () => void;
+  initiateRemoteMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
