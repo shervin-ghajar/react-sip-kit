@@ -7,35 +7,31 @@ import {
   onTransportDisconnected,
   reconnectTransport,
 } from './events/transport';
-import { useSessionMethods, useSessionEvents } from './hooks';
+import { useSessionMethods } from './hooks';
 import { detectDevices, getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import { deepMerge } from './utils';
-import React, { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
-import { UserAgent, RegistererState, Registerer, UserAgentDelegate } from 'sip.js';
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 
 export const SipContext = createContext<SipContextType | undefined>(undefined);
-export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) => {
-  const store = useSipStore();
-  const {
-    userAgent,
-    devicesInfo: {
-      hasAudioDevice,
-      hasSpeakerDevice,
-      hasVideoDevice,
-      audioInputDevices,
-      videoInputDevices,
-      speakerDevices,
-    },
-    setSipStore,
-  } = store;
+export const SipProvider = ({ children, configs }: SipProviderProps) => {
+  const userAgent = useSipStore((state) => state.userAgent);
+  const lines = useSipStore((state) => state.lines);
+  const setSipStore = useSipStore((state) => state.setSipStore);
+  const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
+  const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
+  const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
+  const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
+  const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
+  const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
+
   const mergedConfigs = useMemo(
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
   );
-  const methods = useSessionMethods();
-  const events = useSessionEvents();
+  const { receiveSession } = useSessionMethods();
 
   useEffect(() => {
     setSipStore({ configs: mergedConfigs });
@@ -72,7 +68,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
       authorizationUsername: mergedConfigs.account.username,
       authorizationPassword: mergedConfigs.account.password,
       delegate: {
-        onInvite: methods.receiveCall as any,
+        onInvite: receiveSession as any,
         onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -84,7 +80,7 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
     ua.sessions = ua._sessions; // Assign sessions
     ua.registrationCompleted = false;
     ua.registering = false;
-    ua.transport.ReconnectionAttempts =
+    ua.transport.reconnectionAttempts =
       mergedConfigs.registration.transportReconnectionAttempts || 0;
     ua.transport.attemptingReconnection = false;
     ua.BlfSubs = [];
@@ -131,10 +127,10 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
           break;
       }
     });
-    ua.start();
-    Object.defineProperty(ua, '_key', {
-      enumerable: false,
-      value: 1,
+
+    console.log('User Agent Connecting to WebSocket...');
+    ua.start().catch(function (error) {
+      onTransportConnectError(error);
     });
     console.log('createUserAgent', { ua });
     updateUserAgent(ua);
@@ -187,11 +183,8 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
   return (
     <SipContext.Provider
       value={{
-        lines: store.lines,
-        session: {
-          methods,
-          events,
-        },
+        status: userAgent?.isConnected() ? 'connected' : 'disconnected',
+        lines,
         transport: {
           reconnectTransport,
         },
@@ -205,5 +198,6 @@ export const SipProvider: React.FC<SipProviderProps> = ({ children, configs }) =
 export const useSipProvider = () => {
   const context = useContext(SipContext);
   if (!context) throw new Error('useSipProvider must be used within a SipProvider');
-  return context;
+
+  return context as SipContextType;
 };

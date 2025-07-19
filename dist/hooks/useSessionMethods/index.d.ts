@@ -1,0 +1,22 @@
+import { LineType, SipInvitationType } from '../../store/types';
+export declare const useSessionMethods: () => {
+    receiveSession: (session: SipInvitationType) => void;
+    answerAudioSession: (lineNumber: LineType["lineNumber"]) => void;
+    answerVideoSession: (lineNumber: LineType["lineNumber"]) => void;
+    makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
+    makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
+    toggleVideoSession: (lineObj: LineType, extraHeaders?: string[]) => Promise<void>;
+    rejectSession: (lineNumber: LineType["lineNumber"]) => void;
+    dialByLine: (type: "audio" | "video", dialNumber: string, extraHeaders?: Array<string>) => void;
+    endSession: (lineNumber: LineType["lineNumber"]) => void;
+    holdSession: (lineNumber: LineType["lineNumber"]) => void;
+    unholdSession: (lineNumber: LineType["lineNumber"]) => void;
+    muteSession: (lineNumber: LineType["lineNumber"]) => void;
+    unmuteSession: (lineNumber: LineType["lineNumber"]) => void;
+    cancelSession: (lineNumber: LineType["lineNumber"]) => void;
+    startTransferSession: (lineNumber: LineType["lineNumber"]) => void;
+    cancelTransferSession: (lineNumber: LineType["lineNumber"]) => void;
+    attendedTransferSession: (baseLine: LineType, transferLineNumber: LineType["lineNumber"]) => void;
+    cancelAttendedTransferSession: (baseLine: LineType, transferLineNumber: LineType["lineNumber"]) => void;
+    teardownSession: (lineObj: LineType) => void;
+};

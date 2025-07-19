@@ -1,8 +1,8 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
-import { useSessionMethods, useSessionEvents } from './hooks';
-import { SipSessionType, SipStoreStateType } from './store/types';
-import { UserAgent, Registerer, Subscriber } from 'sip.js';
+import { useSessionEvents, useSessionMethods } from './hooks';
+import { LineType, SipSessionType } from './store/types';
+import { Registerer, Subscriber, UserAgent } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
   isReRegister: boolean;
@@ -17,7 +17,7 @@ export interface SipUserAgent extends UserAgent {
   registrationCompleted: boolean;
   registering: boolean;
   transport: UserAgent['transport'] & {
-    ReconnectionAttempts: number;
+    reconnectionAttempts: number;
     attemptingReconnection: boolean;
   };
   BlfSubs: any[];
@@ -37,8 +37,8 @@ export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
 }
 
 export interface SipContextType {
-  lines: SipStoreStateType['lines'];
-  session: SipContextSessionType;
+  status: 'connected' | 'disconnected';
+  lines: LineType[];
   transport: SipContextTransportType;
 }
 export interface SipContextSessionType {
@@ -49,4 +49,4 @@ export interface SipContextTransportType {
   reconnectTransport: typeof reconnectTransport;
 }
 
-export type CallbackFunction<T> = (value?: T) => void;
+export type CallbackFunction<T = any> = (value?: T) => void;

@@ -1,5 +1,6 @@
 import { getSipStore } from '../../store';
 import { LineType } from '../../store/types';
+import { SendMessageSessionValueType, SendMessageSessionEnum } from './type';
 
 /* -------------------------------------------------------------------------- */
 export function teardownSession(lineObj: LineType) {
@@ -101,4 +102,25 @@ export function teardownSession(lineObj: LineType) {
   //     UpdateUI();
   //   }
   removeLine(lineObj.lineNumber);
+}
+/* -------------------------------------------------------------------------- */
+export function sendMessageSession<T extends SendMessageSessionEnum>(
+  session: LineType['sipSession'],
+  type: T,
+  value: SendMessageSessionValueType[T],
+) {
+  if (!session) return;
+  session.message({
+    requestDelegate: {
+      onAccept: () => console.log('MESSAGE accepted'),
+      onReject: () => console.log('MESSAGE rejected'),
+    },
+    requestOptions: {
+      body: {
+        contentType: 'text/plain',
+        content: JSON.stringify({ type, value }),
+        contentDisposition: 'render',
+      },
+    },
+  });
 }

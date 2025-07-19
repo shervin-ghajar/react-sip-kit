@@ -38,8 +38,7 @@ export function onRegistered(userAgent: SipUserAgent) {
  * @param {string} cause Cause message. Unused
  **/
 export function onRegisterFailed(response: any, cause: any) {
-  const userAgent = getSipStoreUserAgent();
-  const clonedUserAgent = clone(userAgent);
+  const clonedUserAgent = clone(getSipStoreUserAgent());
 
   if (clonedUserAgent) clonedUserAgent.registering = false;
   setSipStore({ userAgent: clonedUserAgent });
