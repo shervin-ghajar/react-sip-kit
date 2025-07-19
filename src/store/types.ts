@@ -91,7 +91,8 @@ export interface SipSessionDataType {
   remoteMediaStreamStatus: MediaStremStatus;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: any; //TODO
+  audioSourceTrack: MediaStreamTrack | null;
+  videoSourceTrack: MediaStreamTrack | null;
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
   confBridgeChannels: Array<any>; //TODO
