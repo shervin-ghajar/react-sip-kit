@@ -101,6 +101,7 @@ export const useSessionMethods = () => {
       }
     }
 
+    const isVideoCall = lineObj.sipSession.callType === 'video';
     // Extract P-Asserted-Identity if available
     const sipHeaders = session.incomingInviteRequest.message.headers;
     if (sipHeaders['P-Asserted-Identity']) {
@@ -130,7 +131,7 @@ export const useSessionMethods = () => {
           lineObj,
           sdh as SipSessionDescriptionHandler,
           provisional,
-          lineObj?.sipSession?.data?.localMediaStreamStatus?.videoEnabled,
+          isVideoCall,
         );
       },
     };
@@ -320,7 +321,6 @@ export const useSessionMethods = () => {
       soundEnabled: true,
       videoEnabled: false,
     };
-    session.callType = 'audio';
     session.data.videoSourceDevice = null;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -380,7 +380,6 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.callType = 'audio';
     // MediaStreamStatus
     lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
