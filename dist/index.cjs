@@ -17495,6 +17495,7 @@ const useSessionMethods = () => {
                 // The invite may have video, but the buddy may be a contact
             }
         }
+        const isVideoCall = lineObj.sipSession.callType === 'video';
         // Extract P-Asserted-Identity if available
         const sipHeaders = session.incomingInviteRequest.message.headers;
         if (sipHeaders['P-Asserted-Identity']) {
@@ -17521,7 +17522,7 @@ const useSessionMethods = () => {
                 onSessionReinvited(lineObj, sip);
             },
             onSessionDescriptionHandler: function (sdh, provisional) {
-                onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, lineObj?.sipSession?.data?.localMediaStreamStatus?.videoEnabled);
+                onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, isVideoCall);
             },
         };
         // incomingInviteRequestDelegate
@@ -17702,7 +17703,6 @@ const useSessionMethods = () => {
             soundEnabled: true,
             videoEnabled: false,
         };
-        session.callType = 'audio';
         session.data.videoSourceDevice = null;
         session.data.audioSourceDevice = configs.media.audioInputDeviceId;
         session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -17756,7 +17756,6 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
         lineObj.sipSession.data.terminateBy = 'them';
-        lineObj.sipSession.callType = 'audio';
         // MediaStreamStatus
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
