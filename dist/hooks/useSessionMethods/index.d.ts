@@ -1,4 +1,5 @@
 import { LineType, SipInvitationType } from '../../store/types';
+import { CallType } from '../../types';
 export declare const useSessionMethods: () => {
     receiveSession: (session: SipInvitationType) => void;
     answerAudioSession: (lineNumber: LineType["lineNumber"]) => void;
@@ -7,7 +8,7 @@ export declare const useSessionMethods: () => {
     makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
     toggleLocalVideoTrack: (lineNumber: LineType["lineNumber"]) => Promise<void>;
     rejectSession: (lineNumber: LineType["lineNumber"]) => void;
-    dialByNumber: (type: "audio" | "video", dialNumber: string, extraHeaders?: Array<string>) => void;
+    dialByNumber: (type: Extract<CallType, "audio" | "video">, dialNumber: string, extraHeaders?: Array<string>) => void;
     endSession: (lineNumber: LineType["lineNumber"]) => void;
     toggleMuteSession: (lineNumber: LineType["lineNumber"]) => void;
     toggleHoldSession: (lineNumber: LineType["lineNumber"], forcedValue?: boolean) => Promise<void>;
