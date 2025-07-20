@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { CallbackFunction, SipUserAgent } from '../types';
+import { CallbackFunction, CallType, SipUserAgent } from '../types';
 import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescriptionHandlerOptions } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
@@ -25,6 +25,7 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
+    callType: CallType;
     initiateLocalMediaStreams: () => void;
     initiateRemoteMediaStreams: () => void;
 }
@@ -36,6 +37,7 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
+    callType: CallType;
     initiateLocalMediaStreams: () => void;
     initiateRemoteMediaStreams: () => void;
 }

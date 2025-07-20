@@ -17700,6 +17700,7 @@ const useSessionMethods = () => {
             soundEnabled: true,
             videoEnabled: false,
         };
+        session.callType = 'audio';
         session.data.videoSourceDevice = null;
         session.data.audioSourceDevice = configs.media.audioInputDeviceId;
         session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -17753,6 +17754,7 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
         lineObj.sipSession.data.terminateBy = 'them';
+        lineObj.sipSession.callType = 'audio';
         // MediaStreamStatus
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
@@ -17851,6 +17853,7 @@ const useSessionMethods = () => {
             soundEnabled: true,
             videoEnabled: true,
         };
+        session.callType = 'video';
         session.data.videoSourceDevice = configs.media.videoInputDeviceId;
         session.data.audioSourceDevice = configs.media.audioInputDeviceId;
         session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -17898,7 +17901,6 @@ const useSessionMethods = () => {
         // Invite
         console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
-        console.log('video', { spdOptions });
         lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
         lineObj.sipSession.data = {};
         lineObj.sipSession.data.line = lineObj.lineNumber;
@@ -17909,6 +17911,7 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
         lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
         lineObj.sipSession.data.terminateBy = 'them';
+        lineObj.sipSession.callType = 'video';
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
             soundEnabled: hasAudioDevice,

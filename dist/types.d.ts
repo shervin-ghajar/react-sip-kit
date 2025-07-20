@@ -46,4 +46,5 @@ export interface SipContextTransportType {
     reconnectTransport: typeof reconnectTransport;
 }
 export type CallbackFunction<T = any> = (value?: T) => void;
+export type CallType = 'audio' | 'video' | 'conferenceAudio' | 'conferenceVideo' | 'transferAudio' | 'transferVideo';
 export {};
