@@ -690,7 +690,6 @@ export const useSessionMethods = () => {
    */
   function dialByLine(type: 'audio' | 'video', dialNumber: string, extraHeaders?: Array<string>) {
     if (userAgent == null || userAgent.isRegistered() == false) {
-      // onError //TODO #SH
       alert('SIP userAgent not registered');
       return;
     }
