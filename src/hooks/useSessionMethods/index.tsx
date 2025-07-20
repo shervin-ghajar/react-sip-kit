@@ -9,6 +9,7 @@ import {
   SipSessionDescriptionHandler,
   SipSessionType,
 } from '../../store/types';
+import { CallType } from '../../types';
 import { dayJs, utcDateNow } from '../../utils';
 import { useSessionEvents } from '../useSessionEvents';
 import { MediaStreamTrackType } from '../useSessionEvents/types';
@@ -317,6 +318,7 @@ export const useSessionMethods = () => {
       soundEnabled: true,
       videoEnabled: false,
     };
+    session.callType = 'audio';
     session.data.videoSourceDevice = null;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -376,6 +378,7 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
+    lineObj.sipSession.callType = 'audio';
     // MediaStreamStatus
     lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
@@ -481,7 +484,7 @@ export const useSessionMethods = () => {
       soundEnabled: true,
       videoEnabled: true,
     };
-
+    session.callType = 'video';
     session.data.videoSourceDevice = configs.media.videoInputDeviceId;
     session.data.audioSourceDevice = configs.media.audioInputDeviceId;
     session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
@@ -539,7 +542,6 @@ export const useSessionMethods = () => {
     const targetURI = UserAgent.makeURI(
       'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain,
     ) as URI;
-    console.log('video', { spdOptions });
 
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     lineObj.sipSession.data = {};
@@ -552,6 +554,7 @@ export const useSessionMethods = () => {
     lineObj.sipSession.data.audioSourceDevice = configs.media.audioInputDeviceId;
     lineObj.sipSession.data.audioOutputDevice = configs.media.audioOutputDeviceId;
     lineObj.sipSession.data.terminateBy = 'them';
+    lineObj.sipSession.callType = 'video';
     lineObj.sipSession.data.localMediaStreamStatus = {
       screenShareEnabled: false,
       soundEnabled: hasAudioDevice,
@@ -688,7 +691,11 @@ export const useSessionMethods = () => {
    * @param extraHeaders
    * @returns
    */
-  function dialByNumber(type: 'audio' | 'video', dialNumber: string, extraHeaders?: Array<string>) {
+  function dialByNumber(
+    type: Extract<CallType, 'audio' | 'video'>,
+    dialNumber: string,
+    extraHeaders?: Array<string>,
+  ) {
     if (userAgent == null || userAgent.isRegistered() == false) {
       // onError //TODO #SH
       alert('SIP userAgent not registered');
