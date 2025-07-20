@@ -17470,6 +17470,7 @@ const useSessionMethods = () => {
         lineObj.sipSession.data.terminateBy = '';
         lineObj.sipSession.data.src = did;
         lineObj.sipSession.data.earlyReject = false;
+        lineObj.sipSession.callType = 'audio';
         //MediaStreamStatus
         lineObj.sipSession.data.localMediaStreamStatus = {
             screenShareEnabled: false,
@@ -17488,6 +17489,7 @@ const useSessionMethods = () => {
             if (lineObj.sipSession.request.body.indexOf('m=video') > -1) {
                 lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
                 lineObj.sipSession.data.localMediaStreamStatus.videoEnabled = true;
+                lineObj.sipSession.callType = 'video';
                 // The invite may have video, but the buddy may be a contact
             }
         }
