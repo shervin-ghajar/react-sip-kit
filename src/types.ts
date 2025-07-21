@@ -50,11 +50,3 @@ export interface SipContextTransportType {
 }
 
 export type CallbackFunction<T = any> = (value?: T) => void;
-
-export type CallType =
-  | 'audio'
-  | 'video'
-  | 'conferenceAudio'
-  | 'conferenceVideo'
-  | 'transferAudio'
-  | 'transferVideo';

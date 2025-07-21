@@ -1,6 +1,7 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
 import { CallbackFunction, SipUserAgent } from '../types';
+import { Dayjs } from 'dayjs';
 import {
   Invitation,
   Inviter,
@@ -38,8 +39,8 @@ export interface SipInvitationType
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+  initiateLocalMediaStreams: () => void;
+  initiateRemoteMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -50,8 +51,8 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+  initiateLocalMediaStreams: () => void;
+  initiateRemoteMediaStreams: () => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
@@ -90,8 +91,7 @@ export interface SipSessionDataType {
   remoteMediaStreamStatus: MediaStremStatus;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: MediaStreamTrack | null;
-  videoSourceTrack: MediaStreamTrack | null;
+  audioSourceTrack: any; //TODO
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
   confBridgeChannels: Array<any>; //TODO
