@@ -104,13 +104,13 @@ export function teardownSession(lineObj: LineType) {
   removeLine(lineObj.lineNumber);
 }
 /* -------------------------------------------------------------------------- */
-export function sendMessageSession<T extends SendMessageSessionEnum>(
+export async function sendMessageSession<T extends SendMessageSessionEnum>(
   session: LineType['sipSession'],
   type: T,
   value: SendMessageSessionValueType[T],
 ) {
   if (!session) return;
-  session.message({
+  await session.message({
     requestDelegate: {
       onAccept: () => console.log('MESSAGE accepted'),
       onReject: () => console.log('MESSAGE rejected'),

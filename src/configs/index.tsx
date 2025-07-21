@@ -47,7 +47,7 @@ export const defaultMediaConfig: SipMediaConfig = {
   echoCancellation: true,
   noiseSuppression: true,
   mirrorVideo: 'auto',
-  maxVideoBandwidth: 1500,
+  maxVideoBandwidth: 2048,
   startVideoFullScreen: false,
 };
 
@@ -60,8 +60,8 @@ export const defaultPolicyConfig: SipPolicyConfig = {
 };
 
 export const defaultRegistrationConfig: SipRegistrationConfig = {
-  transportConnectionTimeout: 5000,
-  transportReconnectionAttempts: 3,
+  transportConnectionTimeout: 15000,
+  transportReconnectionAttempts: 999,
   transportReconnectionTimeout: 3000,
   registerExpires: 3600,
   registerExtraHeaders: '',
@@ -77,19 +77,19 @@ export const defaultRegistrationConfig: SipRegistrationConfig = {
   voicemailDid: '',
   subscribeVoicemailExpires: 3600,
   inviteExtraHeaders: '',
-  noAnswerTimeout: 30,
+  noAnswerTimeout: 120,
 };
 
 export const defaultStorageConfig: SipStorageConfig = {
-  streamBuffer: 1024,
-  maxDataStoreDays: 30,
+  streamBuffer: 50,
+  maxDataStoreDays: 0,
   posterJpegQuality: 80,
 };
 
 export const defaultRecordingConfig: SipRecordingConfig = {
-  videoResampleSize: '1280x720',
-  recordingVideoSize: '1280x720',
-  recordingVideoFps: 30,
+  videoResampleSize: 'HD',
+  recordingVideoSize: 'HD',
+  recordingVideoFps: 12,
   recordingLayout: 'grid',
 };
 

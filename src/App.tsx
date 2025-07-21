@@ -71,11 +71,15 @@ const SipLine = ({ line }: { line: LineType }) => {
     attendedTransferSession,
   } = useSessionMethods();
   const callStarted = line.sipSession?.data.started;
-  const isVideoCall = line.sipSession?.data.localMediaStreamStatus?.videoEnabled;
+  const localVideoEnabled = line.sipSession?.data.localMediaStreamStatus?.videoEnabled;
+  const remoteVideoEnabled = line.sipSession?.data.remoteMediaStreamStatus?.videoEnabled;
   const isOutbound = line.sipSession?.data.callDirection === 'outbound';
   const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
   const isHold = line.sipSession?.isOnHold;
-  console.log({ callStarted, isVideoCall }, line.sipSession?.data);
+  console.log({
+    localMediaStreamStatus: line.sipSession?.data.localMediaStreamStatus,
+    remoteMediaStreamStatus: line.sipSession?.data.remoteMediaStreamStatus,
+  });
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call
     setTimeout(() => {
@@ -85,9 +89,9 @@ const SipLine = ({ line }: { line: LineType }) => {
 
   useEffect(() => {
     if (!callStarted) return;
-    line.sipSession?.initiateLocalMediaStreams();
-    line.sipSession?.initiateRemoteMediaStreams();
-  }, [callStarted, isVideoCall]);
+    line.sipSession?.initiateLocalMediaStreams(localVideoEnabled);
+    line.sipSession?.initiateRemoteMediaStreams(remoteVideoEnabled);
+  }, [callStarted, localVideoEnabled, remoteVideoEnabled]);
 
   return (
     <div
@@ -95,16 +99,18 @@ const SipLine = ({ line }: { line: LineType }) => {
       id={`line-${line.lineNumber}`}
     >
       <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
-      {isVideoCall && (
-        <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
+      <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
+        {localVideoEnabled && (
           <Video type="local" lineNumber={line.lineNumber} width={200} height={200} />
+        )}
+        {remoteVideoEnabled && (
           <Video
             type="remote"
             lineNumber={line.lineNumber}
             style={{ display: 'flex', width: 200, height: 200 }}
           />
-        </div>
-      )}
+        )}
+      </div>
       <div>
         {/* <p>Name: {line.metaData?.displayName}</p> */}
         <p>Number: {line.displayNumber}</p>
@@ -122,7 +128,7 @@ const SipLine = ({ line }: { line: LineType }) => {
           <button
             style={{ color: 'blue' }}
             onClick={() => toggleLocalVideoTrack(line.lineNumber)}
-          >{`Video ${isVideoCall ? 'ON' : 'OFF'}`}</button>
+          >{`Video ${localVideoEnabled ? 'ON' : 'OFF'}`}</button>
           <button
             onClick={() => toggleHoldSession(line.lineNumber)}
           >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
@@ -141,12 +147,12 @@ const SipLine = ({ line }: { line: LineType }) => {
           <>
             <button
               style={{ color: 'green' }}
-              onClick={() =>
-                isVideoCall
-                  ? answerVideoSession(line.lineNumber)
-                  : answerAudioSession(line.lineNumber)
-              }
-            >{`Answer ${isVideoCall ? 'Video' : ''} Call`}</button>
+              onClick={() => answerVideoSession(line.lineNumber)}
+            >{`Answer Video Call`}</button>
+            <button
+              style={{ color: 'green' }}
+              onClick={() => answerAudioSession(line.lineNumber)}
+            >{`Answer Call`}</button>
             <button
               style={{ color: 'red' }}
               onClick={() => endSession(line.lineNumber)}
