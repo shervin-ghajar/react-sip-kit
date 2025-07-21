@@ -630,11 +630,8 @@ export const useSessionMethods = () => {
     const pc = session.sessionDescriptionHandler?.peerConnection;
     if (!pc) return;
 
-    let hasLocalVideoTrack = false;
-
     pc.getSenders().forEach((sender) => {
       if (sender.track?.kind === 'video') {
-        hasLocalVideoTrack = true;
         sender.track.enabled = toggledLocalVideo;
       }
     });
