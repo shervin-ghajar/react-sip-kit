@@ -51,11 +51,11 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     initiateDetectedDevices();
 
     // Create user agent for SIP connection
-    createUserAgent();
+    await createUserAgent();
   };
 
   // Create user agent for SIP connection
-  const createUserAgent = useCallback(() => {
+  const createUserAgent = useCallback(async () => {
     let ua = new UserAgent({
       uri: UserAgent.makeURI(
         `sip:${mergedConfigs.account.username}@${mergedConfigs.account.domain}`,
@@ -129,7 +129,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     });
 
     console.log('User Agent Connecting to WebSocket...');
-    ua.start().catch(function (error) {
+    await ua.start().catch(function (error) {
       onTransportConnectError(error);
     });
     console.log('createUserAgent', { ua });

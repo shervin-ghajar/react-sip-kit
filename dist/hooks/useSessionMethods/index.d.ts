@@ -1,7 +1,7 @@
 import { LineType, SipInvitationType } from '../../store/types';
 import { CallType } from '../../types';
 export declare const useSessionMethods: () => {
-    receiveSession: (session: SipInvitationType) => void;
+    receiveSession: (invitation: SipInvitationType) => void;
     answerAudioSession: (lineNumber: LineType["lineNumber"]) => void;
     answerVideoSession: (lineNumber: LineType["lineNumber"]) => void;
     makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
