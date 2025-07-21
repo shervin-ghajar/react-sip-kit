@@ -289,10 +289,10 @@ const getSipStoreConfigs = () => {
 };
 
 /* -------------------------------------------------------------------------- */
-function sendMessageSession(session, type, value) {
+async function sendMessageSession(session, type, value) {
     if (!session)
         return;
-    session.message({
+    await session.message({
         requestDelegate: {
             onAccept: () => console.log('MESSAGE accepted'),
             onReject: () => console.log('MESSAGE rejected'),
@@ -17979,7 +17979,7 @@ const useSessionMethods = () => {
                 sender.track.enabled = toggledLocalVideo;
             }
         });
-        sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
+        await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
         updateLine(lineObj);
     };
     /**

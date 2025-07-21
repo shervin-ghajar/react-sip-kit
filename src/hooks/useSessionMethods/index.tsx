@@ -636,7 +636,7 @@ export const useSessionMethods = () => {
       }
     });
 
-    sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
+    await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
     updateLine(lineObj);
   };
   /**
