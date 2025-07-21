@@ -10,6 +10,7 @@ import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 export const useSessionEvents = () => {
   const updateLine = useSipStore((state) => state.updateLine);
   const audioBlobs = useSipStore((state) => state.audioBlobs);
+
   const { maxVideoBandwidth, audioOutputDeviceId } = useSipStore((state) => state.configs.media);
 
   function onInviteCancel(
@@ -59,11 +60,10 @@ export const useSessionEvents = () => {
   // // Both Incoming an outgoing INVITE
   async function onInviteAccepted(
     lineObj: LineType,
-    includeVideo: boolean,
+    videoEnabled: boolean,
     response?: IncomingResponse,
   ) {
     // Call in progress
-    console.log('onInviteAccepted');
     const session = lineObj.sipSession;
     if (!session) return;
     if (session.data.earlyMedia) {
@@ -78,11 +78,11 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = () => {
-      if (includeVideo) {
+    session.initiateLocalMediaStreams = (isVideoEnabled = videoEnabled) => {
+      if (isVideoEnabled) {
+        const pc = session.sessionDescriptionHandler.peerConnection;
         // Preview our stream from peer connection
         const localVideoStream = new MediaStream();
-        const pc = session.sessionDescriptionHandler.peerConnection;
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
             localVideoStream.addTrack(sender.track);
@@ -91,11 +91,9 @@ export const useSessionEvents = () => {
         const localVideo = document.getElementById(
           `line-${lineObj.lineNumber}-localVideo`,
         ) as HTMLVideoElement;
-        console.log('onInviteAccepted', { localVideo, localVideoStream });
         if (localVideo) {
           localVideo.srcObject = localVideoStream;
           localVideo.onloadedmetadata = function (e) {
-            console.log('onInviteAccepted', 'play');
             localVideo.play();
           };
         }
@@ -117,8 +115,8 @@ export const useSessionEvents = () => {
             }
           });
         }
+        updateLine(lineObj);
       }
-      updateLine(lineObj);
     };
 
     // Start Call Recording
@@ -444,15 +442,14 @@ export const useSessionEvents = () => {
     }
   }
 
-  async function onTrackAddedEvent(lineObj: LineType, includeVideo?: boolean) {
+  async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
     // Gets remote tracks
     console.log('onTrackAddedEvent');
     const session = lineObj.sipSession;
     if (!session) return;
-    // TODO: look at detecting video, so that UI switches to audio/video automatically.
-    session.initiateRemoteMediaStreams = () => {
-      const pc = session.sessionDescriptionHandler.peerConnection;
 
+    session.initiateRemoteMediaStreams = (isVideoEnabled = videoEnabled) => {
+      const pc = session.sessionDescriptionHandler.peerConnection;
       // Create MediaStreams for audio and video
       const remoteAudioStream = new MediaStream();
       const remoteVideoStream = new MediaStream();
@@ -465,7 +462,7 @@ export const useSessionEvents = () => {
             console.log('Adding Remote Audio Track');
             remoteAudioStream.addTrack(receiver.track);
           }
-          if (includeVideo && receiver.track.kind === 'video') {
+          if (isVideoEnabled && receiver.track.kind === 'video') {
             if (transceiver.mid) {
               console.log('Adding Remote Video Track', receiver.track.readyState);
               (receiver.track as any).mid = transceiver.mid;
@@ -498,7 +495,7 @@ export const useSessionEvents = () => {
       }
 
       // Attach Video Stream
-      if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
+      if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
         const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
         let videoContainer = document.getElementById(videoContainerId);
 

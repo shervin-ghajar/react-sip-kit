@@ -1,18 +1,17 @@
 import { LineType, SipInvitationType } from '../../store/types';
+import { CallType } from '../../types';
 export declare const useSessionMethods: () => {
-    receiveSession: (session: SipInvitationType) => void;
+    receiveSession: (invitation: SipInvitationType) => void;
     answerAudioSession: (lineNumber: LineType["lineNumber"]) => void;
     answerVideoSession: (lineNumber: LineType["lineNumber"]) => void;
     makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
     makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
-    toggleVideoSession: (lineObj: LineType, extraHeaders?: string[]) => Promise<void>;
+    toggleLocalVideoTrack: (lineNumber: LineType["lineNumber"]) => Promise<void>;
     rejectSession: (lineNumber: LineType["lineNumber"]) => void;
-    dialByLine: (type: "audio" | "video", dialNumber: string, extraHeaders?: Array<string>) => void;
+    dialByNumber: (type: Extract<CallType, "audio" | "video">, dialNumber: string, extraHeaders?: Array<string>) => void;
     endSession: (lineNumber: LineType["lineNumber"]) => void;
-    holdSession: (lineNumber: LineType["lineNumber"]) => void;
-    unholdSession: (lineNumber: LineType["lineNumber"]) => void;
-    muteSession: (lineNumber: LineType["lineNumber"]) => void;
-    unmuteSession: (lineNumber: LineType["lineNumber"]) => void;
+    toggleMuteSession: (lineNumber: LineType["lineNumber"]) => void;
+    toggleHoldSession: (lineNumber: LineType["lineNumber"], forcedValue?: boolean) => Promise<void>;
     cancelSession: (lineNumber: LineType["lineNumber"]) => void;
     startTransferSession: (lineNumber: LineType["lineNumber"]) => void;
     cancelTransferSession: (lineNumber: LineType["lineNumber"]) => void;
