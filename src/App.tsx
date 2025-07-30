@@ -9,7 +9,7 @@ function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider();
   const { dialByNumber } = useSessionMethods();
   const renderLines = () => {
-    return lines.map((line) => <SipLine line={line} />);
+    return lines.map((line) => <SipLine key={line.lineNumber} line={line} />);
   };
   return (
     <div
@@ -46,11 +46,11 @@ function App({ username }: { username: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByNumber('audio', '1011')}>{`Call 1011`}</button>
-        <button onClick={() => dialByNumber('audio', '1013')}>{`Call 1013`}</button>
+        <button onClick={() => dialByNumber('audio', '1012')}>{`Call 1012`}</button>
+        <button onClick={() => dialByNumber('audio', '1010')}>{`Call 1010`}</button>
 
-        <button onClick={() => dialByNumber('video', '1011')}>{`Video Call 1011`}</button>
-        <button onClick={() => dialByNumber('video', '1013')}>{`Video Call 1013`}</button>
+        <button onClick={() => dialByNumber('video', '1012')}>{`Video Call 1012`}</button>
+        <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
       </div>
     </div>
   );
@@ -69,10 +69,18 @@ const SipLine = ({ line }: { line: LineType }) => {
     startTransferSession,
     cancelAttendedTransferSession,
     attendedTransferSession,
+    toggleShareScreen,
   } = useSessionMethods();
+  const isVideoCall = line.sipSession?.callType === 'video';
   const callStarted = line.sipSession?.data.started;
   const localVideoEnabled = line.sipSession?.data.localMediaStreamStatus?.videoEnabled;
   const remoteVideoEnabled = line.sipSession?.data.remoteMediaStreamStatus?.videoEnabled;
+  const remoteScreenShareEnabled =
+    line.sipSession?.data.remoteMediaStreamStatus?.screenShareEnabled;
+  const localScreenShareEnabled = line.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
+
+  const localMediaStreamEnabled = localVideoEnabled || localScreenShareEnabled;
+  const remoteMediaStreamEnabled = remoteVideoEnabled || remoteScreenShareEnabled;
   const isOutbound = line.sipSession?.data.callDirection === 'outbound';
   const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
   const isHold = line.sipSession?.isOnHold;
@@ -80,6 +88,9 @@ const SipLine = ({ line }: { line: LineType }) => {
     localMediaStreamStatus: line.sipSession?.data.localMediaStreamStatus,
     remoteMediaStreamStatus: line.sipSession?.data.remoteMediaStreamStatus,
   });
+  console.log({ localMediaStreamEnabled, remoteMediaStreamEnabled });
+  const pc = line?.sipSession?.sessionDescriptionHandler?.peerConnection;
+
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call
     setTimeout(() => {
@@ -89,9 +100,13 @@ const SipLine = ({ line }: { line: LineType }) => {
 
   useEffect(() => {
     if (!callStarted) return;
-    line.sipSession?.initiateLocalMediaStreams(localVideoEnabled);
-    line.sipSession?.initiateRemoteMediaStreams(remoteVideoEnabled);
-  }, [callStarted, localVideoEnabled, remoteVideoEnabled]);
+    line.sipSession?.initiateLocalMediaStreams(localMediaStreamEnabled);
+  }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
+
+  useEffect(() => {
+    if (!callStarted) return;
+    line.sipSession?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+  }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
   return (
     <div
@@ -100,10 +115,10 @@ const SipLine = ({ line }: { line: LineType }) => {
     >
       <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
       <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
-        {localVideoEnabled && (
+        {localMediaStreamEnabled && (
           <Video type="local" lineNumber={line.lineNumber} width={200} height={200} />
         )}
-        {remoteVideoEnabled && (
+        {remoteMediaStreamEnabled && (
           <Video
             type="remote"
             lineNumber={line.lineNumber}
@@ -132,26 +147,38 @@ const SipLine = ({ line }: { line: LineType }) => {
           <button
             onClick={() => toggleHoldSession(line.lineNumber)}
           >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1013)}>
-            {'Transfer To 1013'}
+          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1010)}>
+            {'Transfer To 1010'}
+          </button>
+          <button
+            style={{ color: 'kemon' }}
+            onClick={async () => await toggleShareScreen(line.lineNumber)}
+          >
+            {`Share Screen ${localScreenShareEnabled ? 'ON' : 'OFF'}`}
           </button>
           <button
             style={{ color: 'darkred' }}
-            onClick={() => cancelAttendedTransferSession(line, 1013)}
+            onClick={() => cancelAttendedTransferSession(line, 1010)}
           >
-            {'Cancel Transfer To 1013'}
+            {'Cancel Transfer To 1010'}
           </button>
         </div>
       ) : (
         !isOutbound && (
           <>
+            {isVideoCall && (
+              <button
+                style={{ color: 'green' }}
+                onClick={() => answerVideoSession(line.lineNumber, true)}
+              >{`Answer Video Call`}</button>
+            )}
             <button
               style={{ color: 'green' }}
-              onClick={() => answerVideoSession(line.lineNumber)}
-            >{`Answer Video Call`}</button>
-            <button
-              style={{ color: 'green' }}
-              onClick={() => answerAudioSession(line.lineNumber)}
+              onClick={() =>
+                isVideoCall
+                  ? answerVideoSession(line.lineNumber, false)
+                  : answerAudioSession(line.lineNumber)
+              }
             >{`Answer Call`}</button>
             <button
               style={{ color: 'red' }}

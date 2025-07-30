@@ -78,13 +78,17 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = (isVideoEnabled = videoEnabled) => {
+    session.initiateLocalMediaStreams = (
+      isVideoEnabled = videoEnabled,
+      pc = session.sessionDescriptionHandler.peerConnection,
+    ) => {
+      console.log('initiateLocalMediaStreams', { isVideoEnabled, pc, sender: pc.getSenders() });
       if (isVideoEnabled) {
-        const pc = session.sessionDescriptionHandler.peerConnection;
         // Preview our stream from peer connection
         const localVideoStream = new MediaStream();
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
+            console.log('initiateLocalMediaStreams', { track: sender.track });
             localVideoStream.addTrack(sender.track);
           }
         });
@@ -394,7 +398,6 @@ export const useSessionEvents = () => {
           lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
             body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
           ).value;
-
           break;
         case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
           lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
@@ -448,13 +451,19 @@ export const useSessionEvents = () => {
     const session = lineObj.sipSession;
     if (!session) return;
 
-    session.initiateRemoteMediaStreams = (isVideoEnabled = videoEnabled) => {
-      const pc = session.sessionDescriptionHandler.peerConnection;
+    session.initiateRemoteMediaStreams = (
+      isVideoEnabled = videoEnabled,
+      pc = session.sessionDescriptionHandler.peerConnection,
+    ) => {
       // Create MediaStreams for audio and video
       const remoteAudioStream = new MediaStream();
       const remoteVideoStream = new MediaStream();
-
       // Add tracks to MediaStreams
+      console.log('initiateRemoteMediaStreams', {
+        isVideoEnabled,
+        pc,
+        track: pc.getTransceivers(),
+      });
       pc.getTransceivers().forEach((transceiver) => {
         const receiver = transceiver.receiver;
         if (receiver.track) {
@@ -462,11 +471,13 @@ export const useSessionEvents = () => {
             console.log('Adding Remote Audio Track');
             remoteAudioStream.addTrack(receiver.track);
           }
+          console.log('initiateRemoteMediaStreams-0', receiver.track.kind, transceiver.mid);
           if (isVideoEnabled && receiver.track.kind === 'video') {
             if (transceiver.mid) {
               console.log('Adding Remote Video Track', receiver.track.readyState);
               (receiver.track as any).mid = transceiver.mid;
               remoteVideoStream.addTrack(receiver.track);
+              console.log('initiateRemoteMediaStreams-1');
             }
           }
         }
@@ -488,8 +499,6 @@ export const useSessionEvents = () => {
                 .catch((e) => console.warn('Error using setSinkId:', e));
             }
             remoteAudio.play();
-            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
-              lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = true;
           };
         }
       }
@@ -498,6 +507,7 @@ export const useSessionEvents = () => {
       if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
         const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
         let videoContainer = document.getElementById(videoContainerId);
+        console.log('initiateRemoteMediaStreams-2');
 
         if (!videoContainer) return;
         // Clear existing videos
@@ -505,26 +515,32 @@ export const useSessionEvents = () => {
 
         remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
           const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
-          thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
-          thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
+          thisRemoteVideoStream.trackId = remoteVideoStreamTrack?.id;
+          thisRemoteVideoStream.mid = remoteVideoStreamTrack?.mid;
           thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-          const videoElement = document.createElement('video');
-          videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
+          let videoElement = document.getElementById(
+            `line-${lineObj.lineNumber}-video-${index}`,
+          ) as HTMLVideoElement;
+          console.log('initiateRemoteMediaStreams-30', { videoElement });
+          let videoCreated = false;
+          if (!videoElement) {
+            videoCreated = true;
+            videoElement = document.createElement('video');
+            videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
+            videoElement.autoplay = true;
+            videoElement.playsInline = true;
+            videoElement.muted = true; // Ensure autoplay works in browsers
+          }
           videoElement.srcObject = thisRemoteVideoStream;
-          videoElement.autoplay = true;
-          videoElement.playsInline = true;
-          videoElement.muted = true; // Ensure autoplay works in browsers
-          videoElement.className = 'video-element'; // Add styling class
+          console.log('initiateRemoteMediaStreams-31', { videoCreated, videoElement });
 
           videoElement.onloadedmetadata = () => {
+            console.log('initiateRemoteMediaStreams-32');
+            videoCreated && videoContainer.appendChild(videoElement);
             videoElement.play().catch((error) => {
               console.error('Error playing video:', error);
             });
-            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
-              lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
           };
-
-          videoContainer.appendChild(videoElement);
         });
       } else {
         console.warn('No Video Tracks Found');
