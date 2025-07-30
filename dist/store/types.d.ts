@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { CallbackFunction, SipUserAgent } from '../types';
+import { CallbackFunction, CallType, SipUserAgent } from '../types';
 import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescriptionHandlerOptions } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
@@ -25,8 +25,9 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-    initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+    callType: CallType;
+    initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+    initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
     hold: boolean;
@@ -36,8 +37,9 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-    initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+    callType: CallType;
+    initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+    initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
     peerConnection: RTCPeerConnection;
