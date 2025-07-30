@@ -17875,7 +17875,7 @@ const useSessionMethods = () => {
                         setTimeout(async () => {
                             await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, true);
                             // TODO sendMessage conflicts with session establishment and drops, but setTimeout is not best practice and must be replaced!
-                        }, 1000);
+                        }, 3000);
                 }
                 catch (error) {
                     console.log('sendMessageSession error', { error });
