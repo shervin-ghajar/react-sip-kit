@@ -110,17 +110,59 @@ export async function sendMessageSession<T extends SendMessageSessionEnum>(
   value: SendMessageSessionValueType[T],
 ) {
   if (!session) return;
-  await session.message({
-    requestDelegate: {
-      onAccept: () => console.log('MESSAGE accepted'),
-      onReject: () => console.log('MESSAGE rejected'),
-    },
-    requestOptions: {
-      body: {
-        contentType: 'text/plain',
-        content: JSON.stringify({ type, value }),
-        contentDisposition: 'render',
+  try {
+    await session.message({
+      requestDelegate: {
+        onAccept: () => console.log('MESSAGE accepted'),
+        onReject: () => console.log('MESSAGE rejected'),
       },
-    },
+      requestOptions: {
+        body: {
+          contentType: 'text/plain',
+          content: JSON.stringify({ type, value }),
+          contentDisposition: 'render',
+        },
+      },
+    });
+  } catch (error) {
+    console.log('sendMessage Error', error);
+  }
+}
+/* -------------------------------------------------------------------------- */
+/**
+ * Sends VIDEO_TOGGLE and retries until VIDEO_TOGGLE_ACK is received.
+ */
+export async function sendVideoActivationWithAckRetry(
+  session: LineType['sipSession'],
+  options?: { maxRetries?: number; delayMs?: number },
+): Promise<void> {
+  const maxRetries = options?.maxRetries ?? 5;
+  const delayMs = options?.delayMs ?? 1000;
+  let attempts = 0;
+
+  return new Promise<void>((resolve, reject) => {
+    const trySend = async () => {
+      if (!session?.data?.line) return;
+      const ackReceived = getSipStore().findLineByNumber(session?.data?.line)?.sipSession?.data
+        ?.videoAckReceived;
+      console.log('VIDEO_TOGGLE_ACK', { ackReceived });
+      if (ackReceived) {
+        console.log('✅ VIDEO_TOGGLE_ACK received');
+        return resolve();
+      }
+
+      if (attempts >= maxRetries) {
+        console.warn('❌ VIDEO_TOGGLE_ACK not received after max retries');
+        return reject(new Error('ACK timeout'));
+      }
+
+      console.log(`📤 Sending VIDEO_TOGGLE (attempt #${attempts + 1})`);
+      await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, true);
+      attempts++;
+
+      setTimeout(trySend, delayMs);
+    };
+
+    trySend();
   });
 }

@@ -90,6 +90,7 @@ export interface SipSessionDataType {
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
   localMediaStreamStatus: MediaStremStatus;
   remoteMediaStreamStatus: MediaStremStatus;
+  videoAckReceived: boolean;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
   audioSourceTrack: MediaStreamTrack | null;
