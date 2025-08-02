@@ -147,8 +147,8 @@ const SipLine = ({ line }: { line: LineType }) => {
           <button
             onClick={() => toggleHoldSession(line.lineNumber)}
           >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1010)}>
-            {'Transfer To 1010'}
+          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1013)}>
+            {'Transfer To 1013'}
           </button>
           <button
             style={{ color: 'kemon' }}

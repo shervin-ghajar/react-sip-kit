@@ -1,5 +1,5 @@
 import { Line } from '../../constructors';
-import { sendMessageSession } from '../../methods/session';
+import { sendMessageSession, sendVideoActivationWithAckRetry } from '../../methods/session';
 import { SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import {
@@ -492,13 +492,15 @@ export const useSessionMethods = () => {
     // Send Answer
     session
       .accept(spdOptions)
-      .then(function () {
-        onInviteAccepted(lineObj, true).then(() => {
-          if (enableVideo)
-            setTimeout(() => {
-              sendMessageSession(lineObj.sipSession, SendMessageSessionEnum.VIDEO_TOGGLE, true);
-            }, 0);
-        });
+      .then(async () => {
+        try {
+          await onInviteAccepted(lineObj, true);
+          if (enableVideo) {
+            await sendVideoActivationWithAckRetry(session, { delayMs: 2000, maxRetries: 10 });
+          }
+        } catch (error) {
+          console.error('AnswerVideoSession onStateChange', error);
+        }
       })
       .catch(function (error) {
         console.warn('Failed to answer call', error, session);
@@ -564,8 +566,8 @@ export const useSessionMethods = () => {
 
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: hasAudioDevice,
-      videoEnabled: hasVideoDevice,
+      soundEnabled: true,
+      videoEnabled: true,
     };
     session.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
@@ -606,9 +608,6 @@ export const useSessionMethods = () => {
         },
         onAccept: function (sip) {
           onInviteAccepted(lineObj, true, sip);
-          // .then(() =>
-          //   sendMessageSession(lineObj.sipSession, SendMessageSessionEnum.VIDEO_TOGGLE, true),
-          // );
         },
         onReject: function (sip) {
           onInviteRejected(lineObj, sip, () => teardownSession(lineObj));

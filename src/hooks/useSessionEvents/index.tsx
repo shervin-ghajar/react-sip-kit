@@ -1,3 +1,4 @@
+import { sendMessageSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
@@ -262,158 +263,166 @@ export const useSessionEvents = () => {
     }
   }
   function onSessionReceivedMessage(lineObj: LineType, response: Message) {
-    const messageType =
-      response.request.headers['Content-Type'].length >= 1
-        ? response.request.headers['Content-Type'][0].parsed
-        : 'Unknown';
-    if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
-      // Conference Events JSON
-      const msgJson = JSON.parse(response.request.body) as {
-        type: string;
-        bridge: {
-          id: string;
-          name: string;
-          creationtime: string;
-          video_mode: string;
+    try {
+      const messageType =
+        response.request.headers['Content-Type'].length >= 1
+          ? response.request.headers['Content-Type'][0].parsed
+          : 'Unknown';
+      if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
+        // Conference Events JSON
+        const msgJson = JSON.parse(response.request.body) as {
+          type: string;
+          bridge: {
+            id: string;
+            name: string;
+            creationtime: string;
+            video_mode: string;
+          };
+          channels: Array<any>;
         };
-        channels: Array<any>;
-      };
 
-      const session = lineObj.sipSession;
-      if (!session) return;
-      if (!session.data) return;
-      if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
-      if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
+        const session = lineObj.sipSession;
+        if (!session) return;
+        if (!session.data) return;
+        if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
+        if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
 
-      if (msgJson.type == 'ConfbridgeStart') {
-        console.log('ConfbridgeStart!');
-      } else if (msgJson.type == 'ConfbridgeWelcome') {
-        console.log('Welcome to the Asterisk Conference');
-        console.log('Bridge ID:', msgJson.bridge.id);
-        console.log('Bridge Name:', msgJson.bridge.name);
-        console.log('Created at:', msgJson.bridge.creationtime);
-        console.log('Video Mode:', msgJson.bridge.video_mode);
+        if (msgJson.type == 'ConfbridgeStart') {
+          console.log('ConfbridgeStart!');
+        } else if (msgJson.type == 'ConfbridgeWelcome') {
+          console.log('Welcome to the Asterisk Conference');
+          console.log('Bridge ID:', msgJson.bridge.id);
+          console.log('Bridge Name:', msgJson.bridge.name);
+          console.log('Created at:', msgJson.bridge.creationtime);
+          console.log('Video Mode:', msgJson.bridge.video_mode);
 
-        session.data.confBridgeChannels = msgJson.channels; // Write over this
-        session.data.confBridgeChannels.forEach(function (chan) {
-          // The mute and unmute status doesn't appear to be a realtime state, only what the
-          // startmuted= setting of the default profile is.
-          console.log(
-            chan.caller.name,
-            'Is in the conference. Muted:',
-            chan.muted,
-            'Admin:',
-            chan.admin,
-          );
-        });
-      } else if (msgJson.type == 'ConfbridgeJoin') {
-        msgJson.channels.forEach(function (chan) {
-          let found = false;
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) found = true;
+          session.data.confBridgeChannels = msgJson.channels; // Write over this
+          session.data.confBridgeChannels.forEach(function (chan) {
+            // The mute and unmute status doesn't appear to be a realtime state, only what the
+            // startmuted= setting of the default profile is.
+            console.log(
+              chan.caller.name,
+              'Is in the conference. Muted:',
+              chan.muted,
+              'Admin:',
+              chan.admin,
+            );
           });
-          if (!found) {
-            session.data.confBridgeChannels?.push(chan);
-            session.data.confBridgeEvents?.push({
-              event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
-              eventTime: utcDateNow(),
+        } else if (msgJson.type == 'ConfbridgeJoin') {
+          msgJson.channels.forEach(function (chan) {
+            let found = false;
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) found = true;
             });
-            console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
-          }
-        });
-      } else if (msgJson.type == 'ConfbridgeLeave') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan, i) {
-            if (existingChan.id == chan.id) {
-              session.data.confBridgeChannels?.splice(i, 1);
-              console.log(chan.caller.name, 'Left the conference');
+            if (!found) {
+              session.data.confBridgeChannels?.push(chan);
               session.data.confBridgeEvents?.push({
-                event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
+                event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
                 eventTime: utcDateNow(),
               });
+              console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
             }
           });
-        });
-      } else if (msgJson.type === 'ConfbridgeTalking') {
-        const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
-        if (videoContainer) {
-          //TODO #SH
-          // msgJson.channels.forEach(function (chan) {
-          //   videoContainer.find('video').each(function () {
-          //     if (this.srcObject.channel && this.srcObject.channel == chan.id) {
-          //       if (chan.talking_status == 'on') {
-          //         console.log(chan.caller.name, 'is talking.');
-          //         this.srcObject.isTalking = true;
-          //         $(this).css('border', '1px solid red');
-          //       } else {
-          //         console.log(chan.caller.name, 'stopped talking.');
-          //         this.srcObject.isTalking = false;
-          //         $(this).css('border', '1px solid transparent');
-          //       }
-          //     }
-          //   });
-          // });
+        } else if (msgJson.type == 'ConfbridgeLeave') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan, i) {
+              if (existingChan.id == chan.id) {
+                session.data.confBridgeChannels?.splice(i, 1);
+                console.log(chan.caller.name, 'Left the conference');
+                session.data.confBridgeEvents?.push({
+                  event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
+                  eventTime: utcDateNow(),
+                });
+              }
+            });
+          });
+        } else if (msgJson.type === 'ConfbridgeTalking') {
+          const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
+          if (videoContainer) {
+            //TODO #SH
+            // msgJson.channels.forEach(function (chan) {
+            //   videoContainer.find('video').each(function () {
+            //     if (this.srcObject.channel && this.srcObject.channel == chan.id) {
+            //       if (chan.talking_status == 'on') {
+            //         console.log(chan.caller.name, 'is talking.');
+            //         this.srcObject.isTalking = true;
+            //         $(this).css('border', '1px solid red');
+            //       } else {
+            //         console.log(chan.caller.name, 'stopped talking.');
+            //         this.srcObject.isTalking = false;
+            //         $(this).css('border', '1px solid transparent');
+            //       }
+            //     }
+            //   });
+            // });
+          }
+        } else if (msgJson.type == 'ConfbridgeMute') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) {
+                console.log(existingChan.caller.name, 'is now muted');
+                existingChan.muted = true;
+              }
+            });
+          });
+          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+        } else if (msgJson.type === 'ConfbridgeUnmute') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) {
+                console.log(existingChan.caller.name, 'is now unmuted');
+                existingChan.muted = false;
+              }
+            });
+          });
+          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+        } else if (msgJson.type == 'ConfbridgeEnd') {
+          console.log('The Asterisk Conference has ended, bye!');
+        } else {
+          console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
         }
-      } else if (msgJson.type == 'ConfbridgeMute') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) {
-              console.log(existingChan.caller.name, 'is now muted');
-              existingChan.muted = true;
-            }
-          });
-        });
-        //   RedrawStage(lineObj.LineNumber, false); TODO #SH
-      } else if (msgJson.type === 'ConfbridgeUnmute') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) {
-              console.log(existingChan.caller.name, 'is now unmuted');
-              existingChan.muted = false;
-            }
-          });
-        });
-        //   RedrawStage(lineObj.LineNumber, false); TODO #SH
-      } else if (msgJson.type == 'ConfbridgeEnd') {
-        console.log('The Asterisk Conference has ended, bye!');
-      } else {
-        console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
-      }
-      // RefreshLineActivity(lineObj.LineNumber); TODO #SH
-      response.accept();
-    } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
-      console.log('x-myphone-confbridge-chat', response);
+        // RefreshLineActivity(lineObj.LineNumber); TODO #SH
+        response.accept();
+      } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
+        console.log('x-myphone-confbridge-chat', response);
 
-      response.accept();
-    } else if (messageType.indexOf('text/plain') > -1) {
-      if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
-      const body = JSON.parse(response.request.body);
-      switch (body.type as SendMessageSessionEnum) {
-        case SendMessageSessionEnum.SOUND_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
-          ).value;
-          break;
-        case SendMessageSessionEnum.VIDEO_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
-          ).value;
-          break;
-        case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
-          ).value;
-          break;
-        default:
-          response.reject();
-          break;
+        response.accept();
+      } else if (messageType.indexOf('text/plain') > -1) {
+        if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
+        const body = JSON.parse(response.request.body);
+        switch (body.type as SendMessageSessionEnum) {
+          case SendMessageSessionEnum.SOUND_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
+            ).value;
+            break;
+          case SendMessageSessionEnum.VIDEO_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
+            ).value;
+            sendMessageSession(lineObj.sipSession, SendMessageSessionEnum.VIDEO_TOGGLE_ACK, '');
+            break;
+          case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
+            ).value;
+            break;
+          case SendMessageSessionEnum.VIDEO_TOGGLE_ACK:
+            lineObj.sipSession.data.videoAckReceived = true;
+            break;
+          default:
+            response.reject();
+            break;
+        }
+        response.accept();
+      } else {
+        console.warn('Unknown message type');
+        response.reject();
       }
-      response.accept();
-    } else {
-      console.warn('Unknown message type');
-      response.reject();
+      updateLine(lineObj);
+    } catch (error) {
+      console.error('onSessionReceiveMessage Error', error);
     }
-    updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   function onSessionDescriptionHandlerCreated(
@@ -424,19 +433,9 @@ export const useSessionEvents = () => {
   ) {
     if (sdh) {
       if (sdh.peerConnection) {
-        console.log(222, 'onSessionDescriptionHandlerCreated', sdh, {
-          peerConnection: sdh.peerConnection,
-        });
         sdh.peerConnection.ontrack = function (event) {
-          console.log(222, { event });
           onTrackAddedEvent(lineObj, includeVideo);
         };
-        // sdh.peerConnectionDelegate = {
-        //   ontrack: function (event: any) {
-        //     console.log(event);
-        //     onTrackAddedEvent(lineObj, includeVideo);
-        //   },
-        // };
       } else {
         console.warn('onSessionDescriptionHandler fired without a peerConnection');
       }
@@ -533,7 +532,7 @@ export const useSessionEvents = () => {
           }
           videoElement.srcObject = thisRemoteVideoStream;
           console.log('initiateRemoteMediaStreams-31', { videoCreated, videoElement });
-
+          // !videoCreated && videoElement.load();
           videoElement.onloadedmetadata = () => {
             console.log('initiateRemoteMediaStreams-32');
             videoCreated && videoContainer.appendChild(videoElement);
