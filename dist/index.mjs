@@ -228,6 +228,7 @@ const useSipStore = create((set, get) => ({
         callback?.();
     },
     removeLine: (lineNumber) => {
+        console.log('removeLine');
         const lines = get().lines;
         const filteredLines = lines.filter((line) => line.lineNumber !== lineNumber);
         set((state) => ({ ...state, lines: filteredLines }));
@@ -241,9 +242,11 @@ const useSipStore = create((set, get) => ({
     getSessions: () => {
         const { userAgent } = get();
         if (userAgent == null) {
+            console.warn('userAgent is null');
             return null;
         }
         if (userAgent.isRegistered() == false) {
+            console.warn('userAgent is not registered');
             return null;
         }
         const sessions = userAgent.sessions ?? null;
@@ -305,8 +308,8 @@ async function sendMessageSession(session, type, value) {
     try {
         await session.message({
             requestDelegate: {
-                onAccept: () => void 0,
-                onReject: () => void 0,
+                onAccept: () => console.log('MESSAGE accepted'),
+                onReject: () => console.log('MESSAGE rejected'),
             },
             requestOptions: {
                 body: {
@@ -318,6 +321,7 @@ async function sendMessageSession(session, type, value) {
         });
     }
     catch (error) {
+        console.log('sendMessage Error', error);
     }
 }
 /* -------------------------------------------------------------------------- */
@@ -334,12 +338,16 @@ async function sendVideoActivationWithAckRetry(session, options) {
                 return;
             const ackReceived = getSipStore().findLineByNumber(session?.data?.line)?.sipSession?.data
                 ?.videoAckReceived;
+            console.log('VIDEO_TOGGLE_ACK', { ackReceived });
             if (ackReceived) {
+                console.log('✅ VIDEO_TOGGLE_ACK received');
                 return resolve();
             }
             if (attempts >= maxRetries) {
+                console.warn('❌ VIDEO_TOGGLE_ACK not received after max retries');
                 return reject(new Error('ACK timeout'));
             }
+            console.log(`📤 Sending VIDEO_TOGGLE (attempt #${attempts + 1})`);
             await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, true);
             attempts++;
             setTimeout(trySend, delayMs);
@@ -473,11 +481,14 @@ const useSessionEvents = () => {
         session.data.reasonCode = temp_cause;
         if (temp_cause === 0) {
             session.data.reasonText = 'Call Cancelled';
+            console.log('Call canceled by remote party before answer!');
         }
         else {
             session.data.reasonText = 'Call completed elsewhere';
+            console.log('Call completed elsewhere before answer');
         }
         session.dispose().catch(function (error) {
+            console.log('Failed to dispose the cancel dialog', error);
         });
         callback?.();
     }
@@ -498,11 +509,13 @@ const useSessionEvents = () => {
         session.isOnHold = false;
         session.data.started = true;
         session.initiateLocalMediaStreams = (isVideoEnabled = videoEnabled, pc = session.sessionDescriptionHandler.peerConnection) => {
+            console.log('initiateLocalMediaStreams', { isVideoEnabled, pc, sender: pc.getSenders() });
             if (isVideoEnabled) {
                 // Preview our stream from peer connection
                 const localVideoStream = new MediaStream();
                 pc.getSenders().forEach(function (sender) {
                     if (sender.track && sender.track.kind === 'video') {
+                        console.log('initiateLocalMediaStreams', { track: sender.track });
                         localVideoStream.addTrack(sender.track);
                     }
                 });
@@ -521,8 +534,10 @@ const useSessionEvents = () => {
                             if (!parameters.encodings)
                                 parameters.encodings = [{}];
                             parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
+                            console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
                             // Only going to try without re-negotiations
                             sender.setParameters(parameters).catch(function (e) {
+                                console.warn('Cannot apply Bandwidth Limits', e);
                             });
                         }
                     });
@@ -542,6 +557,7 @@ const useSessionEvents = () => {
         // $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
     }
     function onInviteProgress(lineObj, response) {
+        console.log('Call Progress:', response.message.statusCode);
         const session = lineObj.sipSession;
         if (!session)
             return;
@@ -550,8 +566,15 @@ const useSessionEvents = () => {
         if (response.message.statusCode === 180) {
             // $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
             let soundFile = audioBlobs.Ringtone;
+            console.log({ soundFile });
             // Play Early Media
-            if (session.data.earlyMedia) ;
+            console.log('Audio:', soundFile.url);
+            if (session.data.earlyMedia) {
+                // There is already early media playing
+                // onProgress can be called multiple times
+                // Don't add it again
+                console.log('Early Media already playing');
+            }
             else {
                 const earlyMedia = new Audio(soundFile.url);
                 earlyMedia.preload = 'auto';
@@ -561,8 +584,10 @@ const useSessionEvents = () => {
                         earlyMedia
                             .setSinkId(audioOutputDeviceId)
                             .then(function () {
+                            console.log('Set sinkId to:', audioOutputDeviceId);
                         })
                             .catch(function (e) {
+                            console.warn('Failed not apply setSinkId.', e);
                         });
                     }
                     earlyMedia
@@ -571,6 +596,7 @@ const useSessionEvents = () => {
                         // Audio Is Playing
                     })
                         .catch(function (e) {
+                        console.warn('Unable to play audio file.', e);
                     });
                 };
                 session.data.earlyMedia = earlyMedia;
@@ -581,6 +607,7 @@ const useSessionEvents = () => {
         updateLine(lineObj);
     }
     function onInviteRejected(lineObj, response, callback) {
+        console.log('INVITE Rejected:', response.message.reasonPhrase);
         const session = lineObj.sipSession;
         if (!session)
             return;
@@ -590,6 +617,7 @@ const useSessionEvents = () => {
         callback?.();
     }
     function onInviteRedirected(lineObj, response) {
+        console.log('onInviteRedirected', response);
         // Follow???
     }
     // // General Session delegates
@@ -631,6 +659,7 @@ const useSessionEvents = () => {
                     session.data.videoChannelNames.push({ mid: mid, channel: channel });
                 }
             }
+            console.log('videoChannelNames:', session.data.videoChannelNames);
             // RedrawStage(lineObj.LineNumber, false); TODO #SH
         }
     }
@@ -652,12 +681,19 @@ const useSessionEvents = () => {
                 if (!session.data.confBridgeEvents)
                     session.data.confBridgeEvents = [];
                 if (msgJson.type == 'ConfbridgeStart') {
+                    console.log('ConfbridgeStart!');
                 }
                 else if (msgJson.type == 'ConfbridgeWelcome') {
+                    console.log('Welcome to the Asterisk Conference');
+                    console.log('Bridge ID:', msgJson.bridge.id);
+                    console.log('Bridge Name:', msgJson.bridge.name);
+                    console.log('Created at:', msgJson.bridge.creationtime);
+                    console.log('Video Mode:', msgJson.bridge.video_mode);
                     session.data.confBridgeChannels = msgJson.channels; // Write over this
                     session.data.confBridgeChannels.forEach(function (chan) {
                         // The mute and unmute status doesn't appear to be a realtime state, only what the
                         // startmuted= setting of the default profile is.
+                        console.log(chan.caller.name, 'Is in the conference. Muted:', chan.muted, 'Admin:', chan.admin);
                     });
                 }
                 else if (msgJson.type == 'ConfbridgeJoin') {
@@ -673,6 +709,7 @@ const useSessionEvents = () => {
                                 event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
                                 eventTime: utcDateNow(),
                             });
+                            console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
                         }
                     });
                 }
@@ -681,6 +718,7 @@ const useSessionEvents = () => {
                         session.data.confBridgeChannels?.forEach(function (existingChan, i) {
                             if (existingChan.id == chan.id) {
                                 session.data.confBridgeChannels?.splice(i, 1);
+                                console.log(chan.caller.name, 'Left the conference');
                                 session.data.confBridgeEvents?.push({
                                     event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
                                     eventTime: utcDateNow(),
@@ -697,6 +735,7 @@ const useSessionEvents = () => {
                     msgJson.channels.forEach(function (chan) {
                         session.data.confBridgeChannels?.forEach(function (existingChan) {
                             if (existingChan.id == chan.id) {
+                                console.log(existingChan.caller.name, 'is now muted');
                                 existingChan.muted = true;
                             }
                         });
@@ -707,6 +746,7 @@ const useSessionEvents = () => {
                     msgJson.channels.forEach(function (chan) {
                         session.data.confBridgeChannels?.forEach(function (existingChan) {
                             if (existingChan.id == chan.id) {
+                                console.log(existingChan.caller.name, 'is now unmuted');
                                 existingChan.muted = false;
                             }
                         });
@@ -714,13 +754,16 @@ const useSessionEvents = () => {
                     //   RedrawStage(lineObj.LineNumber, false); TODO #SH
                 }
                 else if (msgJson.type == 'ConfbridgeEnd') {
+                    console.log('The Asterisk Conference has ended, bye!');
                 }
                 else {
+                    console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
                 }
                 // RefreshLineActivity(lineObj.LineNumber); TODO #SH
                 response.accept();
             }
             else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
+                console.log('x-myphone-confbridge-chat', response);
                 response.accept();
             }
             else if (messageType.indexOf('text/plain') > -1) {
@@ -748,11 +791,13 @@ const useSessionEvents = () => {
                 response.accept();
             }
             else {
+                console.warn('Unknown message type');
                 response.reject();
             }
             updateLine(lineObj);
         }
         catch (error) {
+            console.error('onSessionReceiveMessage Error', error);
         }
     }
     /* -------------------------------------------------------------------------- */
@@ -763,10 +808,17 @@ const useSessionEvents = () => {
                     onTrackAddedEvent(lineObj, includeVideo);
                 };
             }
+            else {
+                console.warn('onSessionDescriptionHandler fired without a peerConnection');
+            }
+        }
+        else {
+            console.warn('onSessionDescriptionHandler fired without a sessionDescriptionHandler');
         }
     }
     async function onTrackAddedEvent(lineObj, videoEnabled) {
         // Gets remote tracks
+        console.log('onTrackAddedEvent');
         const session = lineObj.sipSession;
         if (!session)
             return;
@@ -775,16 +827,25 @@ const useSessionEvents = () => {
             const remoteAudioStream = new MediaStream();
             const remoteVideoStream = new MediaStream();
             // Add tracks to MediaStreams
+            console.log('initiateRemoteMediaStreams', {
+                isVideoEnabled,
+                pc,
+                track: pc.getTransceivers(),
+            });
             pc.getTransceivers().forEach((transceiver) => {
                 const receiver = transceiver.receiver;
                 if (receiver.track) {
                     if (receiver.track.kind === 'audio') {
+                        console.log('Adding Remote Audio Track');
                         remoteAudioStream.addTrack(receiver.track);
                     }
+                    console.log('initiateRemoteMediaStreams-0', receiver.track.kind, transceiver.mid);
                     if (isVideoEnabled && receiver.track.kind === 'video') {
                         if (transceiver.mid) {
+                            console.log('Adding Remote Video Track', receiver.track.readyState);
                             receiver.track.mid = transceiver.mid;
                             remoteVideoStream.addTrack(receiver.track);
+                            console.log('initiateRemoteMediaStreams-1');
                         }
                     }
                 }
@@ -798,8 +859,8 @@ const useSessionEvents = () => {
                         if (typeof remoteAudio.sinkId !== 'undefined') {
                             remoteAudio
                                 .setSinkId(audioOutputDeviceId)
-                                .then(() => void 0)
-                                .catch((e) => void 0);
+                                .then(() => console.log('sinkId applied:', audioOutputDeviceId))
+                                .catch((e) => console.warn('Error using setSinkId:', e));
                         }
                         remoteAudio.play();
                     };
@@ -809,6 +870,7 @@ const useSessionEvents = () => {
             if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
                 const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
                 let videoContainer = document.getElementById(videoContainerId);
+                console.log('initiateRemoteMediaStreams-2');
                 if (!videoContainer)
                     return;
                 // Clear existing videos
@@ -819,6 +881,7 @@ const useSessionEvents = () => {
                     thisRemoteVideoStream.mid = remoteVideoStreamTrack?.mid;
                     thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
                     let videoElement = document.getElementById(`line-${lineObj.lineNumber}-video-${index}`);
+                    console.log('initiateRemoteMediaStreams-30', { videoElement });
                     let videoCreated = false;
                     if (!videoElement) {
                         videoCreated = true;
@@ -829,12 +892,18 @@ const useSessionEvents = () => {
                         videoElement.muted = true; // Ensure autoplay works in browsers
                     }
                     videoElement.srcObject = thisRemoteVideoStream;
+                    console.log('initiateRemoteMediaStreams-31', { videoCreated, videoElement });
                     videoElement.onloadedmetadata = () => {
+                        console.log('initiateRemoteMediaStreams-32');
                         videoCreated && videoContainer.appendChild(videoElement);
                         videoElement.play().catch((error) => {
+                            console.error('Error playing video:', error);
                         });
                     };
                 });
+            }
+            else {
+                console.warn('No Video Tracks Found');
             }
             updateLine(lineObj);
         };
@@ -851,9 +920,11 @@ const useSessionEvents = () => {
                     pc.getReceivers().forEach((receiver) => {
                         if (receiver.track) {
                             if (receiver.track.kind === 'audio') {
+                                console.log('Adding Remote Audio Track');
                                 remoteAudioStream.addTrack(receiver.track);
                             }
                             if (includeVideo && receiver.track.kind === 'video') {
+                                console.log('Adding Remote Video Track', receiver.track.readyState);
                                 remoteVideoStream.addTrack(receiver.track);
                             }
                         }
@@ -867,8 +938,10 @@ const useSessionEvents = () => {
                             remoteAudio
                                 .setSinkId(session.data.audioOutputDevice)
                                 .then(function () {
+                                console.log('sinkId applied: ' + session.data.audioOutputDevice);
                             })
                                 .catch(function (e) {
+                                console.warn('Error using setSinkId: ', e);
                             });
                         }
                         remoteAudio.play();
@@ -889,12 +962,22 @@ const useSessionEvents = () => {
                             remoteVideo.className = 'video-element'; // Add styling class
                             remoteVideo.onloadedmetadata = () => {
                                 remoteVideo.play().catch((error) => {
+                                    console.error('Error playing video:', error);
                                 });
                             };
                         });
                     }
+                    else {
+                        console.warn('No Video Tracks Found');
+                    }
                 };
             }
+            else {
+                console.warn('onSessionDescriptionHandler fired without a peerConnection');
+            }
+        }
+        else {
+            console.warn('onSessionDescriptionHandler fired without a sessionDescriptionHandler');
         }
     }
     return {
@@ -940,6 +1023,7 @@ const useSpdOptions = () => {
     };
     const options = {
         answerAudioSpdOptions: function ({ option: defaultOption } = {}) {
+            console.log({ defaultOption });
             const option = defaultOption ?? {
                 sessionDescriptionHandlerOptions: {
                     constraints: {
@@ -958,6 +1042,9 @@ const useSpdOptions = () => {
                     option.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
                         exact: currentAudioDevice,
                     };
+                }
+                else {
+                    console.warn('The audio device you used before is no longer available, default settings applied.');
                 }
             }
             // Add additional Constraints
@@ -1030,6 +1117,9 @@ const useSpdOptions = () => {
                     option.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
                         exact: currentVideoDevice,
                     };
+                }
+                else {
+                    console.warn('The video device you used before is no longer available, default settings applied.');
                 }
             }
             // Add additional Constraints
@@ -17420,8 +17510,10 @@ const useSessionMethods = () => {
      * @returns
      */
     function receiveSession(invitation) {
+        console.log('receiveSession', { invitation });
         const callerID = invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user || '';
         let did = invitation.remoteIdentity.uri.user ?? '';
+        console.log(`Incoming call from: ${callerID}`);
         // Create or update buddy based on DID
         const lineObj = new Line(getNewLineNumber(), callerID);
         lineObj.sipSession = invitation;
@@ -17465,6 +17557,7 @@ const useSessionMethods = () => {
                     uriParts[1] = uriParts[1].slice(0, -1);
                 if (uriParts[1].includes(`@${configs.account.domain}`)) {
                     did = uriParts[1].split('@')[0];
+                    console.log('Using P-Asserted-Identity:', did);
                 }
             }
         }
@@ -17486,6 +17579,7 @@ const useSessionMethods = () => {
         // incomingInviteRequestDelegate
         session.incomingInviteRequest.delegate = {
             onCancel: function (sip) {
+                console.log('onInviteCancel');
                 onInviteCancel(lineObj, sip, () => teardownSession(lineObj));
             },
         };
@@ -17558,6 +17652,7 @@ const useSessionMethods = () => {
         if (configs.features.enableRingtone) {
             if (currentCalls >= 1) {
                 // Play Alert
+                console.log('Audio:', audioBlobs.CallWaiting.url);
                 const ringer = new Audio(audioBlobs.CallWaiting.url);
                 ringer.preload = 'auto';
                 ringer.loop = false;
@@ -17567,8 +17662,10 @@ const useSessionMethods = () => {
                         ringer
                             .setSinkId(configs.media.ringerOutputDeviceId)
                             .then(function () {
+                            console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
                         })
                             .catch(function (e) {
+                            console.warn('Failed not apply setSinkId.', e);
                         });
                     }
                     // If there has been no interaction with the page at all... this page will not work
@@ -17578,12 +17675,14 @@ const useSessionMethods = () => {
                         // Audio Is Playing
                     })
                         .catch(function (e) {
+                        console.warn('Unable to play audio file.', e);
                     });
                 };
                 session.data.ringerObj = ringer;
             }
             else {
                 // Play Ring Tone
+                console.log('Audio:', audioBlobs.Ringtone.url, audioBlobs.Ringtone);
                 const ringer = new Audio(audioBlobs.Ringtone.blob);
                 ringer.preload = 'auto';
                 ringer.loop = true;
@@ -17593,8 +17692,10 @@ const useSessionMethods = () => {
                         ringer
                             .setSinkId(configs.media.ringerOutputDeviceId)
                             .then(function () {
+                            console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
                         })
                             .catch(function (e) {
+                            console.warn('Failed not apply setSinkId.', e);
                         });
                     }
                     // If there has been no interaction with the page at all... this page will not work
@@ -17604,6 +17705,7 @@ const useSessionMethods = () => {
                         // Audio Is Playing
                     })
                         .catch(function (e) {
+                        console.warn('Unable to play audio file.', e);
                     });
                 };
                 session.data.ringerObj = ringer;
@@ -17624,6 +17726,7 @@ const useSessionMethods = () => {
         }
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj === null) {
+            console.warn('Failed to get line (' + lineNumber + ')');
             return;
         }
         const session = lineObj.sipSession;
@@ -17639,7 +17742,7 @@ const useSessionMethods = () => {
         // Start SIP handling
         const spdOptions = answerAudioSpdOptions();
         if (!spdOptions)
-            return void 0;
+            return console.error('answerAudioSession spdOptions is undefined');
         // MediaStreamStatus
         session.data.localMediaStreamStatus = {
             screenShareEnabled: false,
@@ -17661,6 +17764,7 @@ const useSessionMethods = () => {
             onInviteAccepted(lineObj, false);
         })
             .catch(function (error) {
+            console.warn('Failed to answer call', error, session);
             session.data.reasonCode = 500;
             session.data.reasonText = 'Client Error';
             teardownSession(lineObj);
@@ -17674,6 +17778,7 @@ const useSessionMethods = () => {
      * @returns
      */
     function makeAudioSession(lineObj, dialledNumber, extraHeaders) {
+        console.log(222, { lineObj, dialledNumber, extraHeaders });
         if (!userAgent)
             return;
         if (!userAgent.isRegistered())
@@ -17681,13 +17786,16 @@ const useSessionMethods = () => {
         if (lineObj === null)
             return;
         if (!hasAudioDevice) {
+            console.error('lang.alert_no_microphone');
             return;
         }
+        console.log('makeAudioSession');
         const spdOptions = makeAudioSpdOptions({ extraHeaders });
         if (!spdOptions)
             return;
         let startTime = dayJs.utc().toISOString();
         // Invite
+        console.log('INVITE (audio): ' + dialledNumber + '@' + configs.account.domain);
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
         lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
         const session = lineObj.sipSession;
@@ -17725,6 +17833,7 @@ const useSessionMethods = () => {
                 onSessionReinvited(lineObj, sip);
             },
             onSessionDescriptionHandler: function (sdh, provisional) {
+                console.log('Session Description Handler created:', { sdh });
                 onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, false);
             },
         };
@@ -17733,23 +17842,29 @@ const useSessionMethods = () => {
             requestDelegate: {
                 // OutgoingRequestDelegate
                 onTrying: function (sip) {
+                    console.log('makeAudioSession 1');
                     onInviteTrying(lineObj, sip);
                 },
                 onProgress: function (sip) {
+                    console.log('makeAudioSession 2');
                     onInviteProgress(lineObj, sip);
                 },
                 onRedirect: function (sip) {
+                    console.log('makeAudioSession 3');
                     onInviteRedirected(lineObj, sip);
                 },
                 onAccept: function (sip) {
+                    console.log('makeAudioSession 4');
                     onInviteAccepted(lineObj, false, sip);
                 },
                 onReject: function (sip) {
+                    console.log('makeAudioSession 5');
                     onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
                 },
             },
         };
         session.invite(inviterOptions).catch(function (e) {
+            console.warn('Failed to send INVITE:', e);
         });
         // updateLine(lineObj);
     }
@@ -17761,6 +17876,7 @@ const useSessionMethods = () => {
     function answerVideoSession(lineNumber, enableVideo) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null) {
+            console.warn('Failed to get line (' + lineNumber + ')');
             return;
         }
         const session = lineObj.sipSession;
@@ -17804,9 +17920,11 @@ const useSessionMethods = () => {
                 }
             }
             catch (error) {
+                console.error('AnswerVideoSession onStateChange', error);
             }
         })
             .catch(function (error) {
+            console.warn('Failed to answer call', error, session);
             session.data.reasonCode = 500;
             session.data.reasonText = 'Client Error';
             teardownSession(lineObj);
@@ -17832,6 +17950,7 @@ const useSessionMethods = () => {
             return;
         }
         if (!hasVideoDevice) {
+            console.warn('No video devices (webcam) found, switching to audio call.');
             makeAudioSession(lineObj, dialledNumber);
             return;
         }
@@ -17840,6 +17959,7 @@ const useSessionMethods = () => {
             return;
         const startTime = dayJs.utc().toISOString();
         // Invite
+        console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
         lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
         const session = lineObj.sipSession;
@@ -17899,6 +18019,7 @@ const useSessionMethods = () => {
             },
         };
         session.invite(inviterOptions).catch(function (e) {
+            console.warn('Failed to send INVITE:', e);
         });
         // updateLine(lineObj); TODO
     }
@@ -17937,6 +18058,7 @@ const useSessionMethods = () => {
                 pc.addTrack(cameraTrack); // Add new video track to connection
             }
             catch (err) {
+                console.error('Failed to get video track:', err);
                 return;
             }
         }
@@ -17976,6 +18098,7 @@ const useSessionMethods = () => {
                 }
             }
             catch (err) {
+                console.error('Failed to restore camera:', err);
             }
             session.data.localMediaStreamStatus.screenShareEnabled = false;
             sendMessageSession(session, SendMessageSessionEnum.SCREEN_SHARE_TOGGLE, false);
@@ -18002,6 +18125,7 @@ const useSessionMethods = () => {
                 sendMessageSession(session, SendMessageSessionEnum.SCREEN_SHARE_TOGGLE, true);
             }
             catch (err) {
+                console.error('Screen share failed:', err);
                 return;
             }
         }
@@ -18015,6 +18139,7 @@ const useSessionMethods = () => {
     function rejectSession(lineNumber) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null) {
+            console.warn('Unable to find line (' + lineNumber + ')');
             return;
         }
         const session = lineObj.sipSession;
@@ -18022,6 +18147,7 @@ const useSessionMethods = () => {
             return;
         if (session.state == SessionState.Established) {
             session.bye().catch(function (e) {
+                console.warn('Problem in rejectSession(), could not bye() call', e, session);
             });
         }
         else {
@@ -18031,6 +18157,7 @@ const useSessionMethods = () => {
                 reasonPhrase: 'Busy Here',
             })
                 .catch(function (e) {
+                console.warn('Problem in rejectSession(), could not reject() call', e, session);
             });
         }
         session.data.terminateBy = 'us';
@@ -18090,6 +18217,7 @@ const useSessionMethods = () => {
         const session = lineObj.sipSession;
         if (session.isOnHold === forcedValue)
             return;
+        console.log('Toggle Call on hold:', lineNumber);
         const toggledHold = forcedValue ?? !(session.isOnHold ?? false);
         session.isOnHold = toggledHold;
         const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
@@ -18111,9 +18239,11 @@ const useSessionMethods = () => {
                 if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
                     if (track.IsMixedTrack == true) {
                         if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+                            console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
                             session.data.audioSourceTrack.enabled = toggledHold;
                         }
                     }
+                    console.log('Toggle Audio Track : ' + track.label);
                     track.enabled = toggledHold;
                 }
                 // Stop Video
@@ -18122,6 +18252,7 @@ const useSessionMethods = () => {
                 }
             });
         }
+        console.log('Call is is on hold:', lineNumber);
         session.data.isHold = toggledHold;
         updateLine(lineObj);
     }
@@ -18149,9 +18280,11 @@ const useSessionMethods = () => {
                     const track = RTCRtpSender.track;
                     if (track.IsMixedTrack == true) {
                         if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
+                            console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
                             session.data.audioSourceTrack.enabled = toggledSound;
                         }
                     }
+                    console.log('Toggle Audio Track : ' + track.label);
                     track.enabled = toggledSound;
                 }
             });
@@ -18175,10 +18308,13 @@ const useSessionMethods = () => {
         session.data.terminateBy = 'us';
         session.data.reasonCode = 0;
         session.data.reasonText = 'Call Cancelled';
+        console.log('Cancelling session : ' + lineNumber);
         if (session.state == SessionState.Initial || session.state == SessionState.Establishing) {
             session.cancel();
         }
         else {
+            console.warn('Session not in correct state for cancel.', session.state);
+            console.log('Attempting teardown : ' + lineNumber);
             teardownSession(lineObj);
         }
     }
@@ -18190,6 +18326,7 @@ const useSessionMethods = () => {
     function endSession(lineNumber) {
         const lineObj = findLineByNumber(lineNumber);
         if (lineObj == null) {
+            console.warn('Unable to find line (' + lineNumber + ')');
             return;
         }
         const session = lineObj.sipSession;
@@ -18213,6 +18350,7 @@ const useSessionMethods = () => {
                         reasonPhrase: 'Busy Here',
                     })
                         .catch(function (e) {
+                        console.warn('Problem in rejectSession(), could not reject() call', e, session);
                     });
                     session.data.terminateBy = 'us';
                     session.data.reasonCode = 486;
@@ -18222,6 +18360,7 @@ const useSessionMethods = () => {
                 break;
             case SessionState.Established:
                 session.bye().catch(function (e) {
+                    console.warn('Problem in rejectSession(), could not bye() call', e, session);
                 });
                 session.data.terminateBy = 'us';
                 session.data.reasonCode = 486;
@@ -18229,6 +18368,8 @@ const useSessionMethods = () => {
                 teardownSession(lineObj);
                 break;
             default:
+                console.warn('Session not in correct state for cancel.', session.state);
+                console.log('Attempting teardown : ' + lineNumber);
                 teardownSession(lineObj);
                 break;
         }
@@ -18253,6 +18394,7 @@ const useSessionMethods = () => {
                 session.data.childsession = null;
             })
                 .catch(function (error) {
+                console.error('teardownSession', { error });
                 session.data.childsession = null;
                 // Suppress message
             });
@@ -18358,17 +18500,21 @@ const useSessionMethods = () => {
      */
     function cancelTransferSession(lineNumber) {
         const lineObj = findLineByNumber(lineNumber);
+        console.log('cancelTransferSession', { lineObj });
         if (lineObj == null || lineObj.sipSession == null) {
+            console.warn('Null line or session');
             return;
         }
         const session = lineObj.sipSession;
         if (session.data.childsession) {
+            console.log('Child Transfer call detected:', session.data.childsession.state);
             session.data.childsession
                 .dispose()
                 .then(function () {
                 session.data.childsession = null;
             })
                 .catch(function (error) {
+                console.error('cancelTransferSession', { error });
                 session.data.childsession = null;
                 // Suppress message
             });
@@ -18395,10 +18541,13 @@ const useSessionMethods = () => {
             return;
         const dstNo = String(transferLineNumber);
         if (dstNo === '') {
+            console.warn('Cannot transfer, no number');
             return;
         }
         let lineObj = baseLine;
+        console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
         if (!lineObj?.sipSession) {
+            console.warn('Null line or session');
             return;
         }
         const session = lineObj.sipSession;
@@ -18430,6 +18579,7 @@ const useSessionMethods = () => {
                 },
             },
         };
+        console.log('attend1');
         if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object')
             return; // type checking assurance
         if (session.data.audioSourceDevice && session.data.audioSourceDevice != 'default') {
@@ -18477,11 +18627,13 @@ const useSessionMethods = () => {
                 spdOptions.sessionDescriptionHandlerOptions.constraints.video = true;
         }
         // Create new call session
+        console.log(555, 'TRANSFER INVITE: ', 'sip:' + dstNo + '@' + configs.account.domain, spdOptions);
         const targetURI = UserAgent.makeURI('sip:' + dstNo.replace(/#/g, '%23') + '@' + configs.account.domain);
         const newSession = new Inviter(userAgent, targetURI, spdOptions);
         newSession.data = {};
         newSession.delegate = {
             onBye: function () {
+                console.log('New call session ended with BYE');
                 if (session.data.transfer) {
                     session.data.transfer[transferId].disposition = 'bye';
                     session.data.transfer[transferId].dispositionTime = utcDateNow();
@@ -18501,12 +18653,14 @@ const useSessionMethods = () => {
                     session.data.transfer[transferId].dispositionTime = utcDateNow();
                 },
                 onProgress: function () {
+                    console.log('onProgress');
                     if (!session.data.transfer)
                         return;
                     session.data.transfer[transferId].disposition = 'progress';
                     session.data.transfer[transferId].dispositionTime = utcDateNow();
                     session.data.transfer[transferId].onCancle = () => {
                         newSession.cancel().catch(function (error) {
+                            console.warn('Failed to CANCEL', error);
                         });
                         if (!session.data.transfer)
                             return;
@@ -18514,8 +18668,10 @@ const useSessionMethods = () => {
                         session.data.transfer[transferId].accept.disposition = 'cancel';
                         session.data.transfer[transferId].accept.eventTime = utcDateNow();
                     };
+                    console.log('New call session canceled');
                 },
                 onRedirect: function (sip) {
+                    console.log('Redirect received:', sip);
                 },
                 onAccept: function () {
                     if (!session.data.transfer)
@@ -18527,6 +18683,7 @@ const useSessionMethods = () => {
                     const transferOptions = {
                         requestDelegate: {
                             onAccept: function (sip) {
+                                console.log('Attended transfer Accepted');
                                 if (!session.data.transfer)
                                     return;
                                 session.data.terminateBy = 'us';
@@ -18538,10 +18695,12 @@ const useSessionMethods = () => {
                                 session.data.transfer[transferId].accept.eventTime = utcDateNow();
                                 // We must end this session manually
                                 session.bye().catch(function (error) {
+                                    console.warn('Could not BYE after blind transfer:', error);
                                 });
                                 teardownSession(lineObj);
                             },
                             onReject: function (sip) {
+                                console.warn('Attended transfer rejected:', sip);
                                 if (!session.data.transfer)
                                     return;
                                 session.data.transfer[transferId].accept.complete = false;
@@ -18553,17 +18712,20 @@ const useSessionMethods = () => {
                     };
                     // Send REFER
                     session.refer(newSession, transferOptions).catch(function (error) {
+                        console.warn('Failed to REFER', error);
                     });
                 },
                 onReject: function (sip) {
                     if (!session.data.transfer)
                         return;
+                    console.log('New call session rejected: ', sip.message.reasonPhrase);
                     session.data.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
                     session.data.transfer[transferId].dispositionTime = utcDateNow();
                 },
             },
         };
         newSession.invite(inviterOptions).catch(function (e) {
+            console.warn('Failed to send INVITE:', e);
         });
         updateLine(lineObj);
     }
@@ -18650,10 +18812,13 @@ const useSessionMethods = () => {
             return;
         const dstNo = String(transferLineNumber);
         if (dstNo === '') {
+            console.warn('Cannot transfer, no number');
             return;
         }
         let lineObj = baseLine;
+        console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
         if (!lineObj?.sipSession) {
+            console.warn('Null line or session');
             return;
         }
         const session = lineObj.sipSession;
@@ -18974,6 +19139,7 @@ function onRegistered(userAgent) {
     const clonedUserAgent = clone(userAgent);
     clonedUserAgent.registrationCompleted = true;
     if (!clonedUserAgent.isReRegister) {
+        console.log('Registered!');
         // Start Subscribe Loop
         // setTimeout(function () {
         //   SubscribeAll(clonedUserAgent);
@@ -18982,6 +19148,7 @@ function onRegistered(userAgent) {
     }
     else {
         clonedUserAgent.registering = false;
+        console.log('ReRegistered!');
     }
     clonedUserAgent.isReRegister = true;
     setSipStore({ userAgent: clonedUserAgent });
@@ -19016,6 +19183,7 @@ function register(userAgent) {
         return;
     if (clonedUserAgent.isRegistered())
         return;
+    console.log('Sending Registration...');
     clonedUserAgent.registering = true;
     clonedUserAgent.registerer.register({
         requestDelegate: {
@@ -19030,6 +19198,7 @@ function register(userAgent) {
 
 /* -------------------------------------------------------------------------- */
 function onTransportConnected(userAgent) {
+    console.log('Connected to Web Socket!');
     const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
     if (!clonedUserAgent)
         return;
@@ -19044,10 +19213,14 @@ function onTransportConnected(userAgent) {
             register(clonedUserAgent);
         }, 500);
     }
+    else {
+        console.warn('onTransportConnected: register() called, but attemptingReconnection is true or registering is true');
+    }
     if (!userAgent)
         setSipStore({ userAgent: clonedUserAgent });
 }
 function onTransportConnectError(error, userAgent) {
+    console.warn('WebSocket Connection Failed:', error);
     const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
     if (!clonedUserAgent)
         return;
@@ -19055,6 +19228,7 @@ function onTransportConnectError(error, userAgent) {
     clonedUserAgent.isReRegister = false;
     // If there is an issue with the WS connection
     // We unregister, so that we register again once its up
+    console.log('Unregister...');
     try {
         clonedUserAgent.registerer.unregister();
     }
@@ -19066,6 +19240,7 @@ function onTransportConnectError(error, userAgent) {
         setSipStore({ userAgent: clonedUserAgent });
 }
 function onTransportDisconnected(userAgent) {
+    console.log('Disconnected from Web Socket!');
     const clonedUserAgent = clone(userAgent);
     clonedUserAgent.isReRegister = false;
     setSipStore({ userAgent: clonedUserAgent });
@@ -19080,9 +19255,12 @@ function reconnectTransport(userAgent) {
         onTransportConnected(clonedUserAgent);
         return;
     }
+    console.log('Reconnect Transport...');
     setTimeout(function () {
+        console.log('ReConnecting to WebSocket...');
         if (clonedUserAgent.transport && clonedUserAgent.transport.isConnected()) {
             // Already Connected
+            console.log('Transport Already Connected...');
             onTransportConnected(clonedUserAgent);
             return;
         }
@@ -19090,11 +19268,13 @@ function reconnectTransport(userAgent) {
             clonedUserAgent.transport.attemptingReconnection = true;
             clonedUserAgent.reconnect().catch(function (error) {
                 clonedUserAgent.transport.attemptingReconnection = false;
+                console.warn('Failed to reconnect', error);
                 // Try Again
                 reconnectTransport(clonedUserAgent);
             });
         }
     }, getSipStoreConfigs().registration.transportReconnectionTimeout);
+    console.log('Waiting to Re-connect...', 'Attempt remaining', clonedUserAgent.transport.reconnectionAttempts);
     clonedUserAgent.transport.reconnectionAttempts =
         clonedUserAgent.transport.reconnectionAttempts - 1;
     if (!userAgent)
@@ -19116,6 +19296,7 @@ function detectDevices(callback) {
         callback(deviceInfos);
     })
         .catch(function (e) {
+        console.error('Error enumerating devices', e);
     });
 }
 /* -------------------------------------------------------------------------- */
@@ -19129,13 +19310,22 @@ async function getMediaPermissions(media) {
             ...defaultPermissions,
             ...(media && { [media]: true }),
         });
+        console.log('Media stream obtained:', { stream });
         return stream;
     }
     catch (error) {
-        if (error.name === 'NotAllowedError') ;
-        else if (error.name === 'NotFoundError') ;
-        else if (error.name === 'OverconstrainedError') ;
-        else ;
+        if (error.name === 'NotAllowedError') {
+            console.error('Permissions denied by the user.');
+        }
+        else if (error.name === 'NotFoundError') {
+            console.error('No media devices found.');
+        }
+        else if (error.name === 'OverconstrainedError') {
+            console.error('Constraints cannot be satisfied by available devices.');
+        }
+        else {
+            console.error('Unknown error:', error);
+        }
         throw error;
     }
 }
@@ -19183,7 +19373,7 @@ const SipProvider = ({ children, configs }) => {
             authorizationPassword: mergedConfigs.account.password,
             delegate: {
                 onInvite: receiveSession,
-                onMessage: () => void 0, //TODO ReceiveOutOfDialogMessage
+                onMessage: () => console.log('Received message'), //TODO ReceiveOutOfDialogMessage
             },
         });
         // Setting custom properties and methods for userAgent
@@ -19218,7 +19408,10 @@ const SipProvider = ({ children, configs }) => {
             refreshFrequency: 75, // Determines when a re-REGISTER request is sent. The value should be specified as a percentage of the expiration time (between 50 and 99).
         };
         ua.registerer = new Registerer(ua, RegistererOptions);
+        console.log('Creating Registerer... Done');
         ua.registerer.stateChange.addListener(function (newState) {
+            console.log('User Agent Registration State:', newState);
+            console.log({ 'SIP-STATUS': newState });
             switch (newState) {
                 case RegistererState.Initial:
                     // Nothing to do
@@ -19234,9 +19427,11 @@ const SipProvider = ({ children, configs }) => {
                     break;
             }
         });
+        console.log('User Agent Connecting to WebSocket...');
         await ua.start().catch(function (error) {
-            onTransportConnectError();
+            onTransportConnectError(error);
         });
+        console.log('createUserAgent', { ua });
         updateUserAgent(ua);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mergedConfigs]);
@@ -19244,6 +19439,7 @@ const SipProvider = ({ children, configs }) => {
     const initiateDetectedDevices = () => {
         //TODO useHook
         detectDevices((deviceInfos) => {
+            console.log({ deviceInfos });
             if (!deviceInfos)
                 return;
             let tmpHasAudioDevice = hasAudioDevice;
