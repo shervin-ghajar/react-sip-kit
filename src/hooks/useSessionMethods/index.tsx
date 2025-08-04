@@ -495,7 +495,7 @@ export const useSessionMethods = () => {
       .then(async () => {
         try {
           await onInviteAccepted(lineObj, true);
-          if (enableVideo) {
+          if (session.data.localMediaStreamStatus?.videoEnabled) {
             await sendVideoActivationWithAckRetry(session, { delayMs: 2000, maxRetries: 10 });
           }
         } catch (error) {

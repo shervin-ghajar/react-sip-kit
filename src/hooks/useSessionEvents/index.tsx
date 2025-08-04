@@ -532,14 +532,14 @@ export const useSessionEvents = () => {
           }
           videoElement.srcObject = thisRemoteVideoStream;
           console.log('initiateRemoteMediaStreams-31', { videoCreated, videoElement });
-          // !videoCreated && videoElement.load();
+
           videoElement.onloadedmetadata = () => {
             console.log('initiateRemoteMediaStreams-32');
-            videoCreated && videoContainer.appendChild(videoElement);
             videoElement.play().catch((error) => {
               console.error('Error playing video:', error);
             });
           };
+          videoCreated && videoContainer.appendChild(videoElement);
         });
       } else {
         console.warn('No Video Tracks Found');
