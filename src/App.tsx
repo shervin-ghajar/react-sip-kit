@@ -51,6 +51,8 @@ function App({ username }: { username: string }) {
 
         <button onClick={() => dialByNumber('video', '1012')}>{`Video Call 1012`}</button>
         <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
+        <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
+        <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
       </div>
     </div>
   );
@@ -194,9 +196,10 @@ const SipLine = ({ line }: { line: LineType }) => {
         >{`Cancel Call`}</button>
       )}
 
-      <Audio lineNumber={line.lineNumber} />
-      <Audio type={'transfer'} lineNumber={line.lineNumber} />
-      <Audio type={'conference'} lineNumber={line.lineNumber} />
+      <Audio type="local" lineNumber={line.lineNumber} />
+      <Audio type="remote" lineNumber={line.lineNumber} />
+      {/* <Audio type={'transfer'} lineNumber={line.lineNumber} /> */}
+      {/* <Audio type={'conference'} lineNumber={line.lineNumber} /> */}
     </div>
   );
 };

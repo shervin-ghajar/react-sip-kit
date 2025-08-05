@@ -15,7 +15,7 @@ interface RemoteVidepProps extends HTMLAttributes<HTMLDivElement>, DefaultVideoP
 }
 
 type VideoProps = LocalVideoProps | RemoteVidepProps;
-
+// TODO remoteVideo should cover renderVIdeo props to itterate on each video track
 export const Video = ({ lineNumber, ...rest }: VideoProps) => {
   return rest.type === 'local' ? (
     <video

@@ -806,6 +806,101 @@ export const useSessionMethods = () => {
     }
     addLine(lineObj);
   }
+
+  /**
+   * Initiates a video (or audio) SIP session to a predefined conference room (e.g., 700).
+   * Falls back to audio-only if no video device is found.
+   * Handles full session lifecycle with delegates and media configuration.
+   */
+  function makeConferenceSession(lineObj: LineType, extraHeaders?: Array<string>) {
+    // Ensure SIP user agent is available, registered, and line object is valid
+    if (!userAgent || !userAgent.isRegistered() || !lineObj) return;
+
+    // Check audio device availability (required)
+    if (!hasAudioDevice) {
+      alert('lang.alert_no_microphone');
+      return;
+    }
+
+    // Warn if no video device; fallback is handled below
+    if (!hasVideoDevice) {
+      console.warn('No video devices (webcam) found, switching to audio-only conference.');
+    }
+
+    // Create video session options, e.g. constraints, headers
+    const spdOptions = makeVideoSpdOptions({ extraHeaders });
+    if (!spdOptions) return;
+
+    // Start time for logging/metadata
+    const startTime = dayJs.utc().toISOString();
+    const conferenceNumber = '700'; // Conference room address
+
+    console.log('INVITE (conference): ' + conferenceNumber + '@' + configs.account.domain);
+
+    // Create target SIP URI for conference room
+    const targetURI = UserAgent.makeURI(`sip:${conferenceNumber}@${configs.account.domain}`) as URI;
+
+    // Create SIP Inviter (outgoing call session)
+    lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
+    const session = lineObj.sipSession;
+
+    // Attach session metadata
+    session.data = {
+      line: lineObj.lineNumber,
+      callDirection: 'outbound',
+      dialledNumber: conferenceNumber,
+      startTime,
+      videoSourceDevice: configs.media.videoInputDeviceId,
+      audioSourceDevice: configs.media.audioInputDeviceId,
+      audioOutputDevice: configs.media.audioOutputDeviceId,
+      terminateBy: 'them',
+      localMediaStreamStatus: {
+        screenShareEnabled: false,
+        soundEnabled: true,
+        videoEnabled: !!hasVideoDevice,
+      },
+      remoteMediaStreamStatus: {
+        screenShareEnabled: false,
+        soundEnabled: true,
+        videoEnabled: false,
+      },
+      earlyReject: false,
+    };
+
+    session.callType = hasVideoDevice ? 'video' : 'audio';
+    session.isOnHold = false;
+
+    // Define SIP session event handlers
+    session.delegate = {
+      onBye: (sip) => onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj)),
+      onMessage: (sip) => onSessionReceivedMessage(lineObj, sip),
+      onInvite: (sip) => onSessionReinvited(lineObj, sip),
+      onSessionDescriptionHandler: (sdh, provisional) =>
+        onSessionDescriptionHandlerCreated(
+          lineObj,
+          sdh as SipSessionDescriptionHandler,
+          provisional,
+          true,
+        ),
+    };
+
+    // Define response handlers for the INVITE request
+    const inviterOptions: InviterInviteOptions = {
+      requestDelegate: {
+        onTrying: (sip) => onInviteTrying(lineObj, sip),
+        onProgress: (sip) => onInviteProgress(lineObj, sip),
+        onRedirect: (sip) => onInviteRedirected(lineObj, sip),
+        onAccept: (sip) => onInviteAccepted(lineObj, true, sip),
+        onReject: (sip) => onInviteRejected(lineObj, sip, () => teardownSession(lineObj)),
+      },
+    };
+
+    // Send INVITE to join the conference
+    session.invite(inviterOptions).catch((e) => {
+      console.warn('Failed to join conference:', e);
+    });
+  }
+
   /* -------------------------------------------------------------------------- */
   /*                        In-Session Call Functionality                       */
   /*                           HOLD/MUTE/END/TRANSFER                           */
@@ -1515,6 +1610,7 @@ export const useSessionMethods = () => {
     toggleShareScreen,
     rejectSession,
     dialByNumber,
+    makeConferenceSession,
     endSession,
     toggleMuteSession,
     toggleHoldSession,

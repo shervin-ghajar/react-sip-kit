@@ -1,6 +1,6 @@
 import { getSipStore } from '../../store';
 import { LineType } from '../../store/types';
-import { SendMessageSessionValueType, SendMessageSessionEnum } from './type';
+import { SendMessageSessionValueType, SendMessageSessionEnum, RecordController } from './type';
 
 /* -------------------------------------------------------------------------- */
 export function teardownSession(lineObj: LineType) {
@@ -165,4 +165,118 @@ export async function sendVideoActivationWithAckRetry(
 
     trySend();
   });
+}
+/* -------------------------------------------------------------------------- */
+/**
+ * Initializes a call recorder for the specified SIP line.
+ *
+ * Combines both local (from senders) and remote (from receivers) media tracks
+ * into a single MediaStream and records them using the MediaRecorder API.
+ *
+ * Returns a controller with methods to start and stop recording,
+ * as well as access the recorded media as a Blob or URL.
+ *
+ * @param lineNumber - The SIP line number associated with the call session.
+ * @returns A RecordController with controls for managing the recording lifecycle.
+ */
+export function recordSession(lineNumber: LineType['lineNumber']): RecordController | undefined {
+  // Get session from line
+  const lineObj = getSipStore().findLineByNumber(lineNumber);
+  if (lineObj === null) {
+    console.warn('❌ Failed to get line (' + lineNumber + ')');
+    return;
+  }
+
+  const session = lineObj.sipSession;
+  const pc = session?.sessionDescriptionHandler?.peerConnection;
+
+  if (!session || !pc) {
+    console.warn('❌ Failed to get session or peer connection for line', lineNumber);
+    return;
+  }
+
+  // Build local stream from sender tracks
+  const localStream = new MediaStream();
+  pc.getSenders().forEach((sender) => {
+    if (sender.track) {
+      localStream.addTrack(sender.track);
+    }
+  });
+
+  // Build remote stream from receiver tracks
+  const remoteStream = new MediaStream();
+  pc.getReceivers().forEach((receiver) => {
+    if (receiver.track) {
+      remoteStream.addTrack(receiver.track);
+    }
+  });
+
+  // Combine both into one stream for recording
+  const combinedStream = new MediaStream([...localStream.getTracks(), ...remoteStream.getTracks()]);
+
+  // Setup recorder state
+  let chunks: BlobPart[] = [];
+  let recorder: MediaRecorder | null = null;
+  let recordedBlob: Blob | null = null;
+
+  return {
+    /**
+     * Starts recording the combined local + remote media stream
+     */
+    start: () => {
+      chunks = [];
+
+      try {
+        recorder = new MediaRecorder(combinedStream, {
+          mimeType: 'video/webm; codecs=vp8,opus',
+        });
+      } catch (err) {
+        console.error('❌ Failed to create MediaRecorder:', err);
+        return;
+      }
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        recordedBlob = new Blob(chunks, { type: 'video/webm' });
+        console.log('📁 Recording complete. Blob size:', recordedBlob.size);
+      };
+
+      recorder.start();
+      console.log('🔴 Recording started on line', lineNumber);
+    },
+
+    /**
+     * Stops the recording and returns a Blob of the recorded media
+     */
+    stop: () => {
+      return new Promise<Blob>((resolve) => {
+        if (recorder && recorder.state !== 'inactive') {
+          recorder.onstop = () => {
+            recordedBlob = new Blob(chunks, { type: 'video/webm' });
+            console.log('🛑 Recording stopped');
+            resolve(recordedBlob);
+          };
+          recorder.stop();
+        } else {
+          console.warn('⚠️ No active recorder found to stop.');
+          resolve(recordedBlob!);
+        }
+      });
+    },
+
+    /**
+     * Returns the final Blob (after stop)
+     */
+    getBlob: () => recordedBlob,
+
+    /**
+     * Returns a local URL to preview/download the Blob
+     */
+    getUrl: () => (recordedBlob ? URL.createObjectURL(recordedBlob) : null),
+  };
 }

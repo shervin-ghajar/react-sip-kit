@@ -17,3 +17,10 @@ export type SendMessageRequestBody<
   type: T;
   value: SendMessageSessionValueType[T];
 };
+
+export type RecordController = {
+  start: () => void;
+  stop: () => Promise<Blob>;
+  getBlob: () => Blob | null;
+  getUrl: () => string | null;
+};
