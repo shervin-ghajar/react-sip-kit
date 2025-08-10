@@ -3,7 +3,7 @@ import { Audio, Video } from './components';
 import { useSessionMethods } from './hooks';
 import { useSipProvider } from './provider';
 import { LineType } from './store/types';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider();
@@ -46,11 +46,11 @@ function App({ username }: { username: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByNumber('audio', '1012')}>{`Call 1012`}</button>
-        <button onClick={() => dialByNumber('audio', '1010')}>{`Call 1010`}</button>
+        <button onClick={() => dialByNumber('audio', '1013')}>{`Call 1013`}</button>
+        <button onClick={() => dialByNumber('audio', '1011')}>{`Call 1011`}</button>
 
-        <button onClick={() => dialByNumber('video', '1012')}>{`Video Call 1012`}</button>
-        <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
+        <button onClick={() => dialByNumber('video', '1013')}>{`Video Call 1013`}</button>
+        <button onClick={() => dialByNumber('video', '1011')}>{`Video Call 1011`}</button>
         <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
         <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
       </div>
@@ -72,6 +72,7 @@ const SipLine = ({ line }: { line: LineType }) => {
     cancelAttendedTransferSession,
     attendedTransferSession,
     toggleShareScreen,
+    recordSession,
   } = useSessionMethods();
   const isVideoCall = line.sipSession?.callType === 'video';
   const callStarted = line.sipSession?.data.started;
@@ -86,13 +87,17 @@ const SipLine = ({ line }: { line: LineType }) => {
   const isOutbound = line.sipSession?.data.callDirection === 'outbound';
   const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
   const isHold = line.sipSession?.isOnHold;
+  const isRecording = line.sipSession?.data?.recordMedia?.recording;
+
   console.log({
     localMediaStreamStatus: line.sipSession?.data.localMediaStreamStatus,
     remoteMediaStreamStatus: line.sipSession?.data.remoteMediaStreamStatus,
   });
-  console.log({ localMediaStreamEnabled, remoteMediaStreamEnabled });
-  const pc = line?.sipSession?.sessionDescriptionHandler?.peerConnection;
+  console.log({ recordMedia: line.sipSession?.data?.recordMedia });
 
+  console.log({ localMediaStreamEnabled, remoteMediaStreamEnabled });
+  const recorder = recordSession(line.lineNumber);
+  // console.log({ recorder: recorder?.getUrl() });
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call
     setTimeout(() => {
@@ -160,9 +165,15 @@ const SipLine = ({ line }: { line: LineType }) => {
           </button>
           <button
             style={{ color: 'darkred' }}
-            onClick={() => cancelAttendedTransferSession(line, 1010)}
+            onClick={() => cancelAttendedTransferSession(line, 1011)}
           >
-            {'Cancel Transfer To 1010'}
+            {'Cancel Transfer To 1011'}
+          </button>
+          <button
+            style={{ color: 'darkred' }}
+            onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
+          >
+            {`${isRecording ? 'Recording' : 'Record'}`}
           </button>
         </div>
       ) : (

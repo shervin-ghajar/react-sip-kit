@@ -25,11 +25,13 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     set((state) => ({ ...state, userAgent })),
   addLine: (newLine: LineType) => set((state) => ({ ...state, lines: [...state.lines, newLine] })),
   updateLine: (updatedLine: LineType) => {
-    const updatedLines = get().lines.map((line) => {
-      if (line.lineNumber === updatedLine.lineNumber) return { ...updatedLine };
-      return line;
-    });
-    set((state) => ({ ...state, lines: updatedLines }));
+    set((state) => ({
+      ...state,
+      lines: state.lines.map((line) => {
+        if (line.lineNumber === updatedLine.lineNumber) return { ...updatedLine };
+        return line;
+      }),
+    }));
   },
   removeLine: (lineNumber: LineType['lineNumber']) => {
     console.log('removeLine');

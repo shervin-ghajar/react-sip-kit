@@ -8,7 +8,8 @@ import {
   reconnectTransport,
 } from './events/transport';
 import { useSessionMethods } from './hooks';
-import { detectDevices, getMediaPermissions } from './methods/initialization';
+import { useGetMediaDevices } from './hooks/useGetMediaDevices';
+import { getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipContextType, SipProviderProps, SipUserAgent } from './types';
 import { deepMerge } from './utils';
@@ -20,13 +21,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
   const userAgent = useSipStore((state) => state.userAgent);
   const lines = useSipStore((state) => state.lines);
   const setSipStore = useSipStore((state) => state.setSipStore);
-  const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
-  const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
-  const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
-  const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
-  const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
-  const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
-
+  const { getDevices } = useGetMediaDevices();
   const mergedConfigs = useMemo(
     () => deepMerge(defaultSipConfigs, configs as SipConfigs),
     [configs],
@@ -48,7 +43,7 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
     await getMediaPermissions('audio');
 
     // User Connected Devices Detection
-    initiateDetectedDevices();
+    await initiateDetectedDevices();
 
     // Create user agent for SIP connection
     await createUserAgent();
@@ -138,41 +133,9 @@ export const SipProvider = ({ children, configs }: SipProviderProps) => {
   }, [mergedConfigs]);
 
   // Detect devices
-  const initiateDetectedDevices = () => {
-    //TODO useHook
-    detectDevices((deviceInfos) => {
-      console.log({ deviceInfos });
-      if (!deviceInfos) return;
-      let tmpHasAudioDevice = hasAudioDevice;
-      let tmpAudioInputDevices = audioInputDevices;
-      let tmpHasSpeakerDevice = hasSpeakerDevice;
-      let tmpSpeakerDevices = speakerDevices;
-      let tmpHasVideoDevice = hasVideoDevice; // Safari and Firefox don't have these
-      let tmpVideoInputDevices = videoInputDevices;
-      for (let i = 0; i < deviceInfos.length; ++i) {
-        if (deviceInfos[i].kind === 'audioinput') {
-          tmpHasAudioDevice = true;
-          tmpAudioInputDevices.push(deviceInfos[i]);
-        } else if (deviceInfos[i].kind === 'audiooutput') {
-          tmpHasSpeakerDevice = true;
-          tmpSpeakerDevices.push(deviceInfos[i]);
-        } else if (deviceInfos[i].kind === 'videoinput') {
-          if (mergedConfigs.features.enableVideo) {
-            tmpHasVideoDevice = true;
-            tmpVideoInputDevices.push(deviceInfos[i]);
-          }
-        }
-      }
-      setSipStore({
-        devicesInfo: {
-          hasAudioDevice: tmpHasAudioDevice,
-          audioInputDevices: tmpAudioInputDevices,
-          hasSpeakerDevice: tmpHasSpeakerDevice,
-          speakerDevices: tmpSpeakerDevices,
-          hasVideoDevice: tmpHasVideoDevice,
-          videoInputDevices: tmpVideoInputDevices,
-        },
-      });
+  const initiateDetectedDevices = async () => {
+    setSipStore({
+      devicesInfo: await getDevices(),
     });
   };
   // Update UserAgent

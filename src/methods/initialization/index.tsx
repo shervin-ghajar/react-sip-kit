@@ -1,22 +1,6 @@
-import { CallbackFunction } from '../../types';
-
-/* -------------------------------------------------------------------------- */
 // Detect Devices
-export function detectDevices(callback: CallbackFunction<MediaDeviceInfo[]>) {
-  navigator.mediaDevices
-    .enumerateDevices()
-    .then(function (deviceInfos) {
-      // deviceInfos will not have a populated lable unless to accept the permission
-      // during getUserMedia. This normally happens at startup/setup
-      // so from then on these devices will be with lables.
-      // deviceInfos.map((deviceInfo) => {
-      //   console.log({ audiooutput: deviceInfo.kind });
-      // });
-      callback(deviceInfos);
-    })
-    .catch(function (e) {
-      console.error('Error enumerating devices', e);
-    });
+export async function detectDevices(): Promise<MediaDeviceInfo[]> {
+  return await navigator.mediaDevices.enumerateDevices();
 }
 /* -------------------------------------------------------------------------- */
 export async function getMediaPermissions(media?: 'audio' | 'video') {
