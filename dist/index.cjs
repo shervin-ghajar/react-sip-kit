@@ -220,14 +220,15 @@ const useSipStore = create((set, get) => ({
     setSipStore: (newState) => set((state) => ({ ...state, ...newState })),
     setUserAgent: (userAgent) => set((state) => ({ ...state, userAgent })),
     addLine: (newLine) => set((state) => ({ ...state, lines: [...state.lines, newLine] })),
-    updateLine: (updatedLine, callback) => {
-        const updatedLines = get().lines.map((line) => {
-            if (line.lineNumber === updatedLine.lineNumber)
-                return { ...updatedLine };
-            return line;
-        });
-        set((state) => ({ ...state, lines: updatedLines }));
-        callback?.();
+    updateLine: (updatedLine) => {
+        set((state) => ({
+            ...state,
+            lines: state.lines.map((line) => {
+                if (line.lineNumber === updatedLine.lineNumber)
+                    return { ...updatedLine };
+                return line;
+            }),
+        }));
     },
     removeLine: (lineNumber) => {
         const lines = get().lines;
@@ -505,6 +506,7 @@ const useSessionEvents = () => {
                 const localVideoStream = new MediaStream();
                 pc.getSenders().forEach(function (sender) {
                     if (sender.track && sender.track.kind === 'video') {
+                        sender.track.contentHint = 'Shervin';
                         localVideoStream.addTrack(sender.track);
                     }
                 });
@@ -773,69 +775,63 @@ const useSessionEvents = () => {
         if (!session)
             return;
         session.initiateRemoteMediaStreams = (isVideoEnabled = videoEnabled, pc = session.sessionDescriptionHandler.peerConnection) => {
-            // Create MediaStreams for audio and video
-            const remoteAudioStream = new MediaStream();
-            const remoteVideoStream = new MediaStream();
-            // Add tracks to MediaStreams
+            const remoteAudioTracks = new Map();
+            const remoteVideoTracks = new Map();
+            const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
+            const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
+            const audioContainer = document.getElementById(audioContainerId);
+            const videoContainer = document.getElementById(videoContainerId);
+            // Gather all remote tracks
+            // const audioTracks = pc.getReceivers().filter((r) => r.track && r.track.kind === 'audio');
+            // console.log({ audioTracks: audioTracks.length });
             pc.getTransceivers().forEach((transceiver) => {
-                const receiver = transceiver.receiver;
-                if (receiver.track) {
-                    if (receiver.track.kind === 'audio') {
-                        remoteAudioStream.addTrack(receiver.track);
-                    }
-                    if (isVideoEnabled && receiver.track.kind === 'video') {
-                        if (transceiver.mid) {
-                            receiver.track.mid = transceiver.mid;
-                            remoteVideoStream.addTrack(receiver.track);
-                        }
-                    }
+                const track = transceiver.receiver?.track;
+                if (!track)
+                    return;
+                const stream = new MediaStream([track]);
+                if (track.kind === 'audio') {
+                    remoteAudioTracks.set(track.id, stream);
+                }
+                if (isVideoEnabled && track.kind === 'video') {
+                    track.mid = transceiver.mid;
+                    remoteVideoTracks.set(track.id, stream);
                 }
             });
-            // Attach Audio Stream
-            if (remoteAudioStream.getAudioTracks().length > 0) {
-                const remoteAudio = document.getElementById(`line-${lineObj.lineNumber}-remoteAudio`);
-                if (remoteAudio) {
-                    remoteAudio.srcObject = remoteAudioStream;
-                    remoteAudio.onloadedmetadata = () => {
-                        if (typeof remoteAudio.sinkId !== 'undefined') {
-                            remoteAudio
+            // Inject all remote audio tracks
+            if (audioContainer) {
+                audioContainer.innerHTML = '';
+                remoteAudioTracks.forEach((stream, trackId) => {
+                    const audio = document.createElement('audio');
+                    audio.id = `line-${lineObj.lineNumber}-audio-${trackId}`;
+                    audio.autoplay = true;
+                    audio.srcObject = stream;
+                    audio.controls = false;
+                    audio.onloadedmetadata = () => {
+                        if (typeof audio.sinkId !== 'undefined') {
+                            audio
                                 .setSinkId(audioOutputDeviceId)
                                 .then(() => void 0)
                                 .catch((e) => void 0);
                         }
-                        remoteAudio.play();
+                        audio.play().catch((err) => void 0);
                     };
-                }
+                    audioContainer.appendChild(audio);
+                });
             }
-            // Attach Video Stream
-            if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
-                const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-                let videoContainer = document.getElementById(videoContainerId);
-                if (!videoContainer)
-                    return;
-                // Clear existing videos
+            // Inject all remote video tracks
+            if (videoContainer) {
                 videoContainer.innerHTML = '';
-                remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack, index) => {
-                    const thisRemoteVideoStream = new MediaStream();
-                    thisRemoteVideoStream.trackId = remoteVideoStreamTrack?.id;
-                    thisRemoteVideoStream.mid = remoteVideoStreamTrack?.mid;
-                    thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-                    let videoElement = document.getElementById(`line-${lineObj.lineNumber}-video-${index}`);
-                    let videoCreated = false;
-                    if (!videoElement) {
-                        videoCreated = true;
-                        videoElement = document.createElement('video');
-                        videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
-                        videoElement.autoplay = true;
-                        videoElement.playsInline = true;
-                        videoElement.muted = true; // Ensure autoplay works in browsers
-                    }
-                    videoElement.srcObject = thisRemoteVideoStream;
-                    videoElement.onloadedmetadata = () => {
-                        videoElement.play().catch((error) => {
-                        });
+                remoteVideoTracks.forEach((stream, trackId) => {
+                    const video = document.createElement('video');
+                    video.id = `line-${lineObj.lineNumber}-video-${trackId}`;
+                    video.srcObject = stream;
+                    video.autoplay = true;
+                    video.playsInline = true;
+                    video.muted = true;
+                    video.onloadedmetadata = () => {
+                        video.play().catch((err) => void 0);
                     };
-                    videoCreated && videoContainer.appendChild(videoElement);
+                    videoContainer.appendChild(video);
                 });
             }
             updateLine(lineObj);
@@ -933,7 +929,7 @@ const useSpdOptions = () => {
     const videoDeviceConfirmation = (currentVideoDevice) => {
         let confirmedVideoDevice = false;
         for (let i = 0; i < videoInputDevices.length; ++i) {
-            if (currentVideoDevice == videoInputDevices[i].deviceId) {
+            if (currentVideoDevice === videoInputDevices[i].deviceId) {
                 confirmedVideoDevice = true;
                 break;
             }
@@ -17693,28 +17689,29 @@ const useSessionMethods = () => {
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
         lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
         const session = lineObj.sipSession;
-        session.data = {};
-        session.data.line = lineObj.lineNumber;
-        session.data.callDirection = 'outbound';
-        session.data.dialledNumber = dialledNumber;
-        session.data.startTime = startTime;
-        session.data.videoSourceDevice = null;
-        session.data.audioSourceDevice = configs.media.audioInputDeviceId;
-        session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-        session.data.terminateBy = 'them';
+        session.data = {
+            line: lineObj.lineNumber,
+            callDirection: 'outbound',
+            dialledNumber: dialledNumber,
+            startTime: startTime,
+            videoSourceDevice: null,
+            audioSourceDevice: configs.media.audioInputDeviceId,
+            audioOutputDevice: configs.media.audioOutputDeviceId,
+            terminateBy: 'them',
+            // MediaStreamStatus
+            localMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: hasAudioDevice,
+                videoEnabled: false,
+            },
+            remoteMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: true,
+                videoEnabled: false,
+            },
+            earlyReject: false,
+        };
         session.callType = 'audio';
-        // MediaStreamStatus
-        session.data.localMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: hasAudioDevice,
-            videoEnabled: false,
-        };
-        session.data.remoteMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: true,
-            videoEnabled: false,
-        };
-        session.data.earlyReject = false;
         session.isOnHold = false;
         session.delegate = {
             onBye: function (sip) {
@@ -17845,26 +17842,27 @@ const useSessionMethods = () => {
         const targetURI = UserAgent.makeURI('sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain);
         lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
         const session = lineObj.sipSession;
-        session.data = {};
-        session.data.line = lineObj.lineNumber;
-        session.data.callDirection = 'outbound';
-        session.data.dialledNumber = dialledNumber;
-        session.data.startTime = startTime;
-        session.data.videoSourceDevice = configs.media.videoInputDeviceId;
-        session.data.audioSourceDevice = configs.media.audioInputDeviceId;
-        session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-        session.data.terminateBy = 'them';
+        session.data = {
+            line: lineObj.lineNumber,
+            callDirection: 'outbound',
+            dialledNumber: dialledNumber,
+            startTime: startTime,
+            localMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: true,
+                videoEnabled: true,
+            },
+            remoteMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: true,
+                videoEnabled: false,
+            },
+            videoSourceDevice: configs.media.videoInputDeviceId,
+            audioSourceDevice: configs.media.audioInputDeviceId,
+            audioOutputDevice: configs.media.audioOutputDeviceId,
+            terminateBy: 'them',
+        };
         session.callType = 'video';
-        session.data.localMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: true,
-            videoEnabled: true,
-        };
-        session.data.remoteMediaStreamStatus = {
-            screenShareEnabled: false,
-            soundEnabled: true,
-            videoEnabled: false,
-        };
         session.data.earlyReject = false;
         session.isOnHold = false;
         session.delegate = {
@@ -17902,7 +17900,6 @@ const useSessionMethods = () => {
         };
         session.invite(inviterOptions).catch(function (e) {
         });
-        // updateLine(lineObj); TODO
     }
     /**
      * Toggling local video source (CallType: video)
@@ -18073,6 +18070,77 @@ const useSessionMethods = () => {
             makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
         }
         addLine(lineObj);
+    }
+    /**
+     * Initiates a video (or audio) SIP session to a predefined conference room (e.g., 700).
+     * Falls back to audio-only if no video device is found.
+     * Handles full session lifecycle with delegates and media configuration.
+     */
+    function makeConferenceSession(lineObj, extraHeaders) {
+        // Ensure SIP user agent is available, registered, and line object is valid
+        if (!userAgent || !userAgent.isRegistered() || !lineObj)
+            return;
+        // Check audio device availability (required)
+        if (!hasAudioDevice) {
+            alert('lang.alert_no_microphone');
+            return;
+        }
+        // Create video session options, e.g. constraints, headers
+        const spdOptions = makeVideoSpdOptions({ extraHeaders });
+        if (!spdOptions)
+            return;
+        // Start time for logging/metadata
+        const startTime = dayJs.utc().toISOString();
+        const conferenceNumber = '700'; // Conference room address
+        // Create target SIP URI for conference room
+        const targetURI = UserAgent.makeURI(`sip:${conferenceNumber}@${configs.account.domain}`);
+        // Create SIP Inviter (outgoing call session)
+        lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions);
+        const session = lineObj.sipSession;
+        // Attach session metadata
+        session.data = {
+            line: lineObj.lineNumber,
+            callDirection: 'outbound',
+            dialledNumber: conferenceNumber,
+            startTime,
+            videoSourceDevice: configs.media.videoInputDeviceId,
+            audioSourceDevice: configs.media.audioInputDeviceId,
+            audioOutputDevice: configs.media.audioOutputDeviceId,
+            terminateBy: 'them',
+            localMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: true,
+                videoEnabled: !!hasVideoDevice,
+            },
+            remoteMediaStreamStatus: {
+                screenShareEnabled: false,
+                soundEnabled: true,
+                videoEnabled: false,
+            },
+            earlyReject: false,
+        };
+        session.callType = hasVideoDevice ? 'video' : 'audio';
+        session.isOnHold = false;
+        // Define SIP session event handlers
+        session.delegate = {
+            onBye: (sip) => onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj)),
+            onMessage: (sip) => onSessionReceivedMessage(lineObj, sip),
+            onInvite: (sip) => onSessionReinvited(lineObj, sip),
+            onSessionDescriptionHandler: (sdh, provisional) => onSessionDescriptionHandlerCreated(lineObj, sdh, provisional, true),
+        };
+        // Define response handlers for the INVITE request
+        const inviterOptions = {
+            requestDelegate: {
+                onTrying: (sip) => onInviteTrying(lineObj, sip),
+                onProgress: (sip) => onInviteProgress(lineObj, sip),
+                onRedirect: (sip) => onInviteRedirected(lineObj, sip),
+                onAccept: (sip) => onInviteAccepted(lineObj, true, sip),
+                onReject: (sip) => onInviteRejected(lineObj, sip, () => teardownSession(lineObj)),
+            },
+        };
+        // Send INVITE to join the conference
+        session.invite(inviterOptions).catch((e) => {
+        });
     }
     /* -------------------------------------------------------------------------- */
     /*                        In-Session Call Functionality                       */
@@ -18247,6 +18315,9 @@ const useSessionMethods = () => {
         if (session.data.teardownComplete == true)
             return;
         session.data.teardownComplete = true; // Run this code only once
+        // Stop recorder media if recording
+        if (session.data.recordMedia?.recording)
+            session.data.recordMedia.recorder?.stop();
         // End any child calls
         if (session.data.childsession) {
             session.data.childsession
@@ -18321,6 +18392,124 @@ const useSessionMethods = () => {
         //     UpdateUI();
         //   }
         removeLine(lineObj.lineNumber);
+    }
+    /**
+     * Records the main screen + SIP audio into a WebM file.
+     * Prompts user to download the recording after stopping.
+     */
+    function recordSession(lineNumber) {
+        async function start() {
+            const lineObj = findLineByNumber(lineNumber);
+            if (!lineObj?.sipSession) {
+                return;
+            }
+            const isVideoCall = lineObj.sipSession.callType === 'video';
+            try {
+                const chunks = [];
+                // Capture screen with system audio
+                let screenStream = null;
+                if (isVideoCall)
+                    screenStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { displaySurface: 'monitor' },
+                        audio: true,
+                    });
+                // Prepare audio mixing
+                const audioContext = new AudioContext();
+                const destination = audioContext.createMediaStreamDestination();
+                // System audio
+                if (screenStream?.getAudioTracks().length) {
+                    audioContext
+                        .createMediaStreamSource(new MediaStream(screenStream.getAudioTracks()))
+                        .connect(destination);
+                }
+                // SIP audio (local + remote)
+                const pc = lineObj.sipSession.sessionDescriptionHandler.peerConnection;
+                pc.getSenders().forEach((sender) => {
+                    if (sender.track?.kind === 'audio') {
+                        audioContext
+                            .createMediaStreamSource(new MediaStream([sender.track]))
+                            .connect(destination);
+                    }
+                });
+                pc.getReceivers().forEach((receiver) => {
+                    if (receiver.track?.kind === 'audio') {
+                        audioContext
+                            .createMediaStreamSource(new MediaStream([receiver.track]))
+                            .connect(destination);
+                    }
+                });
+                // Combine video + mixed audio
+                const combinedStream = new MediaStream([...destination.stream.getAudioTracks()]);
+                if (isVideoCall && screenStream?.getVideoTracks().length) {
+                    screenStream?.getVideoTracks().forEach((track) => combinedStream.addTrack(track));
+                }
+                const mimeType = MediaRecorder.isTypeSupported(`${isVideoCall ? 'video' : 'audio'}/webm; codecs=vp8,opus`)
+                    ? `${isVideoCall ? 'video' : 'audio'}/webm; codecs=vp8,opus`
+                    : `${isVideoCall ? 'video' : 'audio'}/webm`;
+                const recorder = new MediaRecorder(combinedStream, { mimeType });
+                recorder.ondataavailable = (e) => {
+                    if (e.data.size > 0)
+                        chunks.push(e.data);
+                };
+                recorder.onstop = () => {
+                    if (!lineObj?.sipSession?.data.recordMedia)
+                        return;
+                    lineObj.sipSession.data.recordMedia = {
+                        recorder: null,
+                        recording: false,
+                        startTime: null,
+                    };
+                    updateLine(lineObj);
+                    const blob = new Blob(chunks, { type: mimeType });
+                    chunks.length = 0;
+                    // Trigger file download
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `recording-${isVideoCall ? 'video' : 'audio'}-${Date.now()}.webm`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+                if (screenStream?.getVideoTracks().length)
+                    screenStream.getVideoTracks()[0].onended = () => {
+                        recorder.stop();
+                    };
+                recorder.start();
+                lineObj.sipSession.data.recordMedia = {
+                    recorder,
+                    recording: true,
+                    startTime: dayJs.utc().toISOString(),
+                };
+                updateLine(lineObj);
+            }
+            catch (err) {
+                if (!lineObj?.sipSession?.data.recordMedia)
+                    return;
+                lineObj.sipSession.data.recordMedia = {
+                    recorder: null,
+                    recording: false,
+                    startTime: null,
+                };
+                updateLine(lineObj);
+            }
+        }
+        function stop() {
+            const lineObj = findLineByNumber(lineNumber);
+            if (!lineObj?.sipSession)
+                return;
+            const recorder = lineObj?.sipSession?.data.recordMedia?.recorder;
+            if (!recorder) {
+                return;
+            }
+            recorder.stop();
+            lineObj.sipSession.data.recordMedia = {
+                recorder: null,
+                recording: false,
+                startTime: null,
+            };
+            updateLine(lineObj);
+        }
+        return { start, stop };
     }
     /* -------------------------------- TRANSFER -------------------------------- */
     /**
@@ -18680,7 +18869,9 @@ const useSessionMethods = () => {
         toggleShareScreen,
         rejectSession,
         dialByNumber,
+        makeConferenceSession,
         endSession,
+        recordSession,
         toggleMuteSession,
         toggleHoldSession,
         cancelSession,
@@ -19103,22 +19294,9 @@ function reconnectTransport(userAgent) {
         setSipStore({ userAgent: clonedUserAgent });
 }
 
-/* -------------------------------------------------------------------------- */
 // Detect Devices
-function detectDevices(callback) {
-    navigator.mediaDevices
-        .enumerateDevices()
-        .then(function (deviceInfos) {
-        // deviceInfos will not have a populated lable unless to accept the permission
-        // during getUserMedia. This normally happens at startup/setup
-        // so from then on these devices will be with lables.
-        // deviceInfos.map((deviceInfo) => {
-        //   console.log({ audiooutput: deviceInfo.kind });
-        // });
-        callback(deviceInfos);
-    })
-        .catch(function (e) {
-    });
+async function detectDevices() {
+    return await navigator.mediaDevices.enumerateDevices();
 }
 /* -------------------------------------------------------------------------- */
 async function getMediaPermissions(media) {
@@ -19142,17 +19320,52 @@ async function getMediaPermissions(media) {
     }
 }
 
+const useGetMediaDevices = () => {
+    const enableVideo = useSipStore((state) => state.configs.features.enableVideo);
+    const getDevices = async () => {
+        return detectDevices().then((deviceInfos) => {
+            let hasAudioDevice = false;
+            let audioInputDevices = [];
+            let hasSpeakerDevice = false;
+            let speakerDevices = [];
+            let hasVideoDevice = false;
+            let videoInputDevices = [];
+            if (deviceInfos)
+                for (let i = 0; i < deviceInfos.length; ++i) {
+                    if (deviceInfos[i].kind === 'audioinput') {
+                        hasAudioDevice = true;
+                        audioInputDevices.push(deviceInfos[i]);
+                    }
+                    else if (deviceInfos[i].kind === 'audiooutput') {
+                        hasSpeakerDevice = true;
+                        speakerDevices.push(deviceInfos[i]);
+                    }
+                    else if (deviceInfos[i].kind === 'videoinput') {
+                        if (enableVideo) {
+                            hasVideoDevice = true;
+                            videoInputDevices.push(deviceInfos[i]);
+                        }
+                    }
+                }
+            return {
+                hasAudioDevice,
+                audioInputDevices,
+                hasSpeakerDevice,
+                speakerDevices,
+                hasVideoDevice,
+                videoInputDevices,
+            };
+        });
+    };
+    return { getDevices };
+};
+
 const SipContext = React.createContext(undefined);
 const SipProvider = ({ children, configs }) => {
     const userAgent = useSipStore((state) => state.userAgent);
     const lines = useSipStore((state) => state.lines);
     const setSipStore = useSipStore((state) => state.setSipStore);
-    const hasAudioDevice = useSipStore((state) => state.devicesInfo.hasAudioDevice);
-    const hasSpeakerDevice = useSipStore((state) => state.devicesInfo.hasSpeakerDevice);
-    const hasVideoDevice = useSipStore((state) => state.devicesInfo.hasVideoDevice);
-    const audioInputDevices = useSipStore((state) => state.devicesInfo.audioInputDevices);
-    const videoInputDevices = useSipStore((state) => state.devicesInfo.videoInputDevices);
-    const speakerDevices = useSipStore((state) => state.devicesInfo.speakerDevices);
+    const { getDevices } = useGetMediaDevices();
     const mergedConfigs = React.useMemo(() => deepMerge(defaultSipConfigs, configs), [configs]);
     const { receiveSession } = useSessionMethods();
     React.useEffect(() => {
@@ -19168,7 +19381,7 @@ const SipProvider = ({ children, configs }) => {
         // Get Audio Access Permission
         await getMediaPermissions('audio');
         // User Connected Devices Detection
-        initiateDetectedDevices();
+        await initiateDetectedDevices();
         // Create user agent for SIP connection
         await createUserAgent();
     };
@@ -19243,43 +19456,9 @@ const SipProvider = ({ children, configs }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mergedConfigs]);
     // Detect devices
-    const initiateDetectedDevices = () => {
-        //TODO useHook
-        detectDevices((deviceInfos) => {
-            if (!deviceInfos)
-                return;
-            let tmpHasAudioDevice = hasAudioDevice;
-            let tmpAudioInputDevices = audioInputDevices;
-            let tmpHasSpeakerDevice = hasSpeakerDevice;
-            let tmpSpeakerDevices = speakerDevices;
-            let tmpHasVideoDevice = hasVideoDevice; // Safari and Firefox don't have these
-            let tmpVideoInputDevices = videoInputDevices;
-            for (let i = 0; i < deviceInfos.length; ++i) {
-                if (deviceInfos[i].kind === 'audioinput') {
-                    tmpHasAudioDevice = true;
-                    tmpAudioInputDevices.push(deviceInfos[i]);
-                }
-                else if (deviceInfos[i].kind === 'audiooutput') {
-                    tmpHasSpeakerDevice = true;
-                    tmpSpeakerDevices.push(deviceInfos[i]);
-                }
-                else if (deviceInfos[i].kind === 'videoinput') {
-                    if (mergedConfigs.features.enableVideo) {
-                        tmpHasVideoDevice = true;
-                        tmpVideoInputDevices.push(deviceInfos[i]);
-                    }
-                }
-            }
-            setSipStore({
-                devicesInfo: {
-                    hasAudioDevice: tmpHasAudioDevice,
-                    audioInputDevices: tmpAudioInputDevices,
-                    hasSpeakerDevice: tmpHasSpeakerDevice,
-                    speakerDevices: tmpSpeakerDevices,
-                    hasVideoDevice: tmpHasVideoDevice,
-                    videoInputDevices: tmpVideoInputDevices,
-                },
-            });
+    const initiateDetectedDevices = async () => {
+        setSipStore({
+            devicesInfo: await getDevices(),
         });
     };
     // Update UserAgent

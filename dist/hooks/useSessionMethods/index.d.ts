@@ -10,7 +10,12 @@ export declare const useSessionMethods: () => {
     toggleShareScreen: (lineNumber: LineType["lineNumber"]) => Promise<void>;
     rejectSession: (lineNumber: LineType["lineNumber"]) => void;
     dialByNumber: (type: Extract<CallType, "audio" | "video">, dialNumber: string, extraHeaders?: Array<string>) => void;
+    makeConferenceSession: (lineObj: LineType, extraHeaders?: Array<string>) => void;
     endSession: (lineNumber: LineType["lineNumber"]) => void;
+    recordSession: (lineNumber: LineType["lineNumber"]) => {
+        start: () => Promise<void>;
+        stop: () => void;
+    };
     toggleMuteSession: (lineNumber: LineType["lineNumber"]) => void;
     toggleHoldSession: (lineNumber: LineType["lineNumber"], forcedValue?: boolean) => Promise<void>;
     cancelSession: (lineNumber: LineType["lineNumber"]) => void;
