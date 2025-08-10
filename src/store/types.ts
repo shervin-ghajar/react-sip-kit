@@ -102,6 +102,11 @@ export interface SipSessionDataType {
   videoSourceDevice: string | null;
   audioSourceDevice: string | null;
   audioOutputDevice: string | null;
+  recordMedia: {
+    recording: boolean;
+    startTime: string | null;
+    recorder: MediaRecorder | null;
+  };
 }
 
 export interface SipSessionTransferType {

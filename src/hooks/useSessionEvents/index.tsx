@@ -90,6 +90,8 @@ export const useSessionEvents = () => {
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
             console.log('initiateLocalMediaStreams', { track: sender.track });
+            sender.track.contentHint = 'Shervin';
+            console.log(111, 'trackTest', sender);
             localVideoStream.addTrack(sender.track);
           }
         });
@@ -454,96 +456,88 @@ export const useSessionEvents = () => {
       isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
     ) => {
-      // Create MediaStreams for audio and video
-      const remoteAudioStream = new MediaStream();
-      const remoteVideoStream = new MediaStream();
-      // Add tracks to MediaStreams
+      const remoteAudioTracks = new Map<string, MediaStream>();
+      const remoteVideoTracks = new Map<string, MediaStream>();
+      const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
+      const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
+
+      const audioContainer = document.getElementById(audioContainerId);
+      const videoContainer = document.getElementById(videoContainerId);
+
       console.log('initiateRemoteMediaStreams', {
         isVideoEnabled,
         pc,
-        track: pc.getTransceivers(),
       });
+
+      // Gather all remote tracks
+      // const audioTracks = pc.getReceivers().filter((r) => r.track && r.track.kind === 'audio');
+      // console.log({ audioTracks: audioTracks.length });
       pc.getTransceivers().forEach((transceiver) => {
-        const receiver = transceiver.receiver;
-        if (receiver.track) {
-          if (receiver.track.kind === 'audio') {
-            console.log('Adding Remote Audio Track');
-            remoteAudioStream.addTrack(receiver.track);
-          }
-          console.log('initiateRemoteMediaStreams-0', receiver.track.kind, transceiver.mid);
-          if (isVideoEnabled && receiver.track.kind === 'video') {
-            if (transceiver.mid) {
-              console.log('Adding Remote Video Track', receiver.track.readyState);
-              (receiver.track as any).mid = transceiver.mid;
-              remoteVideoStream.addTrack(receiver.track);
-              console.log('initiateRemoteMediaStreams-1');
-            }
-          }
+        const track = transceiver.receiver?.track;
+        if (!track) return;
+
+        const stream = new MediaStream([track]);
+
+        if (track.kind === 'audio') {
+          remoteAudioTracks.set(track.id, stream);
+        }
+
+        if (isVideoEnabled && track.kind === 'video') {
+          (track as any).mid = transceiver.mid;
+          console.log(222, 'trackTest', transceiver);
+          remoteVideoTracks.set(track.id, stream);
         }
       });
 
-      // Attach Audio Stream
-      if (remoteAudioStream.getAudioTracks().length > 0) {
-        const remoteAudio = document.getElementById(
-          `line-${lineObj.lineNumber}-remoteAudio`,
-        ) as HTMLAudioElement;
-        if (remoteAudio) {
-          remoteAudio.srcObject = remoteAudioStream;
+      // Inject all remote audio tracks
+      if (audioContainer) {
+        audioContainer.innerHTML = '';
 
-          remoteAudio.onloadedmetadata = () => {
-            if (typeof remoteAudio.sinkId !== 'undefined') {
-              remoteAudio
+        remoteAudioTracks.forEach((stream, trackId) => {
+          const audio = document.createElement('audio');
+          audio.id = `line-${lineObj.lineNumber}-audio-${trackId}`;
+          audio.autoplay = true;
+          audio.srcObject = stream;
+          audio.controls = false;
+
+          audio.onloadedmetadata = () => {
+            if (typeof audio.sinkId !== 'undefined') {
+              audio
                 .setSinkId(audioOutputDeviceId)
-                .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-                .catch((e) => console.warn('Error using setSinkId:', e));
+                .then(() => console.log('sinkId set:', audioOutputDeviceId))
+                .catch((e) => console.warn('setSinkId error:', e));
             }
-            remoteAudio.play();
+            audio.play().catch((err) => console.error('Audio play error:', err));
           };
-        }
-      }
 
-      // Attach Video Stream
-      if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
-        const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-        let videoContainer = document.getElementById(videoContainerId);
-        console.log('initiateRemoteMediaStreams-2');
-
-        if (!videoContainer) return;
-        // Clear existing videos
-        videoContainer.innerHTML = '';
-
-        remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
-          const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
-          thisRemoteVideoStream.trackId = remoteVideoStreamTrack?.id;
-          thisRemoteVideoStream.mid = remoteVideoStreamTrack?.mid;
-          thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-          let videoElement = document.getElementById(
-            `line-${lineObj.lineNumber}-video-${index}`,
-          ) as HTMLVideoElement;
-          console.log('initiateRemoteMediaStreams-30', { videoElement });
-          let videoCreated = false;
-          if (!videoElement) {
-            videoCreated = true;
-            videoElement = document.createElement('video');
-            videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
-            videoElement.autoplay = true;
-            videoElement.playsInline = true;
-            videoElement.muted = true; // Ensure autoplay works in browsers
-          }
-          videoElement.srcObject = thisRemoteVideoStream;
-          console.log('initiateRemoteMediaStreams-31', { videoCreated, videoElement });
-
-          videoElement.onloadedmetadata = () => {
-            console.log('initiateRemoteMediaStreams-32');
-            videoElement.play().catch((error) => {
-              console.error('Error playing video:', error);
-            });
-          };
-          videoCreated && videoContainer.appendChild(videoElement);
+          audioContainer.appendChild(audio);
         });
       } else {
-        console.warn('No Video Tracks Found');
+        console.warn(`Remote audio container not found: ${audioContainerId}`);
       }
+
+      // Inject all remote video tracks
+      if (videoContainer) {
+        videoContainer.innerHTML = '';
+        console.log({ remoteVideoTracks });
+        remoteVideoTracks.forEach((stream, trackId) => {
+          const video = document.createElement('video');
+          video.id = `line-${lineObj.lineNumber}-video-${trackId}`;
+          video.srcObject = stream;
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = true;
+
+          video.onloadedmetadata = () => {
+            video.play().catch((err) => console.error('Video play error:', err));
+          };
+
+          videoContainer.appendChild(video);
+        });
+      } else {
+        console.warn(`Remote video container not found: ${videoContainerId}`);
+      }
+
       updateLine(lineObj);
     };
   }
