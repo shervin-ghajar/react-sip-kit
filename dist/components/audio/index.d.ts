@@ -1,9 +1,15 @@
-import { AudioHTMLAttributes } from 'react';
-interface AudioProps extends AudioHTMLAttributes<HTMLAudioElement> {
+import { AudioHTMLAttributes, HTMLAttributes } from 'react';
+interface DefaultAudioProps {
     lineNumber: string | number;
-    type?: 'transfer' | 'conference';
-    id?: `line-${number}${AudioId}-remoteAudio`;
 }
-type AudioId<T extends AudioProps['type'] = AudioProps['type']> = T extends undefined ? '' : `-${T}`;
-export declare const Audio: ({ lineNumber, type, ...rest }: AudioProps) => import("react/jsx-runtime").JSX.Element;
+interface LocalAudioProps extends AudioHTMLAttributes<HTMLAudioElement>, DefaultAudioProps {
+    type: 'local';
+    id?: `line-${number}-${LocalAudioProps['type']}Audio`;
+}
+interface RemoteAudioProps extends HTMLAttributes<HTMLDivElement>, DefaultAudioProps {
+    type: 'remote';
+    id?: `line-${number}-remoteAudios`;
+}
+type AudioProps = LocalAudioProps | RemoteAudioProps;
+export declare const Audio: ({ lineNumber, ...rest }: AudioProps) => import("react/jsx-runtime").JSX.Element;
 export {};

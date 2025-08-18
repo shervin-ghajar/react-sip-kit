@@ -19478,10 +19478,11 @@ const useSipProvider = () => {
     return context;
 };
 
-const Audio$1 = ({ lineNumber, type, ...rest }) => {
-    return jsx("audio", { ...rest, id: `line-${lineNumber}${type ? `-${type}` : ''}-remoteAudio` });
+const Audio$1 = ({ lineNumber, ...rest }) => {
+    return rest.type === 'local' ? (jsx("audio", { ...rest, id: `line-${lineNumber}-localAudio` })) : (jsx("div", { ...rest, id: `line-${lineNumber}-remoteAudios` }));
 };
 
+// TODO remoteVideo should cover renderVIdeo props to itterate on each video track
 const Video = ({ lineNumber, ...rest }) => {
     return rest.type === 'local' ? (jsx("video", { ...rest, id: `line-${lineNumber}-${rest.type}Video`, muted: rest.type === 'local' })) : (jsx("div", { ...rest, id: `line-${lineNumber}-remoteVideos` }));
 };
