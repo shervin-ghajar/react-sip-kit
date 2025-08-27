@@ -1,4 +1,4 @@
-import { Line } from './line';
+import { Line } from './Line';
 import { useSessionMethods, useSipProvider } from 'react-sip-kit';
 
 /* -------------------------------------------------------------------------- */
