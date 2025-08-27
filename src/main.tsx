@@ -4,6 +4,7 @@ import { SipProvider } from './provider.tsx';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+//wss://mahyartest-0.call.dev.abr-plus.com:8089/ws
 const Providers = () => {
   console.log('window.location', window.location.pathname.replace('/', ''));
   const username = window.location.pathname.replace('/', '');

@@ -3,7 +3,7 @@ import { Audio, Video } from './components';
 import { useSessionMethods } from './hooks';
 import { useSipProvider } from './provider';
 import { LineType } from './store/types';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider();
@@ -46,11 +46,11 @@ function App({ username }: { username: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByNumber('audio', '1013')}>{`Call 1013`}</button>
-        <button onClick={() => dialByNumber('audio', '1011')}>{`Call 1011`}</button>
+        <button onClick={() => dialByNumber('audio', '1012')}>{`Call 1012`}</button>
+        <button onClick={() => dialByNumber('audio', '1010')}>{`Call 1010`}</button>
 
-        <button onClick={() => dialByNumber('video', '1013')}>{`Video Call 1013`}</button>
-        <button onClick={() => dialByNumber('video', '1011')}>{`Video Call 1011`}</button>
+        <button onClick={() => dialByNumber('video', '1012')}>{`Video Call 1012`}</button>
+        <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
         <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
         <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
       </div>
@@ -154,8 +154,8 @@ const SipLine = ({ line }: { line: LineType }) => {
           <button
             onClick={() => toggleHoldSession(line.lineNumber)}
           >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1013)}>
-            {'Transfer To 1013'}
+          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1012)}>
+            {'Transfer To 1012'}
           </button>
           <button
             style={{ color: 'kemon' }}
@@ -165,9 +165,9 @@ const SipLine = ({ line }: { line: LineType }) => {
           </button>
           <button
             style={{ color: 'darkred' }}
-            onClick={() => cancelAttendedTransferSession(line, 1011)}
+            onClick={() => cancelAttendedTransferSession(line, 1010)}
           >
-            {'Cancel Transfer To 1011'}
+            {'Cancel Transfer To 1010'}
           </button>
           <button
             style={{ color: 'darkred' }}
