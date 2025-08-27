@@ -1,24 +1,37 @@
+Here’s a polished rewrite of your README that makes it clearer, more professional, and developer-friendly while keeping it concise and engaging:
+
+---
+
 # react-sip-kit
 
-A modern, modular, and type-safe SIP (Session Initiation Protocol) provider for React applications.  
-Built for real-time web telephony, this library offers a clean, scalable, and fully configurable SIP core, decoupled from UI and legacy global state.
+A modern **React SIP.js toolkit** for building web-based softphones and SIP clients.
+Supports **audio/video calls**, **recording**, **screen sharing**, and **device management** — all with a clean, extensible architecture.
 
 ---
 
-## Features
-
-- 📞 **SIP Core**: Register, make, receive, and manage SIP calls (audio & video)
-- 🔄 **Transfer & Conference**: Supports call transfer and conferencing
-- 🎥 **Video Call Support**: Video call features with device selection
-- 🔔 **Ringtone & Notifications**: Customizable audio output for ringtones and notifications
-- 👥 **Buddy/Contact Management**: Manage contacts (buddies) and pass contact data across sessions
-- ⚙️ **Fully Configurable**: All settings (account, features, media, UI, etc.) are passed as props—no global state or localStorage dependencies
-- 🧩 **Type-Safe & Modular**: Strong TypeScript types, modular config, and easy to extend
-- 🧪 **Testable**: Stateless SIP core, easy to mock and test
+* **Author:** [Shervin Ghajar](https://github.com/shervin-ghajar)
+* **License:** MIT
+* **Repository:** [GitHub](https://github.com/shervin-ghajar/web-phone)
+* **NPM:** [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
 
 ---
 
-## Installation
+## ✨ Features
+
+* 📞 **Audio & Video Calls** — with automatic device detection
+* 🎥 **Video support** — manage local & remote streams seamlessly
+* 🔴 **Call Recording** — audio and video recording out of the box
+* 🖥️ **Screen Sharing** — during video calls
+* 🎧 **Device Management** — select audio/video input & output devices
+* 🔄 **Multi-line Support** — handle multiple concurrent calls
+* ⚡ **TypeScript-first** — fast, modular, type-safe APIs
+* 🛠️ **Configurable & Extensible** — tailor to your SIP setup
+
+---
+
+## 🚀 Getting Started
+
+### Installation
 
 ```bash
 npm install react-sip-kit
@@ -28,7 +41,9 @@ yarn add react-sip-kit
 
 ---
 
-## Usage
+## ⚡ Usage
+
+### 1. Wrap your app with `SipProvider`
 
 ```tsx
 import { SipProvider } from 'react-sip-kit';
@@ -36,70 +51,105 @@ import { SipProvider } from 'react-sip-kit';
 <SipProvider
   configs={{
     account: {
-      username: 'user',
-      password: 'password',
-      domain: 'sip.example.com',
-      wssServer: 'wss.example.com',
-      webSocketPort: 7443,
+      domain: 'your.sip.domain',
+      username: 'your-username',
+      password: 'your-password',
+      wssServer: 'your.sip.domain',
+      webSocketPort: '8089',
       serverPath: '/ws',
     },
-    features: {
-      enableVideo: true,
-      enableRingtone: true,
-    },
-    // Add or override other config sections as needed
   }}
 >
-  {/* Your app components */}
-</SipProvider>;
+  <App />
+</SipProvider>
 ```
 
 ---
 
-## Configuration
+### 2. Access SIP state and methods
 
-All configuration is passed via the `configs` prop.  
-See [`src/configs/types.ts`](src/configs/types.ts) for the full config structure.
+```tsx
+import { useSipProvider, useSessionMethods } from 'react-sip-kit';
 
-**Example config:**
+const { lines, status } = useSipProvider();
+const { dialByNumber } = useSessionMethods();
+
+<button onClick={() => dialByNumber('audio', '1012')}>Call 1012</button>
+```
+
+---
+
+### 3. Render media streams
+
+Use the built-in `<Video />` and `<Audio />` components:
+
+```tsx
+import { Video, Audio } from 'react-sip-kit';
+
+<Video type="local" lineNumber={line.lineNumber} />
+<Video type="remote" lineNumber={line.lineNumber} />
+<Audio type="local" lineNumber={line.lineNumber} />
+<Audio type="remote" lineNumber={line.lineNumber} />
+```
+
+---
+
+### 4. Call recording & screen sharing
+
+```ts
+recordSession(lineNumber);
+toggleShareScreen(lineNumber);
+```
+
+---
+
+## ⚙️ Configuration
+
+All SIP and media settings can be customized via the `configs` prop.
+See [types.ts](https://github.com/shervin-ghajar/web-phone/blob/main/src/configs/types.ts) for full options.
 
 ```ts
 {
   account: { ... },
-  features: { ... },
-  media: { ... },
-  // ...other sections
+  features: { enableVideo: true },
+  media: { audioInputDeviceId: 'default' },
+  registration: { registerExpires: 3600 },
 }
 ```
 
-You can import and extend the default config:
+---
 
-```ts
-import { defaultSipConfigs } from 'react-sip-kit/configs';
-```
+## 💡 Best Practices
+
+* Use hooks (`useSipProvider`, `useSessionMethods`) for SIP state & actions.
+* Render media components only for active calls.
+* Gracefully handle device permissions and selection.
+* Reinitialize media streams with `initiateRemoteMediaStreams` or `initiateLocalMediaStreams` if `<video>`/`<audio>` is rendered after call start.
+* Prefer TypeScript for better DX and safety.
 
 ---
 
-## API
+## 🛠 Development
 
-- **`<SipProvider configs={...}>`**  
-  Provides SIP context and manages SIP sessions for your app.
-
-- **Context hooks**  
-  Use React context or custom hooks to access SIP state, session methods, and events.
+* Bundled with [Vite](https://vitejs.dev/)
+* Linting via ESLint + React/TypeScript rules
+* Modular architecture for easy extension
 
 ---
 
-## License
+## 📖 Example
 
-MIT
+Check the [example app](https://github.com/shervin-ghajar/web-phone/blob/main/src/App.tsx) for:
+
+* Multi-line handling
+* Call actions
+* Media rendering
+
+---
+
+**👉 Ready to build your own web phone?**
+Install, configure, and start calling with **react-sip-kit**.
 
 ---
 
-## Author
-
-**Shervin Ghajar**  
-[GitHub](https://github.com/shervin-ghajar)  
-Email: ssghajar.work@gmail.com
-
----
+Would you like me to also create a **badges section** at the top (e.g., npm version, build status, license) to make it look more like a polished open-source project?

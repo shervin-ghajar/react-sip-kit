@@ -1,7 +1,7 @@
 {
   "name": "react-sip-kit",
   "private": false,
-  "version": "0.3.51",
+  "version": "0.3.60",
   "type": "module",
   "author": {
     "name": "Shervin Ghajar",
@@ -55,7 +55,6 @@
     "format": "prettier --write --cache .  --plugin=prettier-plugin-organize-imports"
   },
   "dependencies": {
-    "clone": "^2.1.2",
     "dayjs": "^1.11.13",
     "sip.js": "0.21.2",
     "zustand": "^5.0.1"
