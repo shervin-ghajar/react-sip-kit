@@ -1,14 +1,3 @@
-Perfect 👍
-You want a **complete npm-standard README** that:
-
-* Uses the improved `App` + `SipLine` example we just polished.
-* Points users to the new **`/example` folder** in your repo (instead of putting all code in the README).
-* Keeps the README clean but still shows a **minimal usage snippet** inline.
-
-Here’s the finished **README.md** draft for your project:
-
----
-
 # react-sip-kit
 
 A modern **React SIP.js toolkit** for building web-based softphones and SIP clients.
@@ -88,12 +77,12 @@ function DialPad() {
 ### 3. Render media streams
 
 ```tsx
-import { Video, Audio } from 'react-sip-kit';
+import { VideoStream, AudioStream } from 'react-sip-kit';
 
-<Video type="local" lineNumber={1} />
-<Video type="remote" lineNumber={1} />
-<Audio type="local" lineNumber={1} />
-<Audio type="remote" lineNumber={1} />
+<VideoStream type="local" lineNumber={1} />
+<VideoStream type="remote" lineNumber={1} />
+<AudioStream type="local" lineNumber={1} />
+<AudioStream type="remote" lineNumber={1} />
 ```
 
 ---
