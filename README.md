@@ -1,4 +1,11 @@
-Here’s a polished rewrite of your README that makes it clearer, more professional, and developer-friendly while keeping it concise and engaging:
+Perfect 👍
+You want a **complete npm-standard README** that:
+
+* Uses the improved `App` + `SipLine` example we just polished.
+* Points users to the new **`/example` folder** in your repo (instead of putting all code in the README).
+* Keeps the README clean but still shows a **minimal usage snippet** inline.
+
+Here’s the finished **README.md** draft for your project:
 
 ---
 
@@ -6,13 +13,6 @@ Here’s a polished rewrite of your README that makes it clearer, more professio
 
 A modern **React SIP.js toolkit** for building web-based softphones and SIP clients.
 Supports **audio/video calls**, **recording**, **screen sharing**, and **device management** — all with a clean, extensible architecture.
-
----
-
-* **Author:** [Shervin Ghajar](https://github.com/shervin-ghajar)
-* **License:** MIT
-* **Repository:** [GitHub](https://github.com/shervin-ghajar/web-phone)
-* **NPM:** [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
 
 ---
 
@@ -29,9 +29,7 @@ Supports **audio/video calls**, **recording**, **screen sharing**, and **device 
 
 ---
 
-## 🚀 Getting Started
-
-### Installation
+## 📦 Installation
 
 ```bash
 npm install react-sip-kit
@@ -41,7 +39,7 @@ yarn add react-sip-kit
 
 ---
 
-## ⚡ Usage
+## 🚀 Basic Usage
 
 ### 1. Wrap your app with `SipProvider`
 
@@ -66,39 +64,36 @@ import { SipProvider } from 'react-sip-kit';
 
 ---
 
-### 2. Access SIP state and methods
+### 2. Make calls with hooks
 
 ```tsx
 import { useSipProvider, useSessionMethods } from 'react-sip-kit';
 
-const { lines, status } = useSipProvider();
-const { dialByNumber } = useSessionMethods();
+function DialPad() {
+  const { status } = useSipProvider();
+  const { dialByNumber } = useSessionMethods();
 
-<button onClick={() => dialByNumber('audio', '1012')}>Call 1012</button>
+  return (
+    <>
+      <p>Status: {status}</p>
+      <button onClick={() => dialByNumber('audio', '1012')}>Call 1012</button>
+      <button onClick={() => dialByNumber('video', '1012')}>Video Call 1012</button>
+    </>
+  );
+}
 ```
 
 ---
 
 ### 3. Render media streams
 
-Use the built-in `<Video />` and `<Audio />` components:
-
 ```tsx
 import { Video, Audio } from 'react-sip-kit';
 
-<Video type="local" lineNumber={line.lineNumber} />
-<Video type="remote" lineNumber={line.lineNumber} />
-<Audio type="local" lineNumber={line.lineNumber} />
-<Audio type="remote" lineNumber={line.lineNumber} />
-```
-
----
-
-### 4. Call recording & screen sharing
-
-```ts
-recordSession(lineNumber);
-toggleShareScreen(lineNumber);
+<Video type="local" lineNumber={1} />
+<Video type="remote" lineNumber={1} />
+<Audio type="local" lineNumber={1} />
+<Audio type="remote" lineNumber={1} />
 ```
 
 ---
@@ -106,7 +101,7 @@ toggleShareScreen(lineNumber);
 ## ⚙️ Configuration
 
 All SIP and media settings can be customized via the `configs` prop.
-See [types.ts](https://github.com/shervin-ghajar/web-phone/blob/main/src/configs/types.ts) for full options.
+See [types.ts](https://github.com/shervin-ghajar/react-sip-kit/blob/main/src/configs/types.ts) for the full options.
 
 ```ts
 {
@@ -123,33 +118,38 @@ See [types.ts](https://github.com/shervin-ghajar/web-phone/blob/main/src/configs
 
 * Use hooks (`useSipProvider`, `useSessionMethods`) for SIP state & actions.
 * Render media components only for active calls.
-* Gracefully handle device permissions and selection.
-* Reinitialize media streams with `initiateRemoteMediaStreams` or `initiateLocalMediaStreams` if `<video>`/`<audio>` is rendered after call start.
+* Handle device permissions and selection gracefully.
+* Reinitialize streams with `initiateRemoteMediaStreams` or `initiateLocalMediaStreams` if `<video>`/`<audio>` is rendered after the call starts.
 * Prefer TypeScript for better DX and safety.
 
 ---
 
-## 🛠 Development
+## 🧑‍💻 Full Example
 
-* Bundled with [Vite](https://vitejs.dev/)
-* Linting via ESLint + React/TypeScript rules
-* Modular architecture for easy extension
+A full working demo (with call controls, transfer, hold, recording, etc.) is available in the
+[`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) folder of this repo.
 
----
+This example demonstrates:
 
-## 📖 Example
-
-Check the [example app](https://github.com/shervin-ghajar/web-phone/blob/main/src/App.tsx) for:
-
-* Multi-line handling
-* Call actions
-* Media rendering
+* Multi-line SIP handling
+* Answering/rejecting calls
+* Call transfer, hold, mute
+* Recording and screen sharing
+* Local/remote audio & video streams
 
 ---
 
-**👉 Ready to build your own web phone?**
-Install, configure, and start calling with **react-sip-kit**.
+## 📄 License
+
+MIT License
 
 ---
 
-Would you like me to also create a **badges section** at the top (e.g., npm version, build status, license) to make it look more like a polished open-source project?
+## 👤 Author
+
+**Shervin Ghajar**
+
+* GitHub: [@shervin-ghajar](https://github.com/shervin-ghajar)
+* NPM: [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
+* Repository: [react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)
+
