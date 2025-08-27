@@ -31,7 +31,7 @@ export const useSpdOptions = () => {
   const videoDeviceConfirmation = (currentVideoDevice: string) => {
     let confirmedVideoDevice = false;
     for (let i = 0; i < videoInputDevices.length; ++i) {
-      if (currentVideoDevice == videoInputDevices[i].deviceId) {
+      if (currentVideoDevice === videoInputDevices[i].deviceId) {
         confirmedVideoDevice = true;
         break;
       }

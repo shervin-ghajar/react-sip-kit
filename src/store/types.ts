@@ -1,6 +1,6 @@
 import { SipConfigs } from '../configs/types';
 import { AudioBlobs } from '../constructors';
-import { CallbackFunction, SipUserAgent } from '../types';
+import { CallbackFunction, CallType, SipUserAgent } from '../types';
 import {
   Invitation,
   Inviter,
@@ -38,8 +38,9 @@ export interface SipInvitationType
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+  callType: CallType;
+  initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+  initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -50,8 +51,9 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean) => void;
+  callType: CallType;
+  initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+  initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
@@ -88,6 +90,7 @@ export interface SipSessionDataType {
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
   localMediaStreamStatus: MediaStremStatus;
   remoteMediaStreamStatus: MediaStremStatus;
+  videoAckReceived: boolean;
   dialledNumber: string;
   transfer: Array<SipSessionTransferType>;
   audioSourceTrack: MediaStreamTrack | null;
@@ -99,6 +102,11 @@ export interface SipSessionDataType {
   videoSourceDevice: string | null;
   audioSourceDevice: string | null;
   audioOutputDevice: string | null;
+  recordMedia: {
+    recording: boolean;
+    startTime: string | null;
+    recorder: MediaRecorder | null;
+  };
 }
 
 export interface SipSessionTransferType {

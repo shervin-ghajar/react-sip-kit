@@ -1,3 +1,4 @@
+import { sendMessageSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
 import { useSipStore } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
@@ -78,13 +79,19 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = (isVideoEnabled = videoEnabled) => {
+    session.initiateLocalMediaStreams = (
+      isVideoEnabled = videoEnabled,
+      pc = session.sessionDescriptionHandler.peerConnection,
+    ) => {
+      console.log('initiateLocalMediaStreams', { isVideoEnabled, pc, sender: pc.getSenders() });
       if (isVideoEnabled) {
-        const pc = session.sessionDescriptionHandler.peerConnection;
         // Preview our stream from peer connection
         const localVideoStream = new MediaStream();
         pc.getSenders().forEach(function (sender) {
           if (sender.track && sender.track.kind === 'video') {
+            console.log('initiateLocalMediaStreams', { track: sender.track });
+            sender.track.contentHint = 'Shervin';
+            console.log(111, 'trackTest', sender);
             localVideoStream.addTrack(sender.track);
           }
         });
@@ -258,159 +265,166 @@ export const useSessionEvents = () => {
     }
   }
   function onSessionReceivedMessage(lineObj: LineType, response: Message) {
-    const messageType =
-      response.request.headers['Content-Type'].length >= 1
-        ? response.request.headers['Content-Type'][0].parsed
-        : 'Unknown';
-    if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
-      // Conference Events JSON
-      const msgJson = JSON.parse(response.request.body) as {
-        type: string;
-        bridge: {
-          id: string;
-          name: string;
-          creationtime: string;
-          video_mode: string;
+    try {
+      const messageType =
+        response.request.headers['Content-Type'].length >= 1
+          ? response.request.headers['Content-Type'][0].parsed
+          : 'Unknown';
+      if (messageType.indexOf('application/x-asterisk-confbridge-event') > -1) {
+        // Conference Events JSON
+        const msgJson = JSON.parse(response.request.body) as {
+          type: string;
+          bridge: {
+            id: string;
+            name: string;
+            creationtime: string;
+            video_mode: string;
+          };
+          channels: Array<any>;
         };
-        channels: Array<any>;
-      };
 
-      const session = lineObj.sipSession;
-      if (!session) return;
-      if (!session.data) return;
-      if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
-      if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
+        const session = lineObj.sipSession;
+        if (!session) return;
+        if (!session.data) return;
+        if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
+        if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
 
-      if (msgJson.type == 'ConfbridgeStart') {
-        console.log('ConfbridgeStart!');
-      } else if (msgJson.type == 'ConfbridgeWelcome') {
-        console.log('Welcome to the Asterisk Conference');
-        console.log('Bridge ID:', msgJson.bridge.id);
-        console.log('Bridge Name:', msgJson.bridge.name);
-        console.log('Created at:', msgJson.bridge.creationtime);
-        console.log('Video Mode:', msgJson.bridge.video_mode);
+        if (msgJson.type == 'ConfbridgeStart') {
+          console.log('ConfbridgeStart!');
+        } else if (msgJson.type == 'ConfbridgeWelcome') {
+          console.log('Welcome to the Asterisk Conference');
+          console.log('Bridge ID:', msgJson.bridge.id);
+          console.log('Bridge Name:', msgJson.bridge.name);
+          console.log('Created at:', msgJson.bridge.creationtime);
+          console.log('Video Mode:', msgJson.bridge.video_mode);
 
-        session.data.confBridgeChannels = msgJson.channels; // Write over this
-        session.data.confBridgeChannels.forEach(function (chan) {
-          // The mute and unmute status doesn't appear to be a realtime state, only what the
-          // startmuted= setting of the default profile is.
-          console.log(
-            chan.caller.name,
-            'Is in the conference. Muted:',
-            chan.muted,
-            'Admin:',
-            chan.admin,
-          );
-        });
-      } else if (msgJson.type == 'ConfbridgeJoin') {
-        msgJson.channels.forEach(function (chan) {
-          let found = false;
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) found = true;
+          session.data.confBridgeChannels = msgJson.channels; // Write over this
+          session.data.confBridgeChannels.forEach(function (chan) {
+            // The mute and unmute status doesn't appear to be a realtime state, only what the
+            // startmuted= setting of the default profile is.
+            console.log(
+              chan.caller.name,
+              'Is in the conference. Muted:',
+              chan.muted,
+              'Admin:',
+              chan.admin,
+            );
           });
-          if (!found) {
-            session.data.confBridgeChannels?.push(chan);
-            session.data.confBridgeEvents?.push({
-              event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
-              eventTime: utcDateNow(),
+        } else if (msgJson.type == 'ConfbridgeJoin') {
+          msgJson.channels.forEach(function (chan) {
+            let found = false;
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) found = true;
             });
-            console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
-          }
-        });
-      } else if (msgJson.type == 'ConfbridgeLeave') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan, i) {
-            if (existingChan.id == chan.id) {
-              session.data.confBridgeChannels?.splice(i, 1);
-              console.log(chan.caller.name, 'Left the conference');
+            if (!found) {
+              session.data.confBridgeChannels?.push(chan);
               session.data.confBridgeEvents?.push({
-                event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
+                event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
                 eventTime: utcDateNow(),
               });
+              console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
             }
           });
-        });
-      } else if (msgJson.type === 'ConfbridgeTalking') {
-        const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
-        if (videoContainer) {
-          //TODO #SH
-          // msgJson.channels.forEach(function (chan) {
-          //   videoContainer.find('video').each(function () {
-          //     if (this.srcObject.channel && this.srcObject.channel == chan.id) {
-          //       if (chan.talking_status == 'on') {
-          //         console.log(chan.caller.name, 'is talking.');
-          //         this.srcObject.isTalking = true;
-          //         $(this).css('border', '1px solid red');
-          //       } else {
-          //         console.log(chan.caller.name, 'stopped talking.');
-          //         this.srcObject.isTalking = false;
-          //         $(this).css('border', '1px solid transparent');
-          //       }
-          //     }
-          //   });
-          // });
+        } else if (msgJson.type == 'ConfbridgeLeave') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan, i) {
+              if (existingChan.id == chan.id) {
+                session.data.confBridgeChannels?.splice(i, 1);
+                console.log(chan.caller.name, 'Left the conference');
+                session.data.confBridgeEvents?.push({
+                  event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
+                  eventTime: utcDateNow(),
+                });
+              }
+            });
+          });
+        } else if (msgJson.type === 'ConfbridgeTalking') {
+          const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
+          if (videoContainer) {
+            //TODO #SH
+            // msgJson.channels.forEach(function (chan) {
+            //   videoContainer.find('video').each(function () {
+            //     if (this.srcObject.channel && this.srcObject.channel == chan.id) {
+            //       if (chan.talking_status == 'on') {
+            //         console.log(chan.caller.name, 'is talking.');
+            //         this.srcObject.isTalking = true;
+            //         $(this).css('border', '1px solid red');
+            //       } else {
+            //         console.log(chan.caller.name, 'stopped talking.');
+            //         this.srcObject.isTalking = false;
+            //         $(this).css('border', '1px solid transparent');
+            //       }
+            //     }
+            //   });
+            // });
+          }
+        } else if (msgJson.type == 'ConfbridgeMute') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) {
+                console.log(existingChan.caller.name, 'is now muted');
+                existingChan.muted = true;
+              }
+            });
+          });
+          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+        } else if (msgJson.type === 'ConfbridgeUnmute') {
+          msgJson.channels.forEach(function (chan) {
+            session.data.confBridgeChannels?.forEach(function (existingChan) {
+              if (existingChan.id == chan.id) {
+                console.log(existingChan.caller.name, 'is now unmuted');
+                existingChan.muted = false;
+              }
+            });
+          });
+          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+        } else if (msgJson.type == 'ConfbridgeEnd') {
+          console.log('The Asterisk Conference has ended, bye!');
+        } else {
+          console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
         }
-      } else if (msgJson.type == 'ConfbridgeMute') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) {
-              console.log(existingChan.caller.name, 'is now muted');
-              existingChan.muted = true;
-            }
-          });
-        });
-        //   RedrawStage(lineObj.LineNumber, false); TODO #SH
-      } else if (msgJson.type === 'ConfbridgeUnmute') {
-        msgJson.channels.forEach(function (chan) {
-          session.data.confBridgeChannels?.forEach(function (existingChan) {
-            if (existingChan.id == chan.id) {
-              console.log(existingChan.caller.name, 'is now unmuted');
-              existingChan.muted = false;
-            }
-          });
-        });
-        //   RedrawStage(lineObj.LineNumber, false); TODO #SH
-      } else if (msgJson.type == 'ConfbridgeEnd') {
-        console.log('The Asterisk Conference has ended, bye!');
+        // RefreshLineActivity(lineObj.LineNumber); TODO #SH
+        response.accept();
+      } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
+        console.log('x-myphone-confbridge-chat', response);
+
+        response.accept();
+      } else if (messageType.indexOf('text/plain') > -1) {
+        if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
+        const body = JSON.parse(response.request.body);
+        switch (body.type as SendMessageSessionEnum) {
+          case SendMessageSessionEnum.SOUND_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
+            ).value;
+            break;
+          case SendMessageSessionEnum.VIDEO_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
+            ).value;
+            sendMessageSession(lineObj.sipSession, SendMessageSessionEnum.VIDEO_TOGGLE_ACK, '');
+            break;
+          case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
+            lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
+              body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
+            ).value;
+            break;
+          case SendMessageSessionEnum.VIDEO_TOGGLE_ACK:
+            lineObj.sipSession.data.videoAckReceived = true;
+            break;
+          default:
+            response.reject();
+            break;
+        }
+        response.accept();
       } else {
-        console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
+        console.warn('Unknown message type');
+        response.reject();
       }
-      // RefreshLineActivity(lineObj.LineNumber); TODO #SH
-      response.accept();
-    } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
-      console.log('x-myphone-confbridge-chat', response);
-
-      response.accept();
-    } else if (messageType.indexOf('text/plain') > -1) {
-      if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
-      const body = JSON.parse(response.request.body);
-      switch (body.type as SendMessageSessionEnum) {
-        case SendMessageSessionEnum.SOUND_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
-          ).value;
-          break;
-        case SendMessageSessionEnum.VIDEO_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
-          ).value;
-
-          break;
-        case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
-          lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
-            body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
-          ).value;
-          break;
-        default:
-          response.reject();
-          break;
-      }
-      response.accept();
-    } else {
-      console.warn('Unknown message type');
-      response.reject();
+      updateLine(lineObj);
+    } catch (error) {
+      console.error('onSessionReceiveMessage Error', error);
     }
-    updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   function onSessionDescriptionHandlerCreated(
@@ -421,19 +435,9 @@ export const useSessionEvents = () => {
   ) {
     if (sdh) {
       if (sdh.peerConnection) {
-        console.log(222, 'onSessionDescriptionHandlerCreated', sdh, {
-          peerConnection: sdh.peerConnection,
-        });
         sdh.peerConnection.ontrack = function (event) {
-          console.log(222, { event });
           onTrackAddedEvent(lineObj, includeVideo);
         };
-        // sdh.peerConnectionDelegate = {
-        //   ontrack: function (event: any) {
-        //     console.log(event);
-        //     onTrackAddedEvent(lineObj, includeVideo);
-        //   },
-        // };
       } else {
         console.warn('onSessionDescriptionHandler fired without a peerConnection');
       }
@@ -448,87 +452,92 @@ export const useSessionEvents = () => {
     const session = lineObj.sipSession;
     if (!session) return;
 
-    session.initiateRemoteMediaStreams = (isVideoEnabled = videoEnabled) => {
-      const pc = session.sessionDescriptionHandler.peerConnection;
-      // Create MediaStreams for audio and video
-      const remoteAudioStream = new MediaStream();
-      const remoteVideoStream = new MediaStream();
+    session.initiateRemoteMediaStreams = (
+      isVideoEnabled = videoEnabled,
+      pc = session.sessionDescriptionHandler.peerConnection,
+    ) => {
+      const remoteAudioTracks = new Map<string, MediaStream>();
+      const remoteVideoTracks = new Map<string, MediaStream>();
+      const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
+      const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
 
-      // Add tracks to MediaStreams
+      const audioContainer = document.getElementById(audioContainerId);
+      const videoContainer = document.getElementById(videoContainerId);
+
+      console.log('initiateRemoteMediaStreams', {
+        isVideoEnabled,
+        pc,
+      });
+
+      // Gather all remote tracks
+      // const audioTracks = pc.getReceivers().filter((r) => r.track && r.track.kind === 'audio');
+      // console.log({ audioTracks: audioTracks.length });
       pc.getTransceivers().forEach((transceiver) => {
-        const receiver = transceiver.receiver;
-        if (receiver.track) {
-          if (receiver.track.kind === 'audio') {
-            console.log('Adding Remote Audio Track');
-            remoteAudioStream.addTrack(receiver.track);
-          }
-          if (isVideoEnabled && receiver.track.kind === 'video') {
-            if (transceiver.mid) {
-              console.log('Adding Remote Video Track', receiver.track.readyState);
-              (receiver.track as any).mid = transceiver.mid;
-              remoteVideoStream.addTrack(receiver.track);
-            }
-          }
+        const track = transceiver.receiver?.track;
+        if (!track) return;
+
+        const stream = new MediaStream([track]);
+
+        if (track.kind === 'audio') {
+          remoteAudioTracks.set(track.id, stream);
+        }
+
+        if (isVideoEnabled && track.kind === 'video') {
+          (track as any).mid = transceiver.mid;
+          console.log(222, 'trackTest', transceiver);
+          remoteVideoTracks.set(track.id, stream);
         }
       });
 
-      // Attach Audio Stream
-      if (remoteAudioStream.getAudioTracks().length > 0) {
-        const remoteAudio = document.getElementById(
-          `line-${lineObj.lineNumber}-remoteAudio`,
-        ) as HTMLAudioElement;
-        if (remoteAudio) {
-          remoteAudio.srcObject = remoteAudioStream;
+      // Inject all remote audio tracks
+      if (audioContainer) {
+        audioContainer.innerHTML = '';
 
-          remoteAudio.onloadedmetadata = () => {
-            if (typeof remoteAudio.sinkId !== 'undefined') {
-              remoteAudio
+        remoteAudioTracks.forEach((stream, trackId) => {
+          const audio = document.createElement('audio');
+          audio.id = `line-${lineObj.lineNumber}-audio-${trackId}`;
+          audio.autoplay = true;
+          audio.srcObject = stream;
+          audio.controls = false;
+
+          audio.onloadedmetadata = () => {
+            if (typeof audio.sinkId !== 'undefined') {
+              audio
                 .setSinkId(audioOutputDeviceId)
-                .then(() => console.log('sinkId applied:', audioOutputDeviceId))
-                .catch((e) => console.warn('Error using setSinkId:', e));
+                .then(() => console.log('sinkId set:', audioOutputDeviceId))
+                .catch((e) => console.warn('setSinkId error:', e));
             }
-            remoteAudio.play();
-            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
-              lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = true;
-          };
-        }
-      }
-
-      // Attach Video Stream
-      if (isVideoEnabled && remoteVideoStream.getVideoTracks().length > 0) {
-        const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
-        let videoContainer = document.getElementById(videoContainerId);
-
-        if (!videoContainer) return;
-        // Clear existing videos
-        videoContainer.innerHTML = '';
-
-        remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
-          const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
-          thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
-          thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-          thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-          const videoElement = document.createElement('video');
-          videoElement.id = `line-${lineObj.lineNumber}-video-${index}`;
-          videoElement.srcObject = thisRemoteVideoStream;
-          videoElement.autoplay = true;
-          videoElement.playsInline = true;
-          videoElement.muted = true; // Ensure autoplay works in browsers
-          videoElement.className = 'video-element'; // Add styling class
-
-          videoElement.onloadedmetadata = () => {
-            videoElement.play().catch((error) => {
-              console.error('Error playing video:', error);
-            });
-            if (lineObj.sipSession?.data.remoteMediaStreamStatus)
-              lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = true;
+            audio.play().catch((err) => console.error('Audio play error:', err));
           };
 
-          videoContainer.appendChild(videoElement);
+          audioContainer.appendChild(audio);
         });
       } else {
-        console.warn('No Video Tracks Found');
+        console.warn(`Remote audio container not found: ${audioContainerId}`);
       }
+
+      // Inject all remote video tracks
+      if (videoContainer) {
+        videoContainer.innerHTML = '';
+        console.log({ remoteVideoTracks });
+        remoteVideoTracks.forEach((stream, trackId) => {
+          const video = document.createElement('video');
+          video.id = `line-${lineObj.lineNumber}-video-${trackId}`;
+          video.srcObject = stream;
+          video.autoplay = true;
+          video.playsInline = true;
+          video.muted = true;
+
+          video.onloadedmetadata = () => {
+            video.play().catch((err) => console.error('Video play error:', err));
+          };
+
+          videoContainer.appendChild(video);
+        });
+      } else {
+        console.warn(`Remote video container not found: ${videoContainerId}`);
+      }
+
       updateLine(lineObj);
     };
   }

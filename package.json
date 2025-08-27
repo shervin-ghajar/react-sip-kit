@@ -1,7 +1,7 @@
 {
   "name": "react-sip-kit",
   "private": false,
-  "version": "0.3.01",
+  "version": "0.3.60",
   "type": "module",
   "author": {
     "name": "Shervin Ghajar",
@@ -55,7 +55,6 @@
     "format": "prettier --write --cache .  --plugin=prettier-plugin-organize-imports"
   },
   "dependencies": {
-    "clone": "^2.1.2",
     "dayjs": "^1.11.13",
     "sip.js": "0.21.2",
     "zustand": "^5.0.1"
@@ -82,6 +81,7 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "rollup": "^4.41.1",
     "rollup-plugin-delete": "^3.0.1",
+    "rollup-plugin-strip": "^1.2.2",
     "tslib": "^2.8.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "8.11.0"

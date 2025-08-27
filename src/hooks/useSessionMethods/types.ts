@@ -1,5 +1,4 @@
 import { useSessionMethods } from '.';
-import { SipProviderProps } from '../../types';
 
 export interface SessionDescriptionHandlerOptions {
   constraints: {

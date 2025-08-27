@@ -1,4 +1,5 @@
-// // TODO first uncomment whole file
+// // TODO first uncomment whole file and remove clone to and modify userAgent directly
+
 // import { getSipStore, getSipStoreUserAgent, setSipStore } from '../../store';
 // import { SipUserAgent } from '../../types';
 // import clone from 'clone';

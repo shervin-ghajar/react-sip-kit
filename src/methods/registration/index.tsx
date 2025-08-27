@@ -1,45 +1,40 @@
 import { onRegisterFailed } from '../../events/registration';
 import { getSipStoreUserAgent, setSipStore } from '../../store';
-import { SipUserAgent } from '../../types';
-import clone from 'clone';
 
 /* -------------------------------------------------------------------------- */
-export function register(userAgent?: SipUserAgent) {
-  const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-  if (clonedUserAgent == null) return;
-  if (clonedUserAgent.registering == true) return;
-  if (clonedUserAgent.isRegistered()) return;
+export function register(userAgent = getSipStoreUserAgent()) {
+  if (!userAgent) return;
+  if (userAgent.registering == true) return;
+  if (userAgent.isRegistered()) return;
   console.log('Sending Registration...');
-  clonedUserAgent.registering = true;
-  clonedUserAgent.registerer.register({
+  userAgent.registering = true;
+  userAgent.registerer.register({
     requestDelegate: {
       onReject(sip) {
         onRegisterFailed(sip.message.reasonPhrase, sip.message.statusCode);
       },
     },
   });
-  if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
+  setSipStore({ userAgent });
 }
-export function unregister(skipUnsubscribe?: boolean, userAgent?: SipUserAgent) {
-  const clonedUserAgent = userAgent ?? clone(getSipStoreUserAgent());
-
-  if (clonedUserAgent == null || !clonedUserAgent.isRegistered()) return;
+export function unregister(skipUnsubscribe?: boolean, userAgent = getSipStoreUserAgent()) {
+  if (!userAgent?.isRegistered()) return;
   if (skipUnsubscribe == true) {
     console.log('Skipping Unsubscribe');
   } else {
     console.log('Unsubscribing...');
     try {
-      //UnsubscribeAll(clonedUserAgent); //TODO
+      //UnsubscribeAll(userAgent); //TODO
     } catch (e) {}
   }
 
   console.log('Unregister...');
-  clonedUserAgent.registerer.unregister();
+  userAgent.registerer.unregister();
 
-  clonedUserAgent.transport.attemptingReconnection = false;
-  clonedUserAgent.registering = false;
-  clonedUserAgent.isReRegister = false;
-  if (!userAgent) setSipStore({ userAgent: clonedUserAgent });
+  userAgent.transport.attemptingReconnection = false;
+  userAgent.registering = false;
+  userAgent.isReRegister = false;
+  setSipStore({ userAgent });
 }
 
 export function refreshRegistration() {
