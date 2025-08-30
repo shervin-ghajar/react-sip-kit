@@ -6,7 +6,7 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
     configs: SipConfigs;
     userAgent?: SipUserAgent;
-    lines: Array<LineType>;
+    lines: Record<LineType['lineNumber'], LineType>;
     audioBlobs: AudioBlobs['audioBlobs'];
     devicesInfo: DevicesInfoType;
     setSipStore: (state: Partial<SipStoreStateType>) => void;
