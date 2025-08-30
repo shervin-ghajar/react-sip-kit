@@ -19,7 +19,8 @@ import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.j
 export const SipContext = createContext<SipContextType | undefined>(undefined);
 export const SipProvider = ({ children, configs }: SipProviderProps) => {
   const userAgent = useSipStore((state) => state.userAgent);
-  const lines = useSipStore((state) => state.lines);
+  const mappedLines = useSipStore((state) => state.lines);
+  const lines = Object.values(mappedLines);
   const setSipStore = useSipStore((state) => state.setSipStore);
   const { getDevices } = useGetMediaDevices();
   const mergedConfigs = useMemo(

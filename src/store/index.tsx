@@ -5,6 +5,8 @@ import { LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
+let lineNumber = 0;
+/* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
   configs: defaultSipConfigs,
@@ -17,34 +19,43 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     videoInputDevices: [],
     speakerDevices: [],
   },
-  lines: [],
+  lines: {},
   audioBlobs: AudioBlobs.getInstance().getAudios(),
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setUserAgent: (userAgent: SipStoreStateType['userAgent']) =>
     set((state) => ({ ...state, userAgent })),
-  addLine: (newLine: LineType) => set((state) => ({ ...state, lines: [...state.lines, newLine] })),
-  updateLine: (updatedLine: LineType) => {
+  addLine: (newLine: LineType) =>
     set((state) => ({
       ...state,
-      lines: state.lines.map((line) => {
-        if (line.lineNumber === updatedLine.lineNumber) return { ...updatedLine };
-        return line;
-      }),
-    }));
-  },
-  removeLine: (lineNumber: LineType['lineNumber']) => {
-    console.log('removeLine');
-    const lines = get().lines;
-    const filteredLines = lines.filter((line) => line.lineNumber !== lineNumber);
-    set((state) => ({ ...state, lines: filteredLines }));
-  },
+      lines: {
+        ...state.lines,
+        [newLine.lineNumber]: newLine, // add or overwrite
+      },
+    })),
+
+  updateLine: (updatedLine: LineType) =>
+    set((state) => {
+      if (!state.lines?.[updatedLine.lineNumber]) return state; // nothing to update
+      return {
+        ...state,
+        lines: {
+          ...state.lines,
+          [updatedLine.lineNumber]: updatedLine, // replace immutably
+        },
+      };
+    }),
+
+  removeLine: (lineNumber: LineType['lineNumber']) =>
+    set((state) => {
+      if (!state.lines?.[lineNumber]) return state; // nothing to remove
+      const { [lineNumber]: _, ...rest } = state.lines; // omit the line immutably
+      return { ...state, lines: rest };
+    }),
   findLineByNumber: (lineNumber) => {
-    return get().lines.find((line) => line.lineNumber === lineNumber) ?? null;
+    return get().lines?.[lineNumber] ?? null;
   },
-  getNewLineNumber: () => {
-    return get().lines.length + 1;
-  },
+  getNewLineNumber: () => ++lineNumber,
   getSessions: () => {
     const { userAgent } = get();
     if (userAgent == null) {
