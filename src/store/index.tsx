@@ -41,7 +41,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         ...state,
         lines: {
           ...state.lines,
-          [updatedLine.lineNumber]: updatedLine, // replace immutably
+          [updatedLine.lineNumber]: { ...updatedLine }, // replace immutably
         },
       };
     }),

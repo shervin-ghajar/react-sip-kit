@@ -8,7 +8,7 @@ type Path<T> = {
   [K in keyof T & string]: T[K] extends Primitive | Array<any> ? K : K | `${K}.${Path<T[K]>}`;
 }[keyof T & string];
 
-/** Resolve the value type of a dot-path string. */
+// Resolve the value type of a dot-path string
 type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
   ? K extends keyof T
     ? Rest extends string
@@ -19,7 +19,7 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
     ? T[P]
     : never;
 
-/** Runtime helper to walk down a dot-path. */
+// Runtime helper to walk down a dot-path
 function getByPath<T extends SipSessionDataType, P extends Path<T>>(
   obj: T,
   path: P,
