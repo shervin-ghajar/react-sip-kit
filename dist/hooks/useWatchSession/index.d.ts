@@ -1,4 +1,4 @@
-import { SipSessionDataType } from '../../store/types';
+import { LineType, SipSessionDataType } from '../../store/types';
 type Primitive = string | number | boolean | symbol | null | undefined;
 type Path<T> = {
     [K in keyof T & string]: T[K] extends Primitive | Array<any> ? K : K | `${K}.${Path<T[K]>}`;
@@ -9,7 +9,7 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}` ? K e
 export declare function useWatchSession(props: {
     lineNumber: number;
     name?: undefined;
-}): SipSessionDataType;
+}): LineType['sipSession'];
 export declare function useWatchSession<P extends Path<SipSessionDataType>>(props: {
     lineNumber: number;
     name: P;

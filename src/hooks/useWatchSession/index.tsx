@@ -1,5 +1,5 @@
 import { useSipStore } from '../../store';
-import { SipSessionDataType } from '../../store/types';
+import { LineType, SipSessionDataType } from '../../store/types';
 import { useShallow } from 'zustand/shallow';
 
 type Primitive = string | number | boolean | symbol | null | undefined;
@@ -32,7 +32,7 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
 export function useWatchSession(props: {
   lineNumber: number;
   name?: undefined;
-}): SipSessionDataType;
+}): LineType['sipSession'];
 
 export function useWatchSession<P extends Path<SipSessionDataType>>(props: {
   lineNumber: number;
@@ -66,7 +66,7 @@ export function useWatchSession({
         return getByPath(data as SipSessionDataType, name as any);
       }
 
-      return line;
+      return line.sipSession;
     }),
   );
 }
