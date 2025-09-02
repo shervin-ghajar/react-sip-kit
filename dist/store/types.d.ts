@@ -5,6 +5,7 @@ import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescrip
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
     configs: SipConfigs;
+    status: 'disconnected' | 'reconnecting' | 'connected';
     userAgent?: SipUserAgent;
     lines: Record<LineType['lineNumber'], LineType>;
     audioBlobs: AudioBlobs['audioBlobs'];
@@ -25,7 +26,6 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    callType: CallType;
     initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
     initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
@@ -37,7 +37,6 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    callType: CallType;
     initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
     initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
@@ -58,8 +57,9 @@ export interface SipSessionType extends Session {
 export interface SipSessionDataType {
     line: number;
     callDirection: 'inbound' | 'outbound';
+    callType: CallType;
     terminateBy: string;
-    src: string;
+    remoteNumber: string;
     earlyReject: boolean;
     reasonCode: number;
     reasonText: string;
@@ -76,7 +76,6 @@ export interface SipSessionDataType {
     localMediaStreamStatus: MediaStremStatus;
     remoteMediaStreamStatus: MediaStremStatus;
     videoAckReceived: boolean;
-    dialledNumber: string;
     transfer: Array<SipSessionTransferType>;
     audioSourceTrack: MediaStreamTrack | null;
     videoSourceTrack: MediaStreamTrack | null;
