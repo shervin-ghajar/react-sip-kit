@@ -31,24 +31,24 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
 
 /** ---------- Hook overloads ---------- */
 
-export function useWatchSession(props: {
+export function useWatchSessionData(props: {
   lineNumber: number;
   name?: undefined;
 }): SipSessionDataType;
 
-export function useWatchSession<P extends Path<SipSessionDataType>>(props: {
+export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
   lineNumber: number;
   name: P;
 }): PathValue<SipSessionDataType, P>;
 
-export function useWatchSession<const P extends readonly Path<SipSessionDataType>[]>(props: {
+export function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
   lineNumber: number;
   name: P;
 }): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
 
 /** ---------- Implementation ---------- */
 
-export function useWatchSession({
+export function useWatchSessionData({
   lineNumber,
   name,
 }: {

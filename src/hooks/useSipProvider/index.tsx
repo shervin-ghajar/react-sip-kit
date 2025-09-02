@@ -1,42 +1,20 @@
 import { reconnectTransport } from '../../events/transport';
 import { useSipStore } from '../../store';
-import { LineType, SipStoreStateType } from '../../store/types';
-import { useDeep } from '../useDeep';
+import { LineType } from '../../store/types';
+import { useMemo } from 'react';
 
-/** ---------- Provider paths ---------- */
-interface ProviderState extends Pick<SipStoreStateType, 'status'> {
-  lines: LineType[];
-  transport: { reconnectTransport: typeof reconnectTransport };
-}
+export function useSipProvider() {
+  // only subscribe to the number of lines
+  const lineCount = useSipStore((s) => Object.keys(s.lines).length);
 
-type Path<T> = keyof T & string; // for provider, paths are top-level keys only
+  // access full lines object once, but don't subscribe to its updates
+  const linesObj = useSipStore.getState().lines;
 
-type PathValue<T, P extends string> = P extends keyof T ? T[P] : never;
+  // recompute lines only when lineCount changes
+  const lines: LineType[] = useMemo(() => Object.values(linesObj), [lineCount]);
 
-/** ---------- Hook overloads ---------- */
-export function useSipProvider(props?: { name?: undefined }): ProviderState;
+  const status = useSipStore((s) => s.status);
+  const transport = { reconnectTransport };
 
-export function useSipProvider<P extends Path<ProviderState>>(props: {
-  name: P;
-}): PathValue<ProviderState, P>;
-
-export function useSipProvider<const P extends readonly Path<ProviderState>[]>(props: {
-  name: P;
-}): { [K in keyof P]: PathValue<ProviderState, P[K] & string> };
-
-/** ---------- Implementation ---------- */
-export function useSipProvider({ name }: { name?: string | readonly string[] } = {}) {
-  return useSipStore(
-    useDeep((state) => {
-      const providerState: ProviderState = {
-        status: state.status,
-        lines: Object.values(state.lines),
-        transport: { reconnectTransport },
-      };
-
-      if (!name) return providerState;
-      if (Array.isArray(name)) return name.map((key) => providerState[key as keyof ProviderState]);
-      return providerState[name as keyof ProviderState];
-    }),
-  );
+  return { status, transport, lines };
 }
