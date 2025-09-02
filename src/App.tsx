@@ -1,9 +1,8 @@
 import './App.css';
 import { Audio, Video } from './components';
-import { useSessionMethods } from './hooks';
-import { useSipProvider } from './provider';
+import { useSessionMethods, useSipProvider, useWatchSessionData } from './hooks';
 import { LineType } from './store/types';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 
 function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider();
@@ -74,30 +73,22 @@ const SipLine = ({ line }: { line: LineType }) => {
     toggleShareScreen,
     recordSession,
   } = useSessionMethods();
-  const isVideoCall = line.sipSession?.callType === 'video';
-  const callStarted = line.sipSession?.data.started;
-  const localVideoEnabled = line.sipSession?.data.localMediaStreamStatus?.videoEnabled;
-  const remoteVideoEnabled = line.sipSession?.data.remoteMediaStreamStatus?.videoEnabled;
-  const remoteScreenShareEnabled =
-    line.sipSession?.data.remoteMediaStreamStatus?.screenShareEnabled;
-  const localScreenShareEnabled = line.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
+  const data = useWatchSessionData({ lineNumber: line.lineNumber });
+  const sipSession = line.sipSession;
+  const isVideoCall = data?.callType === 'video';
+  const callStarted = data.started;
+  const localVideoEnabled = data.localMediaStreamStatus?.videoEnabled;
+  const remoteVideoEnabled = data.remoteMediaStreamStatus?.videoEnabled;
+  const remoteScreenShareEnabled = data.remoteMediaStreamStatus?.screenShareEnabled;
+  const localScreenShareEnabled = data.localMediaStreamStatus?.screenShareEnabled;
 
   const localMediaStreamEnabled = localVideoEnabled || localScreenShareEnabled;
   const remoteMediaStreamEnabled = remoteVideoEnabled || remoteScreenShareEnabled;
-  const isOutbound = line.sipSession?.data.callDirection === 'outbound';
-  const isMute = !line.sipSession?.data.localMediaStreamStatus?.soundEnabled;
-  const isHold = line.sipSession?.isOnHold;
-  const isRecording = line.sipSession?.data?.recordMedia?.recording;
-
-  console.log({
-    localMediaStreamStatus: line.sipSession?.data.localMediaStreamStatus,
-    remoteMediaStreamStatus: line.sipSession?.data.remoteMediaStreamStatus,
-  });
-  console.log({ recordMedia: line.sipSession?.data?.recordMedia });
-
-  console.log({ localMediaStreamEnabled, remoteMediaStreamEnabled });
+  const isOutbound = data.callDirection === 'outbound';
+  const isMute = !data.localMediaStreamStatus?.soundEnabled;
+  const isHold = sipSession?.isOnHold;
+  const isRecording = data?.recordMedia?.recording;
   const recorder = recordSession(line.lineNumber);
-  // console.log({ recorder: recorder?.getUrl() });
   const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
     startTransferSession(line.lineNumber); // just holds the call
     setTimeout(() => {
@@ -107,12 +98,12 @@ const SipLine = ({ line }: { line: LineType }) => {
 
   useEffect(() => {
     if (!callStarted) return;
-    line.sipSession?.initiateLocalMediaStreams(localMediaStreamEnabled);
+    sipSession?.initiateLocalMediaStreams(localMediaStreamEnabled);
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
-    line.sipSession?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+    sipSession?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
   return (
@@ -209,8 +200,15 @@ const SipLine = ({ line }: { line: LineType }) => {
 
       <Audio type="local" lineNumber={line.lineNumber} />
       <Audio type="remote" lineNumber={line.lineNumber} />
-      {/* <Audio type={'transfer'} lineNumber={line.lineNumber} /> */}
-      {/* <Audio type={'conference'} lineNumber={line.lineNumber} /> */}
+      <TestComponent lineNumber={line.lineNumber} />
     </div>
   );
 };
+const TestComponent = memo(({ lineNumber }: { lineNumber: number }) => {
+  const [localMediaStreamStatus, isRecording] = useWatchSessionData({
+    lineNumber,
+    name: ['localMediaStreamStatus', 'recordMedia.recording'],
+  });
+  console.log({ localMediaStreamStatus, isRecording });
+  return <>Test</>;
+});

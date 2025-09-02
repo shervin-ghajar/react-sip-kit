@@ -24,7 +24,7 @@ export function onTransportConnected(userAgent = getSipStoreUserAgent()) {
       'onTransportConnected: register() called, but attemptingReconnection is true or registering is true',
     );
   }
-  setSipStore({ userAgent });
+  setSipStore({ userAgent, status: 'connected' });
 }
 
 export function onTransportConnectError(error: Error, userAgent = getSipStoreUserAgent()) {
@@ -43,7 +43,7 @@ export function onTransportConnectError(error: Error, userAgent = getSipStoreUse
   }
 
   reconnectTransport(userAgent);
-  setSipStore({ userAgent });
+  setSipStore({ userAgent, status: 'disconnected' });
 }
 export function onTransportDisconnected(userAgent: SipUserAgent) {
   console.log('Disconnected from Web Socket!');
@@ -89,5 +89,5 @@ export function reconnectTransport(userAgent = getSipStoreUserAgent()) {
     userAgent.transport.reconnectionAttempts,
   );
   userAgent.transport.reconnectionAttempts = userAgent.transport.reconnectionAttempts - 1;
-  setSipStore({ userAgent });
+  setSipStore({ userAgent, status: 'reconnecting' });
 }

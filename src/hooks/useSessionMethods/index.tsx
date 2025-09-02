@@ -76,9 +76,9 @@ export const useSessionMethods = () => {
     session.data.line = lineObj.lineNumber;
     session.data.callDirection = 'inbound';
     session.data.terminateBy = '';
-    session.data.src = did;
+    session.data.remoteNumber = did;
     session.data.earlyReject = false;
-    session.callType = 'audio';
+    session.data.callType = 'audio';
     //MediaStreamStatus
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
@@ -96,11 +96,11 @@ export const useSessionMethods = () => {
       // even if original invite does not specify video.
       if (session.request.body.indexOf('m=video') > -1) {
         session.data.remoteMediaStreamStatus.videoEnabled = true;
-        session.callType = 'video';
+        session.data.callType = 'video';
         // The invite may have video, but the buddy may be a contact
       }
     }
-    const isVideoCall = session.callType === 'video';
+    const isVideoCall = session.data.callType === 'video';
     // Extract P-Asserted-Identity if available
     const sipHeaders = session.incomingInviteRequest.message.headers;
     if (sipHeaders['P-Asserted-Identity']) {
@@ -375,7 +375,7 @@ export const useSessionMethods = () => {
     session.data = {
       line: lineObj.lineNumber,
       callDirection: 'outbound',
-      dialledNumber: dialledNumber,
+      remoteNumber: dialledNumber,
       startTime: startTime,
       videoSourceDevice: null,
       audioSourceDevice: configs.media.audioInputDeviceId,
@@ -394,7 +394,7 @@ export const useSessionMethods = () => {
       },
       earlyReject: false,
     };
-    session.callType = 'audio';
+    session.data.callType = 'audio';
     session.isOnHold = false;
     session.delegate = {
       onBye: function (sip) {
@@ -557,7 +557,7 @@ export const useSessionMethods = () => {
     session.data = {
       line: lineObj.lineNumber,
       callDirection: 'outbound',
-      dialledNumber: dialledNumber,
+      remoteNumber: dialledNumber,
       startTime: startTime,
       localMediaStreamStatus: {
         screenShareEnabled: false,
@@ -574,7 +574,7 @@ export const useSessionMethods = () => {
       audioOutputDevice: configs.media.audioOutputDeviceId,
       terminateBy: 'them',
     };
-    session.callType = 'video';
+    session.data.callType = 'video';
     session.data.earlyReject = false;
     session.isOnHold = false;
     session.delegate = {
@@ -628,7 +628,7 @@ export const useSessionMethods = () => {
    */
   const toggleLocalVideoTrack = async (lineNumber: LineType['lineNumber']) => {
     const lineObj = findLineByNumber(lineNumber);
-    if (!lineObj || !lineObj.sipSession || lineObj.sipSession.callType === 'audio') return;
+    if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
     if (!session.data.localMediaStreamStatus || !session.data.remoteMediaStreamStatus) return;
@@ -669,7 +669,7 @@ export const useSessionMethods = () => {
    */
   async function toggleShareScreen(lineNumber: LineType['lineNumber']) {
     const lineObj = findLineByNumber(lineNumber);
-    if (!lineObj || !lineObj.sipSession || lineObj.sipSession.callType === 'audio') return;
+    if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
     const pc = session.sessionDescriptionHandler?.peerConnection;
@@ -848,7 +848,7 @@ export const useSessionMethods = () => {
     session.data = {
       line: lineObj.lineNumber,
       callDirection: 'outbound',
-      dialledNumber: conferenceNumber,
+      remoteNumber: conferenceNumber,
       startTime,
       videoSourceDevice: configs.media.videoInputDeviceId,
       audioSourceDevice: configs.media.audioInputDeviceId,
@@ -867,7 +867,7 @@ export const useSessionMethods = () => {
       earlyReject: false,
     };
 
-    session.callType = hasVideoDevice ? 'video' : 'audio';
+    session.data.callType = hasVideoDevice ? 'video' : 'audio';
     session.isOnHold = false;
 
     // Define SIP session event handlers
@@ -1201,7 +1201,7 @@ export const useSessionMethods = () => {
         console.warn(`Line ${lineNumber} not found or has no SIP session`);
         return;
       }
-      const isVideoCall = lineObj.sipSession.callType === 'video';
+      const isVideoCall = lineObj.sipSession.data.callType === 'video';
 
       try {
         const chunks: BlobPart[] = [];
@@ -1742,7 +1742,6 @@ export const useSessionMethods = () => {
     // updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
-
   return {
     receiveSession,
     answerAudioSession,
