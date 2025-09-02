@@ -6,15 +6,15 @@ type Path<T> = {
 /** Resolve the value type of a dot-path string. */
 type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}` ? K extends keyof T ? Rest extends string ? PathValue<T[K], Rest> : never : never : P extends keyof T ? T[P] : never;
 /** ---------- Hook overloads ---------- */
-export declare function useWatchSession(props: {
+export declare function useWatchSessionData(props: {
     lineNumber: number;
     name?: undefined;
 }): SipSessionDataType;
-export declare function useWatchSession<P extends Path<SipSessionDataType>>(props: {
+export declare function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
     lineNumber: number;
     name: P;
 }): PathValue<SipSessionDataType, P>;
-export declare function useWatchSession<const P extends readonly Path<SipSessionDataType>[]>(props: {
+export declare function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
     lineNumber: number;
     name: P;
 }): {
