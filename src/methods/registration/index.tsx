@@ -4,7 +4,7 @@ import { getSipStoreUserAgent, setSipStore } from '../../store';
 /* -------------------------------------------------------------------------- */
 export function register(userAgent = getSipStoreUserAgent()) {
   if (!userAgent) return;
-  if (userAgent.registering == true) return;
+  if (userAgent?.registering) return;
   if (userAgent.isRegistered()) return;
   console.log('Sending Registration...');
   userAgent.registering = true;

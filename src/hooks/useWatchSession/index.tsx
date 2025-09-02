@@ -1,6 +1,8 @@
 import { useSipStore } from '../../store';
-import { LineType, SipSessionDataType } from '../../store/types';
-import { useShallow } from 'zustand/shallow';
+import { SipSessionDataType } from '../../store/types';
+import { useDeep } from '../useDeep';
+
+/* -------------------------------------------------------------------------- */
 
 type Primitive = string | number | boolean | symbol | null | undefined;
 
@@ -8,7 +10,7 @@ type Path<T> = {
   [K in keyof T & string]: T[K] extends Primitive | Array<any> ? K : K | `${K}.${Path<T[K]>}`;
 }[keyof T & string];
 
-// Resolve the value type of a dot-path string
+/** Resolve the value type of a dot-path string. */
 type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
   ? K extends keyof T
     ? Rest extends string
@@ -19,7 +21,7 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
     ? T[P]
     : never;
 
-// Runtime helper to walk down a dot-path
+/** Runtime helper to walk down a dot-path. */
 function getByPath<T extends SipSessionDataType, P extends Path<T>>(
   obj: T,
   path: P,
@@ -32,7 +34,7 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
 export function useWatchSession(props: {
   lineNumber: number;
   name?: undefined;
-}): LineType['sipSession'];
+}): SipSessionDataType;
 
 export function useWatchSession<P extends Path<SipSessionDataType>>(props: {
   lineNumber: number;
@@ -54,7 +56,7 @@ export function useWatchSession({
   name?: string | readonly string[];
 }) {
   return useSipStore(
-    useShallow((state) => {
+    useDeep((state) => {
       const line = state.lines[lineNumber];
       if (!line?.sipSession?.data) return undefined;
       const data = line.sipSession.data as SipSessionDataType;
@@ -66,7 +68,7 @@ export function useWatchSession({
         return getByPath(data as SipSessionDataType, name as any);
       }
 
-      return line.sipSession;
+      return line.sipSession.data;
     }),
   );
 }

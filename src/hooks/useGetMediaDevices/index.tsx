@@ -1,6 +1,14 @@
 import { detectDevices } from '../../methods/initialization';
 import { useSipStore } from '../../store';
 
+export interface GetDevicesType {
+  hasAudioDevice: boolean;
+  audioInputDevices: MediaDeviceInfo[];
+  hasSpeakerDevice: boolean;
+  speakerDevices: MediaDeviceInfo[];
+  hasVideoDevice: boolean;
+  videoInputDevices: MediaDeviceInfo[];
+}
 export const useGetMediaDevices = () => {
   const enableVideo = useSipStore((state) => state.configs.features.enableVideo);
   const getDevices = async () => {

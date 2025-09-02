@@ -10,6 +10,7 @@ let lineNumber = 0;
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
   configs: defaultSipConfigs,
+  status: 'disconnected',
   userAgent: undefined,
   devicesInfo: {
     hasVideoDevice: false,
@@ -41,7 +42,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         ...state,
         lines: {
           ...state.lines,
-          [updatedLine.lineNumber]: { ...updatedLine }, // replace immutably
+          [updatedLine.lineNumber]: updatedLine, // replace immutably
         },
       };
     }),
