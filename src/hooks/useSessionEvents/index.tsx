@@ -66,6 +66,7 @@ export const useSessionEvents = () => {
   ) {
     // Call in progress
     const session = lineObj.sipSession;
+    console.log('onInviteAccepted', { lineObj, session });
     if (!session) return;
     if (session.data.earlyMedia) {
       session.data.earlyMedia.pause();
