@@ -5,7 +5,7 @@ import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescrip
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
     configs: SipConfigs;
-    status: 'disconnected' | 'reconnecting' | 'connected';
+    status: 'disconnected' | 'connecting' | 'connected';
     userAgent?: SipUserAgent;
     lines: Record<LineType['lineNumber'], LineType>;
     audioBlobs: AudioBlobs['audioBlobs'];

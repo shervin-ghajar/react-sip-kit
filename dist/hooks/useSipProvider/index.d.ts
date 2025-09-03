@@ -1,7 +1,7 @@
 import { reconnectTransport } from '../../events/transport';
 import { LineType } from '../../store/types';
 export declare function useSipProvider(): {
-    status: "disconnected" | "reconnecting" | "connected";
+    status: "disconnected" | "connecting" | "connected";
     transport: {
         reconnectTransport: typeof reconnectTransport;
     };
