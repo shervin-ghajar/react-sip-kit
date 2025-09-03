@@ -89,5 +89,5 @@ export function reconnectTransport(userAgent = getSipStoreUserAgent()) {
     userAgent.transport.reconnectionAttempts,
   );
   userAgent.transport.reconnectionAttempts = userAgent.transport.reconnectionAttempts - 1;
-  setSipStore({ userAgent, status: 'reconnecting' });
+  setSipStore({ userAgent, status: 'connecting' });
 }

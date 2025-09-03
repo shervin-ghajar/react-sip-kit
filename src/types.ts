@@ -35,16 +35,6 @@ export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
   children: React.ReactNode;
   configs: SipProviderConfigs<T>;
 }
-
-export interface SipContextType {
-  status: 'connected' | 'disconnected';
-  lines: LineType[];
-  transport: SipContextTransportType;
-}
-export interface SipContextSessionType {
-  methods: Omit<ReturnType<typeof useSessionMethods>, 'receiveCall'>;
-  events: ReturnType<typeof useSessionEvents>;
-}
 export interface SipContextTransportType {
   reconnectTransport: typeof reconnectTransport;
 }
