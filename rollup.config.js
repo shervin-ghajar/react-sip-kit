@@ -30,10 +30,10 @@ export default {
     resolve(),
     commonjs(),
     typescript({ tsconfig: './tsconfig.json' }),
-    // strip({
-    //   include: ['**/*.ts', '**/*.tsx'],
-    //   functions: ['console.*'],
-    // }),
-    // terser(),
+    strip({
+      include: ['**/*.ts', '**/*.tsx'],
+      functions: ['console.*'],
+    }),
+    terser(),
   ],
 };

@@ -80,16 +80,15 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      // @ts-ignore: sipSession injected internally
-      getSessionByNumber?.initiateLocalMediaStreams(localMediaStreamEnabled);
+      getSessionByNumber(lineNumber)?.initiateLocalMediaStreams(localMediaStreamEnabled);
     }
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
+    // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      // @ts-ignore
-      getSessionByNumber?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+      getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
     }
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
