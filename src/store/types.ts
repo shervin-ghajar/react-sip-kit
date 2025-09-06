@@ -29,8 +29,6 @@ export interface SipStoreStateType {
   getSessionByNumber: (lineNum: LineType['lineNumber']) => LineType['sipSession'] | null;
   getSessions: () => SipUserAgent['sessions'] | null;
   getNewLineNumber: () => number;
-  // Utils
-  countIdSessions: (id: string) => number;
 }
 
 export interface SipInvitationType
