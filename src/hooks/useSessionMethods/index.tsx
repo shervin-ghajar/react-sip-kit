@@ -27,13 +27,12 @@ import {
 export const useSessionMethods = () => {
   const configs = useSipStore((state) => state.configs);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
+  const getSessionByNumber = useSipStore((state) => state.getSessionByNumber);
   const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
   const addLine = useSipStore((state) => state.addLine);
   const removeLine = useSipStore((state) => state.removeLine);
   const updateLine = useSipStore((state) => state.updateLine);
-  const countIdSessions = useSipStore((state) => state.countIdSessions);
   const userAgent = useSipStore((state) => state.userAgent);
-  const audioBlobs = useSipStore((state) => state.audioBlobs);
   const { hasAudioDevice, hasVideoDevice } = useSipStore((state) => state.devicesInfo);
 
   const {
@@ -207,75 +206,6 @@ export const useSessionMethods = () => {
 
     // Show notification / Ring / Windows Etc
     // ======================================
-
-    // Play Ring Tone if not on the phone
-    // Retrieve EnableRingtone from configs or set a default value
-    const currentCalls = countIdSessions(session.id);
-    if (configs.features.enableRingtone) {
-      if (currentCalls >= 1) {
-        // Play Alert
-        console.log('Audio:', audioBlobs.CallWaiting.url);
-        const ringer = new Audio(audioBlobs.CallWaiting.url as string);
-        ringer.preload = 'auto';
-        ringer.loop = false;
-        ringer.oncanplaythrough = function () {
-          if (
-            typeof ringer.sinkId !== 'undefined' &&
-            configs.media.ringerOutputDeviceId != 'default'
-          ) {
-            ringer
-              .setSinkId(configs.media.ringerOutputDeviceId)
-              .then(function () {
-                console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
-              })
-              .catch(function (e) {
-                console.warn('Failed not apply setSinkId.', e);
-              });
-          }
-          // If there has been no interaction with the page at all... this page will not work
-          ringer
-            .play()
-            .then(function () {
-              // Audio Is Playing
-            })
-            .catch(function (e) {
-              console.warn('Unable to play audio file.', e);
-            });
-        };
-        session.data.ringerObj = ringer;
-      } else {
-        // Play Ring Tone
-        console.log('Audio:', audioBlobs.Ringtone.url, audioBlobs.Ringtone);
-        const ringer = new Audio(audioBlobs.Ringtone.blob as string);
-        ringer.preload = 'auto';
-        ringer.loop = true;
-        ringer.oncanplaythrough = function () {
-          if (
-            typeof ringer.sinkId !== 'undefined' &&
-            configs.media.ringerOutputDeviceId != 'default'
-          ) {
-            ringer
-              .setSinkId(configs.media.ringerOutputDeviceId)
-              .then(function () {
-                console.log('Set sinkId to:', configs.media.ringerOutputDeviceId);
-              })
-              .catch(function (e) {
-                console.warn('Failed not apply setSinkId.', e);
-              });
-          }
-          // If there has been no interaction with the page at all... this page will not work
-          ringer
-            .play()
-            .then(function () {
-              // Audio Is Playing
-            })
-            .catch(function (e) {
-              console.warn('Unable to play audio file.', e);
-            });
-        };
-        session.data.ringerObj = ringer;
-      }
-    }
     addLine(lineObj);
   }
 
@@ -292,6 +222,7 @@ export const useSessionMethods = () => {
     }
 
     const lineObj = findLineByNumber(lineNumber);
+
     if (lineObj === null) {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
@@ -1763,5 +1694,6 @@ export const useSessionMethods = () => {
     attendedTransferSession,
     cancelAttendedTransferSession,
     teardownSession,
+    getSessionByNumber,
   };
 };

@@ -1,6 +1,5 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
-import { reconnectTransport } from './events/transport';
 import { useSessionMethods } from './hooks';
 import { useGetMediaDevices } from './hooks/useGetMediaDevices';
 import { SipManager } from './manager';
