@@ -26,6 +26,7 @@ export interface SipStoreStateType {
   removeLine: (lineNum: LineType['lineNumber']) => void;
   // Getter
   findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
+  getSessionByNumber: (lineNum: LineType['lineNumber']) => LineType['sipSession'] | null;
   getSessions: () => SipUserAgent['sessions'] | null;
   getNewLineNumber: () => number;
   // Utils

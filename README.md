@@ -1,14 +1,3 @@
-Perfect 👍
-You want a **complete npm-standard README** that:
-
-* Uses the improved `App` + `SipLine` example we just polished.
-* Points users to the new **`/example` folder** in your repo (instead of putting all code in the README).
-* Keeps the README clean but still shows a **minimal usage snippet** inline.
-
-Here’s the finished **README.md** draft for your project:
-
----
-
 # react-sip-kit
 
 A modern **React SIP.js toolkit** for building web-based softphones and SIP clients.
@@ -19,7 +8,7 @@ Supports **audio/video calls**, **recording**, **screen sharing**, and **device 
 ## ✨ Features
 
 * 📞 **Audio & Video Calls** — with automatic device detection
-* 🎥 **Video support** — manage local & remote streams seamlessly
+* 🎥 **Video Support** — manage local & remote streams seamlessly
 * 🔴 **Call Recording** — audio and video recording out of the box
 * 🖥️ **Screen Sharing** — during video calls
 * 🎧 **Device Management** — select audio/video input & output devices
@@ -64,7 +53,7 @@ import { SipProvider } from 'react-sip-kit';
 
 ---
 
-### 2. Make calls with hooks
+### 2. Access SIP state and methods
 
 ```tsx
 import { useSipProvider, useSessionMethods } from 'react-sip-kit';
@@ -85,7 +74,37 @@ function DialPad() {
 
 ---
 
-### 3. Render media streams
+### 3. Watch line data with `useWatchSessionData`
+
+⚠️ **Important:**
+`useSipProvider` re-renders only when lines are **added or removed**, not when the internal data of a line changes.
+To react to updates inside a line (like call status, recording state, or media flags), use `useWatchSessionData`.
+
+```tsx
+import { useWatchSessionData } from 'react-sip-kit';
+
+function RecordingStatus({ lineNumber }: { lineNumber: number }) {
+  const [isRecording] = useWatchSessionData({
+    lineNumber,
+    name: 'recordMedia.recording',
+  });
+
+  return <p>Recording: {isRecording ? 'Yes' : 'No'}</p>;
+}
+```
+
+You can also pass an array of field paths:
+
+```tsx
+const [recording, media] = useWatchSessionData({
+  lineNumber: 1,
+  name: ['recordMedia.recording', 'recordMedia'],
+});
+```
+
+---
+
+### 4. Render media streams
 
 ```tsx
 import { Video, Audio } from 'react-sip-kit';
@@ -116,7 +135,8 @@ See [types.ts](https://github.com/shervin-ghajar/react-sip-kit/blob/main/src/con
 
 ## 💡 Best Practices
 
-* Use hooks (`useSipProvider`, `useSessionMethods`) for SIP state & actions.
+* Use `useSipProvider` for high-level SIP state (status, lines list).
+* Use `useWatchSessionData` for real-time updates inside a specific line.
 * Render media components only for active calls.
 * Handle device permissions and selection gracefully.
 * Reinitialize streams with `initiateRemoteMediaStreams` or `initiateLocalMediaStreams` if `<video>`/`<audio>` is rendered after the call starts.
@@ -126,7 +146,7 @@ See [types.ts](https://github.com/shervin-ghajar/react-sip-kit/blob/main/src/con
 
 ## 🧑‍💻 Full Example
 
-A full working demo (with call controls, transfer, hold, recording, etc.) is available in the
+A complete demo app (with call controls, transfer, hold, recording, etc.) is available in the
 [`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) folder of this repo.
 
 This example demonstrates:
@@ -152,4 +172,3 @@ MIT License
 * GitHub: [@shervin-ghajar](https://github.com/shervin-ghajar)
 * NPM: [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
 * Repository: [react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)
-

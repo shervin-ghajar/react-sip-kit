@@ -27,13 +27,12 @@ import {
 export const useSessionMethods = () => {
   const configs = useSipStore((state) => state.configs);
   const findLineByNumber = useSipStore((state) => state.findLineByNumber);
+  const getSessionByNumber = useSipStore((state) => state.getSessionByNumber);
   const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
   const addLine = useSipStore((state) => state.addLine);
   const removeLine = useSipStore((state) => state.removeLine);
   const updateLine = useSipStore((state) => state.updateLine);
-  const countIdSessions = useSipStore((state) => state.countIdSessions);
   const userAgent = useSipStore((state) => state.userAgent);
-  const audioBlobs = useSipStore((state) => state.audioBlobs);
   const { hasAudioDevice, hasVideoDevice } = useSipStore((state) => state.devicesInfo);
 
   const {
@@ -223,6 +222,7 @@ export const useSessionMethods = () => {
     }
 
     const lineObj = findLineByNumber(lineNumber);
+
     if (lineObj === null) {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
@@ -1694,5 +1694,6 @@ export const useSessionMethods = () => {
     attendedTransferSession,
     cancelAttendedTransferSession,
     teardownSession,
+    getSessionByNumber,
   };
 };

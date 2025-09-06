@@ -56,6 +56,9 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   findLineByNumber: (lineNumber) => {
     return get().lines?.[lineNumber] ?? null;
   },
+  getSessionByNumber: (lineNumber) => {
+    return get().lines?.[lineNumber]?.sipSession ?? null;
+  },
   getNewLineNumber: () => ++lineNumber,
   getSessions: () => {
     const { userAgent } = get();
@@ -69,14 +72,6 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     }
     const sessions = userAgent.sessions ?? null;
     return sessions;
-  },
-  countIdSessions: (id: string) => {
-    let count = 0;
-    if (!get().userAgent?.sessions) return count;
-    Object.values(get().userAgent?.sessions ?? {}).forEach((session) => {
-      if (id !== session.id) count++;
-    });
-    return count;
   },
 }));
 /* -------------------------------------------------------------------------- */

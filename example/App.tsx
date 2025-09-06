@@ -11,7 +11,7 @@ function App({ username }: { username: string }) {
 
   // Renders all active SIP lines
   const renderLines = () => {
-    return lines.map((line) => <Line key={line.lineNumber} line={line} />);
+    return lines.map((line) => <Line key={line.lineNumber} lineNumber={line.lineNumber} />);
   };
 
   return (
