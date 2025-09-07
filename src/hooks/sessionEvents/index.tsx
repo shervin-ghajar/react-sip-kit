@@ -83,80 +83,53 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
     ) => {
-      const configs = getSipUsernameConfigs(username);
-      const media = configs?.media;
+      try {
+        const configs = getSipUsernameConfigs(username);
+        const media = configs?.media;
 
-      console.log('initiateLocalMediaStreams', {
-        isVideoEnabled,
-        pc,
-        media,
-        senders: pc.getSenders(),
-      });
+        const constraints: MediaStreamConstraints = {
+          audio:
+            media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+              ? { deviceId: { exact: media.audioInputDeviceId } }
+              : true,
+          video: isVideoEnabled
+            ? media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
+              ? { deviceId: { exact: media.videoInputDeviceId } }
+              : true
+            : false,
+        };
 
-      // 🔹 Switch microphone (audio input)
-      if (media?.audioInputDeviceId) {
-        try {
-          const micStream = await navigator.mediaDevices.getUserMedia({
-            audio: { deviceId: { exact: media.audioInputDeviceId } },
-          });
-          const newAudioTrack = micStream.getAudioTracks()[0];
-          const audioSender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+        const localStream = await navigator.mediaDevices.getUserMedia(constraints);
 
-          if (audioSender && newAudioTrack) {
-            await audioSender.replaceTrack(newAudioTrack);
-            console.log('🎤 Mic switched:', media.audioInputDeviceId);
-          }
-        } catch (err) {
-          console.error('Failed to switch microphone', err);
-        }
-      }
+        // Replace existing audio/video tracks in PeerConnection
+        localStream.getTracks().forEach((track) => {
+          const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
 
-      // 🔹 Switch camera (video input)
-      if (isVideoEnabled && media?.videoInputDeviceId) {
-        try {
-          const camStream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: media.videoInputDeviceId } },
-          });
-          const newVideoTrack = camStream.getVideoTracks()[0];
-          const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
-
-          if (videoSender && newVideoTrack) {
-            await videoSender.replaceTrack(newVideoTrack);
-            console.log('📷 Camera switched:', media.videoInputDeviceId);
-
-            // Update local preview
-            const localVideoEl = document.getElementById(
-              `line-${lineObj.lineNumber}-localVideo`,
-            ) as HTMLVideoElement;
-            if (localVideoEl) {
-              localVideoEl.srcObject = new MediaStream([newVideoTrack]);
-              await localVideoEl.play().catch(console.error);
-            }
-          }
-        } catch (err) {
-          console.error('Failed to switch camera', err);
-        }
-      }
-
-      // 🔹 Switch speaker (audio output)
-      if (media?.audioOutputDeviceId) {
-        try {
-          const remoteAudioEl = document.getElementById(
-            `line-${lineObj.lineNumber}-remoteAudio`,
-          ) as HTMLAudioElement;
-
-          if (remoteAudioEl && 'setSinkId' in remoteAudioEl) {
-            // @ts-ignore
-            await remoteAudioEl.setSinkId(media.audioOutputDeviceId);
-            console.log('🔊 Speaker switched:', media.audioOutputDeviceId);
+          if (sender) {
+            sender.replaceTrack(track);
           } else {
-            console.warn('Browser does not support setSinkId()');
+            pc.addTrack(track, localStream);
           }
-        } catch (err) {
-          console.error('Failed to switch speaker', err);
+        });
+
+        // Update local <video> preview
+        if (isVideoEnabled) {
+          const localVideo = document.getElementById(
+            `line-${lineObj.lineNumber}-localVideo`,
+          ) as HTMLVideoElement;
+
+          if (localVideo) {
+            localVideo.srcObject = new MediaStream(localStream.getVideoTracks());
+            await localVideo.play().catch(() => {
+              console.warn('Autoplay prevented for local video element');
+            });
+          }
         }
+
+        updateLine(username, lineObj);
+      } catch (err) {
+        console.error('initiateLocalMediaStreams failed:', err);
       }
-      updateLine(username, lineObj);
     };
 
     updateLine(username, lineObj);
