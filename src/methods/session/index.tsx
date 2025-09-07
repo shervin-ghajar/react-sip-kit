@@ -1,9 +1,10 @@
+import { SipAccountConfig } from '../../configs/types';
 import { getSipStore } from '../../store';
 import { LineType } from '../../store/types';
 import { SendMessageSessionValueType, SendMessageSessionEnum } from './type';
 
 /* -------------------------------------------------------------------------- */
-export function teardownSession(lineObj: LineType) {
+export function teardownSession(username: SipAccountConfig['username'], lineObj: LineType) {
   const { removeLine } = getSipStore();
   if (lineObj == null || lineObj.sipSession == null) return;
 
@@ -101,7 +102,7 @@ export function teardownSession(lineObj: LineType) {
   //   if (session.data.earlyReject != true) {
   //     UpdateUI();
   //   }
-  removeLine(lineObj.lineNumber);
+  removeLine(username, lineObj.lineNumber);
 }
 /* -------------------------------------------------------------------------- */
 export async function sendMessageSession<T extends SendMessageSessionEnum>(
@@ -133,6 +134,7 @@ export async function sendMessageSession<T extends SendMessageSessionEnum>(
  * Sends VIDEO_TOGGLE and retries until VIDEO_TOGGLE_ACK is received.
  */
 export async function sendVideoActivationWithAckRetry(
+  username: SipAccountConfig['username'],
   session: LineType['sipSession'],
   options?: { maxRetries?: number; delayMs?: number },
 ): Promise<void> {
@@ -143,8 +145,8 @@ export async function sendVideoActivationWithAckRetry(
   return new Promise<void>((resolve, reject) => {
     const trySend = async () => {
       if (!session?.data?.line) return;
-      const ackReceived = getSipStore().findLineByNumber(session?.data?.line)?.sipSession?.data
-        ?.videoAckReceived;
+      const ackReceived = getSipStore().findLineByNumber(username, session?.data?.line)?.sipSession
+        ?.data?.videoAckReceived;
       console.log('VIDEO_TOGGLE_ACK', { ackReceived });
       if (ackReceived) {
         console.log('✅ VIDEO_TOGGLE_ACK received');
@@ -166,3 +168,6 @@ export async function sendVideoActivationWithAckRetry(
     trySend();
   });
 }
+/* -------------------------------------------------------------------------- */
+
+export const getUsernameByNumber = getSipStore().getUsernameByNumber;

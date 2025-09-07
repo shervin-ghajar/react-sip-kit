@@ -1,4 +1,4 @@
-export * from './useSessionMethods';
-export * from './useSessionEvents';
+export * from './sessionMethods';
+export * from './sessionEvents';
 export * from './useSipProvider';
 export * from './useWatchSessionData';

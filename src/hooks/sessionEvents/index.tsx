@@ -1,6 +1,7 @@
+import { SipAccountConfig } from '../../configs/types';
 import { sendMessageSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
-import { useSipStore } from '../../store';
+import { getSipStore, getSipUsernameConfigs } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
 import { dayJs, utcDateNow } from '../../utils';
@@ -8,11 +9,9 @@ import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
-export const useSessionEvents = () => {
-  const updateLine = useSipStore((state) => state.updateLine);
-  const audioBlobs = useSipStore((state) => state.audioBlobs);
-
-  const { maxVideoBandwidth, audioOutputDeviceId } = useSipStore((state) => state.configs.media);
+export const sessionEvents = ({ username }: { username: SipAccountConfig['username'] }) => {
+  const updateLine = getSipStore().updateLine;
+  const media = getSipStore().configs?.[username]?.media;
 
   function onInviteCancel(
     lineObj: LineType,
@@ -80,61 +79,87 @@ export const useSessionEvents = () => {
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = (
+    session.initiateLocalMediaStreams = async (
       isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
     ) => {
-      console.log('initiateLocalMediaStreams', { isVideoEnabled, pc, sender: pc.getSenders() });
-      if (isVideoEnabled) {
-        // Preview our stream from peer connection
-        const localVideoStream = new MediaStream();
-        pc.getSenders().forEach(function (sender) {
-          if (sender.track && sender.track.kind === 'video') {
-            console.log('initiateLocalMediaStreams', { track: sender.track });
-            sender.track.contentHint = 'Shervin';
-            console.log(111, 'trackTest', sender);
-            localVideoStream.addTrack(sender.track);
-          }
-        });
-        const localVideo = document.getElementById(
-          `line-${lineObj.lineNumber}-localVideo`,
-        ) as HTMLVideoElement;
-        if (localVideo) {
-          localVideo.srcObject = localVideoStream;
-          localVideo.onloadedmetadata = function (e) {
-            localVideo.play();
-          };
-        }
+      const configs = getSipUsernameConfigs(username);
+      const media = configs?.media;
 
-        // Apply Call Bandwidth Limits
-        if (maxVideoBandwidth > -1) {
-          pc.getSenders().forEach(function (sender) {
-            if (sender.track && sender.track.kind === 'video') {
-              const parameters = sender.getParameters();
-              if (!parameters.encodings) parameters.encodings = [{}];
-              parameters.encodings[0].maxBitrate = maxVideoBandwidth * 1000;
+      console.log('initiateLocalMediaStreams', {
+        isVideoEnabled,
+        pc,
+        media,
+        senders: pc.getSenders(),
+      });
 
-              console.log('Applying limit for Bandwidth to: ', maxVideoBandwidth + 'kb per second');
-
-              // Only going to try without re-negotiations
-              sender.setParameters(parameters).catch(function (e: any) {
-                console.warn('Cannot apply Bandwidth Limits', e);
-              });
-            }
+      // 🔹 Switch microphone (audio input)
+      if (media?.audioInputDeviceId) {
+        try {
+          const micStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: media.audioInputDeviceId } },
           });
+          const newAudioTrack = micStream.getAudioTracks()[0];
+          const audioSender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+
+          if (audioSender && newAudioTrack) {
+            await audioSender.replaceTrack(newAudioTrack);
+            console.log('🎤 Mic switched:', media.audioInputDeviceId);
+          }
+        } catch (err) {
+          console.error('Failed to switch microphone', err);
         }
-        updateLine(lineObj);
       }
+
+      // 🔹 Switch camera (video input)
+      if (isVideoEnabled && media?.videoInputDeviceId) {
+        try {
+          const camStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: media.videoInputDeviceId } },
+          });
+          const newVideoTrack = camStream.getVideoTracks()[0];
+          const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+
+          if (videoSender && newVideoTrack) {
+            await videoSender.replaceTrack(newVideoTrack);
+            console.log('📷 Camera switched:', media.videoInputDeviceId);
+
+            // Update local preview
+            const localVideoEl = document.getElementById(
+              `line-${lineObj.lineNumber}-localVideo`,
+            ) as HTMLVideoElement;
+            if (localVideoEl) {
+              localVideoEl.srcObject = new MediaStream([newVideoTrack]);
+              await localVideoEl.play().catch(console.error);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to switch camera', err);
+        }
+      }
+
+      // 🔹 Switch speaker (audio output)
+      if (media?.audioOutputDeviceId) {
+        try {
+          const remoteAudioEl = document.getElementById(
+            `line-${lineObj.lineNumber}-remoteAudio`,
+          ) as HTMLAudioElement;
+
+          if (remoteAudioEl && 'setSinkId' in remoteAudioEl) {
+            // @ts-ignore
+            await remoteAudioEl.setSinkId(media.audioOutputDeviceId);
+            console.log('🔊 Speaker switched:', media.audioOutputDeviceId);
+          } else {
+            console.warn('Browser does not support setSinkId()');
+          }
+        } catch (err) {
+          console.error('Failed to switch speaker', err);
+        }
+      }
+      updateLine(username, lineObj);
     };
 
-    // Start Call Recording
-    // if (RecordAllCalls || CallRecordingPolicy == 'enabled') {
-    // StartRecording(lineObj.LineNumber); TODO #SH Recording feature
-    // }
-
-    //   if (includeVideo && StartVideoFullScreen) ExpandVideoArea(lineObj.LineNumber); TODO #SH
-
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   // Outgoing INVITE
@@ -148,44 +173,6 @@ export const useSessionEvents = () => {
     // Provisional 1xx
     // response.message.reasonPhrase
     if (response.message.statusCode === 180) {
-      // $('#line-' + lineObj.LineNumber + '-msg').html(lang.ringing);
-
-      let soundFile = audioBlobs.Ringtone;
-      console.log({ soundFile });
-
-      // Play Early Media
-      console.log('Audio:', soundFile.url);
-      if (session.data.earlyMedia) {
-        // There is already early media playing
-        // onProgress can be called multiple times
-        // Don't add it again
-        console.log('Early Media already playing');
-      } else {
-        const earlyMedia = new Audio(soundFile.url as string);
-        earlyMedia.preload = 'auto';
-        earlyMedia.loop = true;
-        earlyMedia.oncanplaythrough = function (e) {
-          if (typeof earlyMedia.sinkId !== 'undefined' && audioOutputDeviceId !== 'default') {
-            earlyMedia
-              .setSinkId(audioOutputDeviceId)
-              .then(function () {
-                console.log('Set sinkId to:', audioOutputDeviceId);
-              })
-              .catch(function (e) {
-                console.warn('Failed not apply setSinkId.', e);
-              });
-          }
-          earlyMedia
-            .play()
-            .then(function () {
-              // Audio Is Playing
-            })
-            .catch(function (e) {
-              console.warn('Unable to play audio file.', e);
-            });
-        };
-        session.data.earlyMedia = earlyMedia;
-      }
     } else if (response.message.statusCode === 183) {
       // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
       // Add UI to allow DTMF
@@ -196,7 +183,7 @@ export const useSessionEvents = () => {
       // 199 = Call is Terminated (Early Dialog)
       // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
     }
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
   function onInviteRejected(
     lineObj: LineType,
@@ -422,7 +409,7 @@ export const useSessionEvents = () => {
         console.warn('Unknown message type');
         response.reject();
       }
-      updateLine(lineObj);
+      updateLine(username, lineObj);
     } catch (error) {
       console.error('onSessionReceiveMessage Error', error);
     }
@@ -502,10 +489,10 @@ export const useSessionEvents = () => {
           audio.controls = false;
 
           audio.onloadedmetadata = () => {
-            if (typeof audio.sinkId !== 'undefined') {
+            if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
               audio
-                .setSinkId(audioOutputDeviceId)
-                .then(() => console.log('sinkId set:', audioOutputDeviceId))
+                .setSinkId(media?.audioOutputDeviceId)
+                .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
                 .catch((e) => console.warn('setSinkId error:', e));
             }
             audio.play().catch((err) => console.error('Audio play error:', err));
@@ -539,7 +526,7 @@ export const useSessionEvents = () => {
         console.warn(`Remote video container not found: ${videoContainerId}`);
       }
 
-      updateLine(lineObj);
+      updateLine(username, lineObj);
     };
   }
 

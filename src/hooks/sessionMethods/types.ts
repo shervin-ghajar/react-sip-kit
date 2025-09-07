@@ -1,4 +1,4 @@
-import { useSessionMethods } from '.';
+import { sessionMethods } from '.';
 
 export interface SessionDescriptionHandlerOptions {
   constraints: {
@@ -31,4 +31,4 @@ export type SPDOptionsType = Record<
     extraHeaders: string[];
   }>;
 
-export type SessionMethods = ReturnType<typeof useSessionMethods>;
+export type SessionMethods = ReturnType<typeof sessionMethods>;

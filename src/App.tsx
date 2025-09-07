@@ -1,14 +1,16 @@
 import './App.css';
 import { Audio, Video } from './components';
-import { useSessionMethods, useSipProvider, useWatchSessionData } from './hooks';
+import { sessionMethods, useSipProvider, useWatchSessionData } from './hooks';
+import { getUsernameByNumber } from './methods/session';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
 function App({ username }: { username: string }) {
-  const { lines, status } = useSipProvider();
-  const { dialByNumber } = useSessionMethods();
+  const { lines, status } = useSipProvider({ username });
+  console.log({ username, lines, status });
+  const { dialByNumber } = sessionMethods({ username });
   const renderLines = () => {
-    return lines.map((line) => <SipLine key={line.lineNumber} line={line} />);
+    return lines.map((line) => <SipLine key={line.lineNumber} username={username} line={line} />);
   };
   return (
     <div
@@ -59,7 +61,7 @@ function App({ username }: { username: string }) {
 /* -------------------------------------------------------------------------- */
 export default App;
 
-const SipLine = ({ line }: { line: LineType }) => {
+const SipLine = ({ username, line }: { username: string; line: LineType }) => {
   const {
     answerAudioSession,
     answerVideoSession,
@@ -72,8 +74,8 @@ const SipLine = ({ line }: { line: LineType }) => {
     attendedTransferSession,
     toggleShareScreen,
     recordSession,
-  } = useSessionMethods();
-  const data = useWatchSessionData({ lineNumber: line.lineNumber });
+  } = sessionMethods({ username });
+  const data = useWatchSessionData({ username, lineNumber: line.lineNumber });
   const sipSession = line.sipSession;
   const isVideoCall = data?.callType === 'video';
   const callStarted = data.started;
@@ -206,6 +208,7 @@ const SipLine = ({ line }: { line: LineType }) => {
 };
 const TestComponent = memo(({ lineNumber }: { lineNumber: number }) => {
   const [localMediaStreamStatus, isRecording] = useWatchSessionData({
+    username: getUsernameByNumber(lineNumber) ?? '',
     lineNumber,
     name: ['localMediaStreamStatus', 'recordMedia.recording'],
   });

@@ -1,6 +1,5 @@
-import { defaultSipConfigs } from '../configs';
-import { SipConfigs } from '../configs/types';
-import { AudioBlobs } from '../constructors';
+import { SipAccountConfig, SipConfigs } from '../configs/types';
+import { SipUserAgent } from '../types';
 import { LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
@@ -9,9 +8,9 @@ let lineNumber = 0;
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
-  configs: defaultSipConfigs,
-  status: 'disconnected',
-  userAgent: undefined,
+  configs: null,
+  statuses: null,
+  userAgents: undefined,
   devicesInfo: {
     hasVideoDevice: false,
     hasAudioDevice: false,
@@ -21,58 +20,69 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     speakerDevices: [],
   },
   lines: {},
-  audioBlobs: AudioBlobs.getInstance().getAudios(),
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
-  setUserAgent: (userAgent: SipStoreStateType['userAgent']) =>
-    set((state) => ({ ...state, userAgent })),
-  addLine: (newLine: LineType) =>
+  setConfig: (username: SipAccountConfig['username'], config: SipConfigs) => {
+    set((state) => ({ ...state, configs: { ...state.configs, [username]: config } }));
+  },
+  setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => {
+    set((state) => ({ ...state, userAgents: { ...state.userAgents, [username]: userAgent } }));
+  },
+  addLine: (username: SipAccountConfig['username'], newLine: LineType) => {
     set((state) => ({
       ...state,
       lines: {
         ...state.lines,
-        [newLine.lineNumber]: newLine, // add or overwrite
+        [username]: {
+          ...state.lines?.[username],
+          [newLine.lineNumber]: newLine,
+        },
       },
-    })),
-
-  updateLine: (updatedLine: LineType) =>
+    }));
+  },
+  updateLine: (username: SipAccountConfig['username'], updatedLine: LineType) =>
     set((state) => {
-      if (!state.lines?.[updatedLine.lineNumber]) return state; // nothing to update
+      if (!state.lines?.[username]?.[updatedLine.lineNumber]) return state; // nothing to update
       return {
         ...state,
         lines: {
           ...state.lines,
-          [updatedLine.lineNumber]: updatedLine, // replace immutably
+          [username]: {
+            ...state.lines?.[username],
+            [updatedLine.lineNumber]: updatedLine, // replace immutably
+          },
         },
       };
     }),
 
-  removeLine: (lineNumber: LineType['lineNumber']) =>
+  removeLine: (username: SipAccountConfig['username'], lineNumber: LineType['lineNumber']) =>
     set((state) => {
-      if (!state.lines?.[lineNumber]) return state; // nothing to remove
-      const { [lineNumber]: _, ...rest } = state.lines; // omit the line immutably
-      return { ...state, lines: rest };
+      if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
+      const { [lineNumber]: _, ...rest } = state.lines[username]; // omit the line immutably
+      return {
+        ...state,
+        lines: {
+          ...state.lines,
+          [username]: {
+            ...rest,
+          },
+        },
+      };
     }),
-  findLineByNumber: (lineNumber) => {
-    return get().lines?.[lineNumber] ?? null;
+  findLineByNumber: (username, lineNumber) => {
+    return get().lines?.[username]?.[lineNumber] ?? null;
   },
-  getSessionByNumber: (lineNumber) => {
-    return get().lines?.[lineNumber]?.sipSession ?? null;
+  getSessionByNumber: (username, lineNumber) => {
+    return get().lines?.[username]?.[lineNumber]?.sipSession ?? null;
+  },
+  getUsernameByNumber: (lineNumber) => {
+    let username = null;
+    for (const [key, line] of Object.entries(get().lines)) {
+      if (line?.[lineNumber]) username = key;
+    }
+    return username;
   },
   getNewLineNumber: () => ++lineNumber,
-  getSessions: () => {
-    const { userAgent } = get();
-    if (userAgent == null) {
-      console.warn('userAgent is null');
-      return null;
-    }
-    if (userAgent.isRegistered() == false) {
-      console.warn('userAgent is not registered');
-      return null;
-    }
-    const sessions = userAgent.sessions ?? null;
-    return sessions;
-  },
 }));
 /* -------------------------------------------------------------------------- */
 /**
@@ -93,15 +103,19 @@ export const getSipStore = (): SipStoreStateType => {
  *
  * Get sip store userAgent for none functional components
  */
-export const getSipStoreUserAgent = (): SipStoreStateType['userAgent'] => {
-  return useSipStore.getState().userAgent;
+export const getSipStoreUserAgent = (
+  username: SipAccountConfig['username'],
+): SipUserAgent | null => {
+  return useSipStore.getState()?.userAgents?.[username] ?? null;
 };
 /**
  *
  * Get sip store configs for none functional components
  */
-export const getSipStoreConfigs = (): SipConfigs => {
-  return useSipStore.getState().configs;
+export const getSipUsernameConfigs = (
+  username: SipAccountConfig['username'],
+): SipConfigs | null => {
+  return (useSipStore?.getState()?.configs as Record<string, SipConfigs>)?.[username] ?? null;
 };
 /**
  *

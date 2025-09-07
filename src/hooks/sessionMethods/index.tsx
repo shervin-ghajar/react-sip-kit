@@ -1,7 +1,8 @@
+import { SipAccountConfig } from '../../configs/types';
 import { Line } from '../../constructors';
 import { sendMessageSession, sendVideoActivationWithAckRetry } from '../../methods/session';
 import { SendMessageSessionEnum } from '../../methods/session/type';
-import { useSipStore } from '../../store';
+import { getSipStore } from '../../store';
 import {
   LineType,
   SipInvitationType,
@@ -11,9 +12,9 @@ import {
 } from '../../store/types';
 import { CallType } from '../../types';
 import { dayJs, utcDateNow } from '../../utils';
-import { useSessionEvents } from '../useSessionEvents';
-import { MediaStreamTrackType } from '../useSessionEvents/types';
-import { useSpdOptions } from '../useSpdOptions';
+import { sessionEvents } from '../sessionEvents';
+import { MediaStreamTrackType } from '../sessionEvents/types';
+import { spdOptions } from '../spdOptions';
 import { SPDOptionsType, VideoSessionConstraints } from './types';
 import {
   Inviter,
@@ -24,16 +25,16 @@ import {
   UserAgent,
 } from 'sip.js';
 
-export const useSessionMethods = () => {
-  const configs = useSipStore((state) => state.configs);
-  const findLineByNumber = useSipStore((state) => state.findLineByNumber);
-  const getSessionByNumber = useSipStore((state) => state.getSessionByNumber);
-  const getNewLineNumber = useSipStore((state) => state.getNewLineNumber);
-  const addLine = useSipStore((state) => state.addLine);
-  const removeLine = useSipStore((state) => state.removeLine);
-  const updateLine = useSipStore((state) => state.updateLine);
-  const userAgent = useSipStore((state) => state.userAgent);
-  const { hasAudioDevice, hasVideoDevice } = useSipStore((state) => state.devicesInfo);
+export const sessionMethods = ({ username }: { username: SipAccountConfig['username'] }) => {
+  const configs = getSipStore().configs?.[username];
+  const findLineByNumber = getSipStore().findLineByNumber;
+  const getSessionByNumber = getSipStore().getSessionByNumber;
+  const getNewLineNumber = getSipStore().getNewLineNumber;
+  const addLine = getSipStore().addLine;
+  const removeLine = getSipStore().removeLine;
+  const updateLine = getSipStore().updateLine;
+  const userAgent = getSipStore().userAgents?.[username];
+  const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
 
   const {
     onInviteAccepted,
@@ -47,15 +48,16 @@ export const useSessionMethods = () => {
     onSessionReceivedMessage,
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
-  } = useSessionEvents();
+  } = sessionEvents({ username });
 
   const { makeAudioSpdOptions, answerAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
-    useSpdOptions();
+    spdOptions({ username });
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
   /**
    * Handle incoming calls
+   * @param username
    * @param session
    * @returns
    */
@@ -90,7 +92,7 @@ export const useSessionMethods = () => {
       videoEnabled: false,
     };
     // Detect Video
-    if (configs.features.enableVideo && session.request.body) {
+    if (configs?.features.enableVideo && session.request.body) {
       // Asterisk 13 PJ_SIP always sends m=video if endpoint has video codec,
       // even if original invite does not specify video.
       if (session.request.body.indexOf('m=video') > -1) {
@@ -107,7 +109,7 @@ export const useSessionMethods = () => {
       if (rawUri.includes('<sip:')) {
         const uriParts = rawUri.split('<sip:');
         if (uriParts[1].endsWith('>')) uriParts[1] = uriParts[1].slice(0, -1);
-        if (uriParts[1].includes(`@${configs.account.domain}`)) {
+        if (uriParts[1].includes(`@${configs?.account.domain}`)) {
           did = uriParts[1].split('@')[0];
           console.log('Using P-Asserted-Identity:', did);
         }
@@ -141,72 +143,7 @@ export const useSessionMethods = () => {
       },
     };
 
-    // Auto Answer options
-    // let autoAnswerRequested = false;
-    // let answerTimeout = 1000;
-    // if (!AutoAnswerEnabled && IntercomPolicy == 'enabled') {
-    //   // Check headers only if policy is allow
-    //   // https://github.com/InnovateAsterisk/Browser-Phone/issues/126
-    //   // Alert-Info: info=alert-autoanswer
-    //   // Alert-Info: answer-after=0
-    //   // Call-info: answer-after=0; x=y
-    //   // Call-Info: Answer-After=0
-    //   // Alert-Info: ;info=alert-autoanswer
-    //   // Alert-Info: <sip:>;info=alert-autoanswer
-    //   // Alert-Info: <sip:domain>;info=alert-autoanswer
-    //   // const ci = session.request.headers['Call-Info'];
-    //   // if (ci !== undefined && ci.length > 0) {
-    //   //   for (let i = 0; i < ci.length; i++) {
-    //   //     const raw_ci = ci[i].raw.toLowerCase();
-    //   //     if (raw_ci.indexOf('answer-after=') > 0) {
-    //   //       const temp_seconds_autoanswer = parseInt(
-    //   //         raw_ci
-    //   //           .substring(raw_ci.indexOf('answer-after=') + 'answer-after='.length)
-    //   //           .split(';')[0],
-    //   //       );
-    //   //       if (Number.isInteger(temp_seconds_autoanswer) && temp_seconds_autoanswer >= 0) {
-    //   //         autoAnswerRequested = true;
-    //   //         if (temp_seconds_autoanswer > 1) answerTimeout = temp_seconds_autoanswer * 1000;
-    //   //         break;
-    //   //       }
-    //   //     }
-    //   //   }
-    //   // }
-    //   // const ai = session.request.headers['Alert-Info'];
-    //   // if (autoAnswerRequested === false && ai !== undefined && ai.length > 0) {
-    //   //   for (let i = 0; i < ai.length; i++) {
-    //   //     const raw_ai = ai[i].raw.toLowerCase();
-    //   //     if (raw_ai.indexOf('auto answer') > 0 || raw_ai.indexOf('alert-autoanswer') > 0) {
-    //   //       autoAnswerRequested = true;
-    //   //       break;
-    //   //     }
-    //   //     if (raw_ai.indexOf('answer-after=') > 0) {
-    //   //       const temp_seconds_autoanswer = parseInt(
-    //   //         raw_ai
-    //   //           .substring(raw_ai.indexOf('answer-after=') + 'answer-after='.length)
-    //   //           .split(';')[0],
-    //   //       );
-    //   //       if (Number.isInteger(temp_seconds_autoanswer) && temp_seconds_autoanswer >= 0) {
-    //   //         autoAnswerRequested = true;
-    //   //         if (temp_seconds_autoanswer > 1) answerTimeout = temp_seconds_autoanswer * 1000;
-    //   //         break;
-    //   //       }
-    //   //     }
-    //   //   }
-    //   // }
-    // }
-
-    // Check if that buddy is not already on a call?? //TODO #SH
-    // const streamVisible = $('#stream-' + buddyObj?.identity).is(':visible');
-    // if (streamVisible || CurrentCalls == 0) {
-    //   // If you are already on the selected buddy who is now calling you, switch to his call.
-    //   // NOTE: This will put other calls on hold
-    //   if (CurrentCalls == 0) SelectLine(lineObj.LineNumber);
-    // }
-
-    // Show notification / Ring / Windows Etc
-    // ======================================
-    addLine(lineObj);
+    addLine(username, lineObj);
   }
 
   /**
@@ -221,7 +158,7 @@ export const useSessionMethods = () => {
       return;
     }
 
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
 
     if (lineObj === null) {
       console.warn('Failed to get line (' + lineNumber + ')');
@@ -252,8 +189,8 @@ export const useSessionMethods = () => {
       videoEnabled: false,
     };
     session.data.videoSourceDevice = null;
-    session.data.audioSourceDevice = configs.media.audioInputDeviceId;
-    session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
+    session.data.audioSourceDevice = configs?.media.audioInputDeviceId;
+    session.data.audioOutputDevice = configs?.media.audioOutputDeviceId;
 
     // Send Answer
     session
@@ -296,9 +233,9 @@ export const useSessionMethods = () => {
     let startTime = dayJs.utc().toISOString();
 
     // Invite
-    console.log('INVITE (audio): ' + dialledNumber + '@' + configs.account.domain);
+    console.log('INVITE (audio): ' + dialledNumber + '@' + configs?.account.domain);
     const targetURI = UserAgent.makeURI(
-      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain,
+      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs?.account.domain,
     ) as URI;
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     const session = lineObj.sipSession;
@@ -309,8 +246,8 @@ export const useSessionMethods = () => {
       remoteNumber: dialledNumber,
       startTime: startTime,
       videoSourceDevice: null,
-      audioSourceDevice: configs.media.audioInputDeviceId,
-      audioOutputDevice: configs.media.audioOutputDeviceId,
+      audioSourceDevice: configs?.media.audioInputDeviceId,
+      audioOutputDevice: configs?.media.audioOutputDeviceId,
       terminateBy: 'them',
       // MediaStreamStatus
       localMediaStreamStatus: {
@@ -376,7 +313,7 @@ export const useSessionMethods = () => {
     session.invite(inviterOptions).catch(function (e) {
       console.warn('Failed to send INVITE:', e);
     });
-    // updateLine(lineObj);
+    // updateLine(username,lineObj);
   }
 
   /**
@@ -385,8 +322,8 @@ export const useSessionMethods = () => {
    * @returns
    */
   function answerVideoSession(lineNumber: LineType['lineNumber'], enableVideo?: boolean) {
-    const lineObj = findLineByNumber(lineNumber);
-    if (lineObj == null) {
+    const lineObj = findLineByNumber(username, lineNumber);
+    if (!lineObj || !configs) {
       console.warn('Failed to get line (' + lineNumber + ')');
       return;
     }
@@ -429,7 +366,10 @@ export const useSessionMethods = () => {
         try {
           await onInviteAccepted(lineObj, true);
           if (session.data.localMediaStreamStatus?.videoEnabled) {
-            await sendVideoActivationWithAckRetry(session, { delayMs: 2000, maxRetries: 10 });
+            await sendVideoActivationWithAckRetry(configs.account.username, session, {
+              delayMs: 2000,
+              maxRetries: 10,
+            });
           }
         } catch (error) {
           console.error('AnswerVideoSession onStateChange', error);
@@ -441,7 +381,7 @@ export const useSessionMethods = () => {
         session.data.reasonText = 'Client Error';
         teardownSession(lineObj);
       });
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   /**
@@ -477,10 +417,10 @@ export const useSessionMethods = () => {
     const startTime = dayJs.utc().toISOString();
 
     // Invite
-    console.log('INVITE (video): ' + dialledNumber + '@' + configs.account.domain);
+    console.log('INVITE (video): ' + dialledNumber + '@' + configs?.account.domain);
 
     const targetURI = UserAgent.makeURI(
-      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs.account.domain,
+      'sip:' + dialledNumber.replace(/#/g, '%23') + '@' + configs?.account.domain,
     ) as URI;
 
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
@@ -500,9 +440,9 @@ export const useSessionMethods = () => {
         soundEnabled: true,
         videoEnabled: false,
       },
-      videoSourceDevice: configs.media.videoInputDeviceId,
-      audioSourceDevice: configs.media.audioInputDeviceId,
-      audioOutputDevice: configs.media.audioOutputDeviceId,
+      videoSourceDevice: configs?.media.videoInputDeviceId,
+      audioSourceDevice: configs?.media.audioInputDeviceId,
+      audioOutputDevice: configs?.media.audioOutputDeviceId,
       terminateBy: 'them',
     };
     session.data.callType = 'video';
@@ -558,7 +498,7 @@ export const useSessionMethods = () => {
    * @param extraHeaders
    */
   const toggleLocalVideoTrack = async (lineNumber: LineType['lineNumber']) => {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
@@ -590,7 +530,7 @@ export const useSessionMethods = () => {
     }
 
     await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   };
 
   /**
@@ -599,7 +539,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   async function toggleShareScreen(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
@@ -660,7 +600,7 @@ export const useSessionMethods = () => {
       }
     }
 
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   /**
@@ -669,7 +609,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   function rejectSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineNumber + ')');
       return;
@@ -735,7 +675,7 @@ export const useSessionMethods = () => {
     } else {
       makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
     }
-    addLine(lineObj);
+    addLine(username, lineObj);
   }
 
   /**
@@ -766,10 +706,12 @@ export const useSessionMethods = () => {
     const startTime = dayJs.utc().toISOString();
     const conferenceNumber = '700'; // Conference room address
 
-    console.log('INVITE (conference): ' + conferenceNumber + '@' + configs.account.domain);
+    console.log('INVITE (conference): ' + conferenceNumber + '@' + configs?.account.domain);
 
     // Create target SIP URI for conference room
-    const targetURI = UserAgent.makeURI(`sip:${conferenceNumber}@${configs.account.domain}`) as URI;
+    const targetURI = UserAgent.makeURI(
+      `sip:${conferenceNumber}@${configs?.account.domain}`,
+    ) as URI;
 
     // Create SIP Inviter (outgoing call session)
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
@@ -781,9 +723,9 @@ export const useSessionMethods = () => {
       callDirection: 'outbound',
       remoteNumber: conferenceNumber,
       startTime,
-      videoSourceDevice: configs.media.videoInputDeviceId,
-      audioSourceDevice: configs.media.audioInputDeviceId,
-      audioOutputDevice: configs.media.audioOutputDeviceId,
+      videoSourceDevice: configs?.media.videoInputDeviceId,
+      audioSourceDevice: configs?.media.audioInputDeviceId,
+      audioOutputDevice: configs?.media.audioOutputDeviceId,
       terminateBy: 'them',
       localMediaStreamStatus: {
         screenShareEnabled: false,
@@ -845,7 +787,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   async function toggleHoldSession(lineNumber: LineType['lineNumber'], forcedValue?: boolean) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
     if (session.isOnHold === forcedValue) return;
@@ -890,7 +832,7 @@ export const useSessionMethods = () => {
 
     session.data.isHold = toggledHold;
 
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   /* ------------------------------- TOGGLE-MUTE ------------------------------ */
@@ -900,7 +842,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   function toggleMuteSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
 
     const session = lineObj.sipSession;
@@ -930,7 +872,7 @@ export const useSessionMethods = () => {
     }
 
     sendMessageSession(session, SendMessageSessionEnum.SOUND_TOGGLE, toggledSound);
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   /* ------------------------------- CANCEL/END/TEARDOWN ------------------------------- */
@@ -940,7 +882,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   function cancelSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
     if (!(session instanceof Inviter)) return;
@@ -964,7 +906,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   function endSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineNumber + ')');
       return;
@@ -1118,7 +1060,7 @@ export const useSessionMethods = () => {
     //   if (session.data.earlyReject != true) {
     //     UpdateUI();
     //   }
-    removeLine(lineObj.lineNumber);
+    removeLine(username, lineObj.lineNumber);
   }
 
   /**
@@ -1127,7 +1069,7 @@ export const useSessionMethods = () => {
    */
   function recordSession(lineNumber: LineType['lineNumber']) {
     async function start() {
-      const lineObj = findLineByNumber(lineNumber);
+      const lineObj = findLineByNumber(username, lineNumber);
       if (!lineObj?.sipSession) {
         console.warn(`Line ${lineNumber} not found or has no SIP session`);
         return;
@@ -1200,7 +1142,7 @@ export const useSessionMethods = () => {
             recording: false,
             startTime: null,
           };
-          updateLine(lineObj);
+          updateLine(username, lineObj);
 
           const blob = new Blob(chunks, { type: mimeType });
           chunks.length = 0;
@@ -1225,7 +1167,7 @@ export const useSessionMethods = () => {
           recording: true,
           startTime: dayJs.utc().toISOString(),
         };
-        updateLine(lineObj);
+        updateLine(username, lineObj);
 
         console.log('Recording started for line', lineNumber);
       } catch (err) {
@@ -1236,12 +1178,12 @@ export const useSessionMethods = () => {
           recording: false,
           startTime: null,
         };
-        updateLine(lineObj);
+        updateLine(username, lineObj);
       }
     }
 
     function stop() {
-      const lineObj = findLineByNumber(lineNumber);
+      const lineObj = findLineByNumber(username, lineNumber);
       if (!lineObj?.sipSession) return;
       const recorder = lineObj?.sipSession?.data.recordMedia?.recorder;
       if (!recorder) {
@@ -1255,7 +1197,7 @@ export const useSessionMethods = () => {
         recording: false,
         startTime: null,
       };
-      updateLine(lineObj);
+      updateLine(username, lineObj);
       console.log('Recording stopped for line', lineNumber);
     }
 
@@ -1300,7 +1242,7 @@ export const useSessionMethods = () => {
    * @returns
    */
   function cancelTransferSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByNumber(username, lineNumber);
     console.log('cancelTransferSession', { lineObj });
     if (lineObj == null || lineObj.sipSession == null) {
       console.warn('Null line or session');
@@ -1332,7 +1274,7 @@ export const useSessionMethods = () => {
     // $("#line-" + lineNum + "-Transfer").hide();
 
     // updateLineScroll(lineNumber);
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   /**
@@ -1395,15 +1337,15 @@ export const useSessionMethods = () => {
     // Add additional Constraints
     if (supportedConstraints.autoGainControl) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        configs.media.autoGainControl;
+        configs?.media.autoGainControl;
     }
     if (supportedConstraints.echoCancellation) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        configs.media.echoCancellation;
+        configs?.media.echoCancellation;
     }
     if (supportedConstraints.noiseSuppression) {
       spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        configs.media.noiseSuppression;
+        configs?.media.noiseSuppression;
     }
 
     // Not sure if its possible to transfer a Video call???
@@ -1417,14 +1359,14 @@ export const useSessionMethods = () => {
         };
       }
       // Add additional Constraints
-      if (supportedConstraints.frameRate && configs.media.maxFrameRate !== '') {
-        video.frameRate = String(configs.media.maxFrameRate);
+      if (supportedConstraints.frameRate && configs?.media.maxFrameRate !== '') {
+        video.frameRate = String(configs?.media.maxFrameRate);
       }
-      if (supportedConstraints.height && configs.media.videoHeight != '') {
-        video.height = String(configs.media.videoHeight);
+      if (supportedConstraints.height && configs?.media.videoHeight != '') {
+        video.height = String(configs?.media.videoHeight);
       }
-      if (supportedConstraints.aspectRatio && configs.media.videoAspectRatio != '') {
-        video.aspectRatio = String(configs.media.videoAspectRatio);
+      if (supportedConstraints.aspectRatio && configs?.media.videoAspectRatio != '') {
+        video.aspectRatio = String(configs?.media.videoAspectRatio);
       }
 
       if (
@@ -1440,11 +1382,11 @@ export const useSessionMethods = () => {
     console.log(
       555,
       'TRANSFER INVITE: ',
-      'sip:' + dstNo + '@' + configs.account.domain,
+      'sip:' + dstNo + '@' + configs?.account.domain,
       spdOptions,
     );
     const targetURI = UserAgent.makeURI(
-      'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs.account.domain,
+      'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs?.account.domain,
     ) as URI;
     const newSession = new Inviter(userAgent, targetURI, spdOptions);
     newSession.data = {};
@@ -1549,7 +1491,7 @@ export const useSessionMethods = () => {
     newSession.invite(inviterOptions).catch(function (e) {
       console.warn('Failed to send INVITE:', e);
     });
-    updateLine(lineObj);
+    updateLine(username, lineObj);
   }
 
   // function BlindTransfer(lineNumber) {
@@ -1670,7 +1612,7 @@ export const useSessionMethods = () => {
       if (transfer.to === transferLineNumber) transfer.onCancle?.();
     });
 
-    // updateLine(lineObj);
+    // updateLine(username,lineObj);
   }
   /* -------------------------------------------------------------------------- */
   return {

@@ -1,5 +1,6 @@
+import { SipAccountConfig } from '../../configs/types';
 import { detectDevices } from '../../methods/initialization';
-import { useSipStore } from '../../store';
+import { getSipUsernameConfigs } from '../../store';
 
 export interface GetDevicesType {
   hasAudioDevice: boolean;
@@ -10,8 +11,7 @@ export interface GetDevicesType {
   videoInputDevices: MediaDeviceInfo[];
 }
 export const useGetMediaDevices = () => {
-  const enableVideo = useSipStore((state) => state.configs.features.enableVideo);
-  const getDevices = async () => {
+  const getDevices = async (username: SipAccountConfig['username']) => {
     return detectDevices().then((deviceInfos) => {
       let hasAudioDevice = false;
       let audioInputDevices: MediaDeviceInfo[] = [];
@@ -28,6 +28,7 @@ export const useGetMediaDevices = () => {
             hasSpeakerDevice = true;
             speakerDevices.push(deviceInfos[i]);
           } else if (deviceInfos[i].kind === 'videoinput') {
+            const enableVideo = getSipUsernameConfigs(username)?.features?.enableVideo;
             if (enableVideo) {
               hasVideoDevice = true;
               videoInputDevices.push(deviceInfos[i]);

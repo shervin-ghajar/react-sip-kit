@@ -1,4 +1,4 @@
-import { SipConfigs } from './configs/types';
+import { SipAccountConfig, SipConfigs } from './configs/types';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
   onTransportConnected,
@@ -7,7 +7,7 @@ import {
   reconnectTransport,
 } from './events/transport';
 import { GetDevicesType } from './hooks/useGetMediaDevices';
-import { getMediaPermissions } from './methods/initialization';
+import { SipStoreStateType } from './store/types';
 import { SipUserAgent } from './types';
 import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 
@@ -15,21 +15,40 @@ import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.j
  * Singleton SIP Manager
  */
 export class SipManager {
-  private static instance: SipManager;
   private ua?: SipUserAgent;
   private configs!: SipConfigs;
+  private username!: SipAccountConfig['username'];
   private receiveSession!: any;
-  private getDevices!: () => Promise<GetDevicesType>;
-  private setSipStore!: (state: any) => void;
+  private getDevices!: (username: SipAccountConfig['username']) => Promise<GetDevicesType>;
+  private setSipStore!: SipStoreStateType['setSipStore'];
+  private setConfig!: SipStoreStateType['setConfig'];
+  private setUserAgent!: SipStoreStateType['setUserAgent'];
 
-  private constructor() {}
+  constructor({
+    configs,
+    receiveSession,
+    getDevices,
+    setSipStore,
+    setUserAgent,
+    setConfig,
+  }: {
+    configs: SipConfigs;
+    receiveSession: any;
+    getDevices: (username: string) => Promise<any>;
+    setSipStore: SipStoreStateType['setSipStore'];
+    setUserAgent: SipStoreStateType['setUserAgent'];
+    setConfig: SipStoreStateType['setConfig'];
+  }) {
+    this.configs = configs;
+    this.username = configs.account.username;
+    this.receiveSession = receiveSession;
+    this.getDevices = getDevices;
+    this.setSipStore = setSipStore;
+    this.setConfig = setConfig;
+    this.setUserAgent = setUserAgent;
 
-  public static getInstance(): SipManager {
-    console.log('getInstance', SipManager.instance);
-    if (!SipManager.instance) {
-      SipManager.instance = new SipManager();
-    }
-    return SipManager.instance;
+    this.setConfig(this.username, configs);
+    this.init();
   }
 
   public initialize({
@@ -37,41 +56,50 @@ export class SipManager {
     receiveSession,
     getDevices,
     setSipStore,
+    setUserAgent,
+    setConfig,
   }: {
     configs: SipConfigs;
     receiveSession: any;
-    getDevices: () => Promise<any>;
-    setSipStore: (state: any) => void;
+    getDevices: (username: SipAccountConfig['username']) => Promise<any>;
+    setSipStore: SipStoreStateType['setSipStore'];
+    setUserAgent: SipStoreStateType['setUserAgent'];
+    setConfig: SipStoreStateType['setConfig'];
   }) {
     this.configs = configs;
+    this.username = configs.account.username;
     this.receiveSession = receiveSession;
     this.getDevices = getDevices;
     this.setSipStore = setSipStore;
-
-    this.setSipStore({ configs: this.configs });
+    this.setConfig = setConfig;
+    this.setUserAgent = setUserAgent;
+    this.setConfig(this.username, configs);
     this.init();
   }
 
-  private async init() {
-    await getMediaPermissions('audio');
-    await this.detectDevices();
-    await this.createUserAgent();
+  private init() {
+    this.detectDevices();
+    this.createUserAgent();
   }
 
   private async detectDevices() {
-    const devices = await this.getDevices();
+    const devices = await this.getDevices(this.username);
     this.setSipStore({ devicesInfo: devices });
   }
 
   private async createUserAgent() {
+    console.log({
+      domain: `sip:${this.username}@${this.configs.account.domain}`,
+      server: `wss://${this.configs.account.wssServer}:${this.configs.account.webSocketPort}${this.configs.account.serverPath}`,
+    });
     const ua = new UserAgent({
-      uri: UserAgent.makeURI(`sip:${this.configs.account.username}@${this.configs.account.domain}`),
+      uri: UserAgent.makeURI(`sip:${this.username}@${this.configs.account.domain}`),
       transportOptions: {
         server: `wss://${this.configs.account.wssServer}:${this.configs.account.webSocketPort}${this.configs.account.serverPath}`,
         traceSip: false,
         connectionTimeout: this.configs.registration.transportConnectionTimeout,
       },
-      authorizationUsername: this.configs.account.username,
+      authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,
       delegate: {
         onInvite: this.receiveSession,
@@ -92,10 +120,10 @@ export class SipManager {
     ua.lastVoicemailCount = 0;
 
     // Transport events
-    ua.transport.onConnect = () => onTransportConnected(ua);
+    ua.transport.onConnect = () => onTransportConnected(this.username, ua);
     ua.transport.onDisconnect = (error?: Error) => {
-      if (error) onTransportConnectError(error, ua);
-      else onTransportDisconnected(ua);
+      if (error) onTransportConnectError(error, this.username, ua);
+      else onTransportDisconnected(this.username, ua);
     };
 
     // Registerer
@@ -111,30 +139,18 @@ export class SipManager {
       console.log('User Agent Registration State:', newState);
       switch (newState) {
         case RegistererState.Registered:
-          onRegistered(ua);
+          onRegistered(this.username, ua);
           break;
         case RegistererState.Unregistered:
-          onUnregistered(ua);
+          onUnregistered(this.username, ua);
           break;
       }
     });
 
-    await ua.start().catch(onTransportConnectError);
+    await ua.start().catch((err) => onTransportConnectError(err, this.username));
     this.ua = ua;
-    this.setSipStore({ userAgent: ua });
-    console.log('SIP UserAgent created', ua);
-  }
-
-  public getStatus() {
-    return this.ua?.isConnected() ? 'connected' : 'disconnected';
-  }
-
-  public getLines() {
-    return this.ua?.sessions || [];
-  }
-
-  public reconnectTransport() {
-    reconnectTransport();
+    this.setUserAgent(this.username, ua);
+    console.log(`SIP UserAgent created ${this.username}`, ua);
   }
 
   public stop() {

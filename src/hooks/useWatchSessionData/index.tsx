@@ -1,3 +1,4 @@
+import { SipAccountConfig } from '../../configs/types';
 import { useSipStore } from '../../store';
 import { SipSessionDataType } from '../../store/types';
 import { useDeep } from '../useDeep';
@@ -32,16 +33,19 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
 /** ---------- Hook overloads ---------- */
 
 export function useWatchSessionData(props: {
+  username: SipAccountConfig['username'];
   lineNumber: number;
   name?: undefined;
 }): SipSessionDataType;
 
 export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
+  username: SipAccountConfig['username'];
   lineNumber: number;
   name: P;
 }): PathValue<SipSessionDataType, P>;
 
 export function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
+  username: SipAccountConfig['username'];
   lineNumber: number;
   name: P;
 }): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
@@ -49,15 +53,17 @@ export function useWatchSessionData<const P extends readonly Path<SipSessionData
 /** ---------- Implementation ---------- */
 
 export function useWatchSessionData({
+  username,
   lineNumber,
   name,
 }: {
+  username: SipAccountConfig['username'];
   lineNumber: number;
   name?: string | readonly string[];
 }) {
   return useSipStore(
     useDeep((state) => {
-      const line = state.lines[lineNumber];
+      const line = state.lines?.[username]?.[lineNumber];
       if (!line?.sipSession?.data) return undefined;
       const data = line.sipSession.data as SipSessionDataType;
       if (Array.isArray(name)) {

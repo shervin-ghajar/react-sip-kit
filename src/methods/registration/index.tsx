@@ -1,8 +1,12 @@
+import { SipAccountConfig } from '../../configs/types';
 import { onRegisterFailed } from '../../events/registration';
-import { getSipStoreUserAgent, setSipStore } from '../../store';
+import { getSipStore, getSipStoreUserAgent, setSipStore } from '../../store';
 
 /* -------------------------------------------------------------------------- */
-export function register(userAgent = getSipStoreUserAgent()) {
+export function register(
+  username: SipAccountConfig['username'],
+  userAgent = getSipStoreUserAgent(username),
+) {
   if (!userAgent) return;
   if (userAgent?.registering) return;
   if (userAgent.isRegistered()) return;
@@ -11,13 +15,20 @@ export function register(userAgent = getSipStoreUserAgent()) {
   userAgent.registerer.register({
     requestDelegate: {
       onReject(sip) {
-        onRegisterFailed(sip.message.reasonPhrase, sip.message.statusCode);
+        onRegisterFailed(username, sip.message.reasonPhrase, sip.message.statusCode);
       },
     },
   });
-  setSipStore({ userAgent });
+  const { userAgents } = getSipStore();
+  setSipStore({
+    userAgents: { ...userAgents, [username]: userAgent },
+  });
 }
-export function unregister(skipUnsubscribe?: boolean, userAgent = getSipStoreUserAgent()) {
+export function unregister(
+  username: SipAccountConfig['username'],
+  skipUnsubscribe?: boolean,
+  userAgent = getSipStoreUserAgent(username),
+) {
   if (!userAgent?.isRegistered()) return;
   if (skipUnsubscribe == true) {
     console.log('Skipping Unsubscribe');
@@ -34,14 +45,17 @@ export function unregister(skipUnsubscribe?: boolean, userAgent = getSipStoreUse
   userAgent.transport.attemptingReconnection = false;
   userAgent.registering = false;
   userAgent.isReRegister = false;
-  setSipStore({ userAgent });
+  const { userAgents } = getSipStore();
+  setSipStore({
+    userAgents: { ...userAgents, [username]: userAgent },
+  });
 }
 
-export function refreshRegistration() {
-  unregister();
+export function refreshRegistration(username: SipAccountConfig['username']) {
+  unregister(username);
   console.log('Unregister complete...');
   window.setTimeout(function () {
     console.log('Starting registration...');
-    register();
+    register(username);
   }, 1000);
 }
