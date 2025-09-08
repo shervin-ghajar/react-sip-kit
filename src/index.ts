@@ -1,4 +1,4 @@
-export { sessionMethods } from './methods/session';
+export { sessionMethods, getSessionByNumber, getUsernameByNumber } from './methods/session';
 export { sessionEvents } from './events/session';
 export { useSipProvider, useWatchSessionData } from './hooks';
 export { SipProvider } from './provider';

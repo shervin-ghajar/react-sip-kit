@@ -74,7 +74,7 @@ const SipLine = ({ username, line }: { username: string; line: LineType }) => {
     toggleShareScreen,
     recordSession,
   } = sessionMethods({ username });
-  const data = useWatchSessionData({ username, lineNumber: line.lineNumber });
+  const data = useWatchSessionData({ lineNumber: line.lineNumber });
   const sipSession = line.sipSession;
   const isVideoCall = data?.callType === 'video';
   const callStarted = data.started;
@@ -207,10 +207,9 @@ const SipLine = ({ username, line }: { username: string; line: LineType }) => {
 };
 const TestComponent = memo(({ lineNumber }: { lineNumber: number }) => {
   const [localMediaStreamStatus, isRecording] = useWatchSessionData({
-    username: getUsernameByNumber(lineNumber) ?? '',
     lineNumber,
     name: ['localMediaStreamStatus', 'recordMedia.recording'],
   });
   console.log({ localMediaStreamStatus, isRecording });
-  return <>Test</>;
+  return <>Test {localMediaStreamStatus.soundEnabled}</>;
 });
