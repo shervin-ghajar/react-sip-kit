@@ -29,9 +29,10 @@ export function onRegistered(username: SipAccountConfig['username'], userAgent: 
     console.log('ReRegistered!');
   }
   userAgent.isReRegister = true;
-  const { userAgents } = getSipStore();
+  const { userAgents, statuses } = getSipStore();
   setSipStore({
     userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'connected' },
   });
 }
 /**
@@ -48,9 +49,10 @@ export function onRegisterFailed(
   if (!userAgent) return;
 
   userAgent.registering = false;
-  const { userAgents } = getSipStore();
+  const { userAgents, statuses } = getSipStore();
   setSipStore({
     userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'disconnected' },
   });
 }
 /**
@@ -59,8 +61,9 @@ export function onRegisterFailed(
 export function onUnregistered(username: SipAccountConfig['username'], userAgent: SipUserAgent) {
   // We set this flag here so that the re-register attempts are fully completed.
   userAgent.isReRegister = false;
-  const { userAgents } = getSipStore();
+  const { userAgents, statuses } = getSipStore();
   setSipStore({
     userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'disconnected' },
   });
 }

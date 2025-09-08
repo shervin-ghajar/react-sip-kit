@@ -20,6 +20,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     speakerDevices: [],
   },
   lines: {},
+  usernamesByLineNumber: {},
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setConfig: (username: SipAccountConfig['username'], config: SipConfigs) => {
@@ -38,9 +39,15 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
           [newLine.lineNumber]: newLine,
         },
       },
+      usernamesByLineNumber: {
+        ...state.usernamesByLineNumber,
+        [newLine.lineNumber]: username,
+      },
     }));
   },
-  updateLine: (username: SipAccountConfig['username'], updatedLine: LineType) =>
+  updateLine: (updatedLine: LineType) => {
+    const username = get().getUsernameByNumber(updatedLine.lineNumber);
+    if (!username) return null;
     set((state) => {
       if (!state.lines?.[username]?.[updatedLine.lineNumber]) return state; // nothing to update
       return {
@@ -53,12 +60,16 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
           },
         },
       };
-    }),
+    });
+  },
 
-  removeLine: (username: SipAccountConfig['username'], lineNumber: LineType['lineNumber']) =>
+  removeLine: (lineNumber: LineType['lineNumber']) => {
+    const username = get().getUsernameByNumber(lineNumber);
+    if (!username) return null;
     set((state) => {
       if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
       const { [lineNumber]: _, ...rest } = state.lines[username]; // omit the line immutably
+      const { [lineNumber]: __, ...restUsernamesByLineNumber } = state.usernamesByLineNumber; // omit the line immutably
       return {
         ...state,
         lines: {
@@ -67,20 +78,24 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
             ...rest,
           },
         },
+        usernamesByLineNumber: {
+          ...restUsernamesByLineNumber,
+        },
       };
-    }),
-  findLineByNumber: (username, lineNumber) => {
+    });
+  },
+  findLineByNumber: (lineNumber) => {
+    const username = get().getUsernameByNumber(lineNumber);
+    if (!username) return null;
     return get().lines?.[username]?.[lineNumber] ?? null;
   },
-  getSessionByNumber: (username, lineNumber) => {
+  getSessionByNumber: (lineNumber) => {
+    const username = get().getUsernameByNumber(lineNumber);
+    if (!username) return null;
     return get().lines?.[username]?.[lineNumber]?.sipSession ?? null;
   },
   getUsernameByNumber: (lineNumber) => {
-    let username = null;
-    for (const [key, line] of Object.entries(get().lines)) {
-      if (line?.[lineNumber]) username = key;
-    }
-    return username;
+    return get().usernamesByLineNumber[lineNumber] ?? null;
   },
   getNewLineNumber: () => ++lineNumber,
 }));

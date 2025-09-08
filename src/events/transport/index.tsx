@@ -31,7 +31,7 @@ export function onTransportConnected(
   const { userAgents, statuses } = getSipStore();
   setSipStore({
     userAgents: { ...userAgents, [username]: userAgent },
-    statuses: { ...statuses, [username]: 'connected' },
+    statuses: { ...statuses, [username]: 'connecting' },
   });
 }
 

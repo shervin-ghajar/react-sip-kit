@@ -1,13 +1,12 @@
 import './App.css';
 import { Audio, Video } from './components';
-import { sessionMethods, useSipProvider, useWatchSessionData } from './hooks';
-import { getUsernameByNumber } from './methods/session';
+import { useSipProvider, useWatchSessionData } from './hooks';
+import { getUsernameByNumber, sessionMethods } from './methods/session';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
 function App({ username }: { username: string }) {
   const { lines, status } = useSipProvider({ username });
-  console.log({ username, lines, status });
   const { dialByNumber } = sessionMethods({ username });
   const renderLines = () => {
     return lines.map((line) => <SipLine key={line.lineNumber} username={username} line={line} />);

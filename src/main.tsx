@@ -5,14 +5,13 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const Providers = () => {
-  console.log('window.location', window.location.pathname.replace('/', ''));
   const username = window.location.pathname.replace('/', '');
   const configs = [
     {
       account: {
         domain: '192.168.82.31',
-        username: '1010',
-        password: '1010',
+        username: username,
+        password: username,
         wssServer: '192.168.82.31',
         webSocketPort: '8089',
         serverPath: '/ws',

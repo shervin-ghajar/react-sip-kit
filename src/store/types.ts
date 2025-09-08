@@ -15,27 +15,18 @@ export interface SipStoreStateType {
   statuses: Record<SipAccountConfig['username'], SipUserAgentStatus> | null;
   userAgents?: Record<SipAccountConfig['username'], SipUserAgent>;
   lines: Record<SipAccountConfig['username'], Record<LineType['lineNumber'], LineType>>;
+  usernamesByLineNumber: Record<LineType['lineNumber'], SipAccountConfig['username']>;
   devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setConfig: (username: SipAccountConfig['username'], userAgent: SipConfigs) => void;
   setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => void;
   addLine: (username: SipAccountConfig['username'], line: LineType) => void;
-  updateLine: (
-    username: SipAccountConfig['username'],
-    line: LineType,
-    callback?: CallbackFunction,
-  ) => void;
-  removeLine: (username: SipAccountConfig['username'], lineNum: LineType['lineNumber']) => void;
+  updateLine: (line: LineType, callback?: CallbackFunction) => void;
+  removeLine: (lineNumber: LineType['lineNumber']) => void;
   // Getter
-  findLineByNumber: (
-    username: SipAccountConfig['username'],
-    lineNum: LineType['lineNumber'],
-  ) => LineType | null;
-  getSessionByNumber: (
-    username: SipAccountConfig['username'],
-    lineNumber: LineType['lineNumber'],
-  ) => LineType['sipSession'] | null;
+  findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
+  getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
   getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
   getNewLineNumber: () => number;
 }

@@ -1,6 +1,6 @@
 import { SipAccountConfig } from '../../configs/types';
 import { sendMessageSession } from '../../methods/session';
-import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/type';
+import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
@@ -126,13 +126,13 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
           }
         }
 
-        updateLine(username, lineObj);
+        updateLine(lineObj);
       } catch (err) {
         console.error('initiateLocalMediaStreams failed:', err);
       }
     };
 
-    updateLine(username, lineObj);
+    updateLine(lineObj);
   }
 
   // Outgoing INVITE
@@ -156,7 +156,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       // 199 = Call is Terminated (Early Dialog)
       // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
     }
-    updateLine(username, lineObj);
+    updateLine(lineObj);
   }
   function onInviteRejected(
     lineObj: LineType,
@@ -382,7 +382,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         console.warn('Unknown message type');
         response.reject();
       }
-      updateLine(username, lineObj);
+      updateLine(lineObj);
     } catch (error) {
       console.error('onSessionReceiveMessage Error', error);
     }
@@ -499,7 +499,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         console.warn(`Remote video container not found: ${videoContainerId}`);
       }
 
-      updateLine(username, lineObj);
+      updateLine(lineObj);
     };
   }
 

@@ -1,7 +1,7 @@
-import { defaultSipConfigs } from '../../configs';
-import { SipAccountConfig } from '../../configs/types';
-import { getSipStore } from '../../store';
-import { SPDOptionsType } from '../sessionMethods/types';
+import { defaultSipConfigs } from '../../../configs';
+import { SipAccountConfig } from '../../../configs/types';
+import { getSipStore } from '../../../store';
+import { SPDOptionsType } from '../types';
 
 export const spdOptions = ({ username }: { username: SipAccountConfig['username'] }) => {
   // TODO configurable

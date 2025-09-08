@@ -4,11 +4,11 @@ import {
   onTransportConnected,
   onTransportConnectError,
   onTransportDisconnected,
-  reconnectTransport,
 } from './events/transport';
-import { GetDevicesType } from './hooks/useGetMediaDevices';
+import { sessionMethods } from './methods/session';
 import { SipStoreStateType } from './store/types';
 import { SipUserAgent } from './types';
+import { getMediaDevices } from './utils';
 import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 
 /**
@@ -18,31 +18,23 @@ export class SipManager {
   private ua?: SipUserAgent;
   private configs!: SipConfigs;
   private username!: SipAccountConfig['username'];
-  private receiveSession!: any;
-  private getDevices!: (username: SipAccountConfig['username']) => Promise<GetDevicesType>;
   private setSipStore!: SipStoreStateType['setSipStore'];
   private setConfig!: SipStoreStateType['setConfig'];
   private setUserAgent!: SipStoreStateType['setUserAgent'];
 
   constructor({
     configs,
-    receiveSession,
-    getDevices,
     setSipStore,
     setUserAgent,
     setConfig,
   }: {
     configs: SipConfigs;
-    receiveSession: any;
-    getDevices: (username: string) => Promise<any>;
     setSipStore: SipStoreStateType['setSipStore'];
     setUserAgent: SipStoreStateType['setUserAgent'];
     setConfig: SipStoreStateType['setConfig'];
   }) {
     this.configs = configs;
     this.username = configs.account.username;
-    this.receiveSession = receiveSession;
-    this.getDevices = getDevices;
     this.setSipStore = setSipStore;
     this.setConfig = setConfig;
     this.setUserAgent = setUserAgent;
@@ -54,7 +46,6 @@ export class SipManager {
   public initialize({
     configs,
     receiveSession,
-    getDevices,
     setSipStore,
     setUserAgent,
     setConfig,
@@ -68,8 +59,6 @@ export class SipManager {
   }) {
     this.configs = configs;
     this.username = configs.account.username;
-    this.receiveSession = receiveSession;
-    this.getDevices = getDevices;
     this.setSipStore = setSipStore;
     this.setConfig = setConfig;
     this.setUserAgent = setUserAgent;
@@ -83,7 +72,7 @@ export class SipManager {
   }
 
   private async detectDevices() {
-    const devices = await this.getDevices(this.username);
+    const devices = await getMediaDevices(this.username);
     this.setSipStore({ devicesInfo: devices });
   }
 
@@ -102,7 +91,7 @@ export class SipManager {
       authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,
       delegate: {
-        onInvite: this.receiveSession,
+        onInvite: sessionMethods({ username: this.username }).receiveSession as any,
         onMessage: () => console.log('Received message'),
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -125,7 +114,6 @@ export class SipManager {
       if (error) onTransportConnectError(error, this.username, ua);
       else onTransportDisconnected(this.username, ua);
     };
-
     // Registerer
     ua.registerer = new Registerer(ua, {
       logConfiguration: false,
