@@ -1,4 +1,4 @@
-import { useSipStore } from '../../store';
+import { getSipStore, useSipStore } from '../../store';
 import { SipSessionDataType } from '../../store/types';
 import { useDeep } from '../useDeep';
 
@@ -57,18 +57,25 @@ export function useWatchSessionData({
 }) {
   return useSipStore(
     useDeep((state) => {
-      const line = state.lines[lineNumber];
-      if (!line?.sipSession?.data) return undefined;
-      const data = line.sipSession.data as SipSessionDataType;
-      if (Array.isArray(name)) {
-        return name.map((path) => getByPath(data, path as any));
-      }
+      try {
+        const username = getSipStore().getUsernameByNumber(lineNumber);
+        if (!username)
+          throw new Error(`useWatchSessionData username by lineNumber=${lineNumber} not found`);
+        const line = state.lines?.[username]?.[lineNumber];
+        if (!line?.sipSession?.data) throw new Error(`useWatchSessionData linew not found`);
+        const data = line.sipSession.data as SipSessionDataType;
+        if (Array.isArray(name)) {
+          return name.map((path) => getByPath(data, path as any));
+        }
 
-      if (typeof name === 'string') {
-        return getByPath(data as SipSessionDataType, name as any);
-      }
+        if (typeof name === 'string') {
+          return getByPath(data as SipSessionDataType, name as any);
+        }
 
-      return line.sipSession.data;
+        return line.sipSession.data;
+      } catch (error) {
+        console.error(error);
+      }
     }),
   );
 }

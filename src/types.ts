@@ -1,7 +1,6 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
-import { useSessionEvents, useSessionMethods } from './hooks';
-import { LineType, SipSessionType } from './store/types';
+import { SipSessionType } from './store/types';
 import { Registerer, Subscriber, UserAgent } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
@@ -33,7 +32,7 @@ type SipProviderConfigs<T extends SipConfigs> = {
 
 export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
   children: React.ReactNode;
-  configs: SipProviderConfigs<T>;
+  configs: SipProviderConfigs<T>[];
 }
 export interface SipContextTransportType {
   reconnectTransport: typeof reconnectTransport;

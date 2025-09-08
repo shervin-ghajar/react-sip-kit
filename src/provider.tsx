@@ -1,32 +1,37 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
-import { reconnectTransport } from './events/transport';
-import { useSessionMethods } from './hooks';
-import { useGetMediaDevices } from './hooks/useGetMediaDevices';
 import { SipManager } from './manager';
+import { getMediaPermissions } from './methods/initialization';
 import { useSipStore } from './store';
 import { SipProviderProps } from './types';
 import { deepMerge } from './utils';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 
+/* -------------------------------------------------------------------------- */
 export const SipProvider = ({ children, configs }: SipProviderProps) => {
+  const instances = useRef<string[]>([]);
   const setSipStore = useSipStore((s) => s.setSipStore);
-  const { getDevices } = useGetMediaDevices();
-  const { receiveSession } = useSessionMethods();
-
-  const mergedConfigs = useMemo(
-    () => deepMerge(defaultSipConfigs, configs as SipConfigs),
-    [configs],
-  );
+  const setConfig = useSipStore((s) => s.setConfig);
+  const setUserAgent = useSipStore((s) => s.setUserAgent);
 
   useEffect(() => {
-    const manager = SipManager.getInstance();
-    manager.initialize({ configs: mergedConfigs, receiveSession, getDevices, setSipStore });
+    getPermissions();
+    configs.forEach((config) => {
+      if (!instances?.current?.includes(config.account.username)) {
+        instances.current.push(config.account.username);
+        new SipManager({
+          configs: deepMerge(defaultSipConfigs, config as SipConfigs),
+          setSipStore,
+          setConfig,
+          setUserAgent,
+        });
+      }
+    });
+  }, [configs]);
 
-    return () => {
-      manager.stop();
-    };
-  }, [mergedConfigs]);
+  const getPermissions = async () => {
+    await getMediaPermissions('audio');
+  };
 
   return children;
 };

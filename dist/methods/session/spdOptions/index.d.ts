@@ -1,11 +1,14 @@
-import { SPDOptionsType } from '../useSessionMethods/types';
-export declare const useSpdOptions: () => {
+import { SipAccountConfig } from '../../../configs/types';
+import { SPDOptionsType } from '../types';
+export declare const spdOptions: ({ username }: {
+    username: SipAccountConfig["username"];
+}) => {
     answerAudioSpdOptions: ({ option: defaultOption }?: {
         option?: SPDOptionsType;
     }) => SPDOptionsType | undefined;
     makeAudioSpdOptions: ({ extraHeaders }: {
         extraHeaders?: string[];
-    }) => Record<"sessionDescriptionHandlerOptions", import("../useSessionMethods/types").SessionDescriptionHandlerOptions> & Partial<{
+    }) => Record<"sessionDescriptionHandlerOptions", import("../types").SessionDescriptionHandlerOptions> & Partial<{
         earlyMedia: boolean;
         extraHeaders: string[];
     }> & {
@@ -17,7 +20,7 @@ export declare const useSpdOptions: () => {
     }) => SPDOptionsType | undefined;
     makeVideoSpdOptions: ({ extraHeaders }: {
         extraHeaders?: string[];
-    }) => Record<"sessionDescriptionHandlerOptions", import("../useSessionMethods/types").SessionDescriptionHandlerOptions> & Partial<{
+    }) => Record<"sessionDescriptionHandlerOptions", import("../types").SessionDescriptionHandlerOptions> & Partial<{
         earlyMedia: boolean;
         extraHeaders: string[];
     }> & {

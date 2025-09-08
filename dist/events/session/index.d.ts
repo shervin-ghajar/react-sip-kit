@@ -1,8 +1,11 @@
+import { SipAccountConfig } from '../../configs/types';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
-export declare const useSessionEvents: () => {
+export declare const sessionEvents: ({ username }: {
+    username: SipAccountConfig["username"];
+}) => {
     onInviteCancel: (lineObj: LineType, response: IncomingRequestMessage, callback?: CallbackFunction<any>) => void;
     onInviteAccepted: (lineObj: LineType, videoEnabled: boolean, response?: IncomingResponse) => Promise<void>;
     onInviteTrying: (lineObj: LineType, response: IncomingResponse) => void;

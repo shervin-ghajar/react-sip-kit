@@ -1,7 +1,7 @@
 {
   "name": "react-sip-kit",
   "private": false,
-  "version": "0.4.04",
+  "version": "0.5.01",
   "type": "module",
   "author": {
     "name": "Shervin Ghajar",

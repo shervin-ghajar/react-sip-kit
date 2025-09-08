@@ -1,4 +1,5 @@
-import { getSipStoreUserAgent, setSipStore } from '../../store';
+import { SipAccountConfig } from '../../configs/types';
+import { getSipStore, getSipStoreUserAgent, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
 
 // Registration Events
@@ -6,7 +7,7 @@ import { SipUserAgent } from '../../types';
 /**
  * Called when account is registered
  */
-export function onRegistered(userAgent: SipUserAgent) {
+export function onRegistered(username: SipAccountConfig['username'], userAgent: SipUserAgent) {
   // This code fires on re-register after session timeout
   // to ensure that events are not fired multiple times
   // a isReRegister state is kept.
@@ -28,25 +29,41 @@ export function onRegistered(userAgent: SipUserAgent) {
     console.log('ReRegistered!');
   }
   userAgent.isReRegister = true;
-  setSipStore({ userAgent });
+  const { userAgents, statuses } = getSipStore();
+  setSipStore({
+    userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'connected' },
+  });
 }
 /**
  * Called if UserAgent can connect, but not register.
  * @param {string} response Incoming request message
  * @param {string} cause Cause message. Unused
  **/
-export function onRegisterFailed(response: any, cause: any) {
-  const userAgent = getSipStoreUserAgent();
+export function onRegisterFailed(
+  username: SipAccountConfig['username'],
+  response: any,
+  cause: any,
+) {
+  const userAgent = getSipStoreUserAgent(username);
   if (!userAgent) return;
 
   userAgent.registering = false;
-  setSipStore({ userAgent });
+  const { userAgents, statuses } = getSipStore();
+  setSipStore({
+    userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'disconnected' },
+  });
 }
 /**
  * Called when Unregister is requested
  */
-export function onUnregistered(userAgent: SipUserAgent) {
+export function onUnregistered(username: SipAccountConfig['username'], userAgent: SipUserAgent) {
   // We set this flag here so that the re-register attempts are fully completed.
   userAgent.isReRegister = false;
-  setSipStore({ userAgent });
+  const { userAgents, statuses } = getSipStore();
+  setSipStore({
+    userAgents: { ...userAgents, [username]: userAgent },
+    statuses: { ...statuses, [username]: 'disconnected' },
+  });
 }

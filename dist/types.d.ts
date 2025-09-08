@@ -30,7 +30,7 @@ type SipProviderConfigs<T extends SipConfigs> = {
 };
 export interface SipProviderProps<T extends SipConfigs = SipConfigs> {
     children: React.ReactNode;
-    configs: SipProviderConfigs<T>;
+    configs: SipProviderConfigs<T>[];
 }
 export interface SipContextTransportType {
     reconnectTransport: typeof reconnectTransport;
