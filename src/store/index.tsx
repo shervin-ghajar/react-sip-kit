@@ -84,6 +84,42 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
+  remove: (username: SipAccountConfig['username']) => {
+    if (!username) return null;
+    set((state) => {
+      if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
+      const { [username]: _, ...restLines } = state.lines;
+      const { [username]: __, ...restConfigs } = state.configs as NonNullable<
+        SipStoreStateType['configs']
+      >;
+      const { [username]: ___, ...restUserAgents } = state.userAgents as NonNullable<
+        SipStoreStateType['userAgents']
+      >;
+      const { [username]: ____, ...restStatuses } = state.statuses as NonNullable<
+        SipStoreStateType['statuses']
+      >;
+      return {
+        ...state,
+        lines: {
+          ...restLines,
+        },
+        configs: { ...restConfigs },
+        userAgents: { ...restUserAgents },
+        statuses: { ...restStatuses },
+      };
+    });
+  },
+  removeAll: () => {
+    set((state) => {
+      return {
+        ...state,
+        lines: {},
+        configs: {},
+        userAgents: {},
+        statuses: {},
+      };
+    });
+  },
   findLineByNumber: (lineNumber) => {
     const username = get().getUsernameByNumber(lineNumber);
     if (!username) return null;

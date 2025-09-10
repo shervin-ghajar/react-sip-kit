@@ -24,6 +24,8 @@ export interface SipStoreStateType {
   addLine: (username: SipAccountConfig['username'], line: LineType) => void;
   updateLine: (line: LineType, callback?: CallbackFunction) => void;
   removeLine: (lineNumber: LineType['lineNumber']) => void;
+  remove: (username: SipAccountConfig['username']) => void;
+  removeAll: () => void;
   // Getter
   findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
   getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;

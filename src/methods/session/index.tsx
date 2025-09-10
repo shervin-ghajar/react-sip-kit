@@ -38,6 +38,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   const addLine = getSipStore().addLine;
   const updateLine = getSipStore().updateLine;
   const userAgent = getSipStore().userAgents?.[username];
+  console.log({ userAgent });
   const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
 
   const {
