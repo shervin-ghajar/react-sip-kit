@@ -1,147 +1,134 @@
+import { defaultSipConfigs } from './configs';
 import { SipAccountConfig, SipConfigs } from './configs/types';
-import { onRegistered, onUnregistered } from './events/registration';
-import {
-  onTransportConnected,
-  onTransportConnectError,
-  onTransportDisconnected,
-} from './events/transport';
+import { useSipProvider, useWatchSessionData } from './hooks';
+import { SipInitializer } from './initializer';
+import { getMediaPermissions } from './methods/initialization';
 import { sessionMethods } from './methods/session';
-import { SipStoreStateType } from './store/types';
-import { SipUserAgent } from './types';
-import { getMediaDevices } from './utils';
-import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
+import { getSipStore } from './store';
+import { LineType, SipStoreStateType, SipUserAgentStatus } from './store/types';
+import { SipManagerConfig, SipManagerProps } from './types';
+import { deepMerge } from './utils';
+import isEqual from 'lodash.isequal';
+import { useEffect, useRef } from 'react';
 
-/**
- * Singleton SIP Manager
- */
+/* -------------------------------------------------------------------------- */
+// export const SipManager = ({ configs }: SipManagerProps) => {
+//   const instances = useRef<
+//     Record<SipAccountConfig['username'], SipManagerProps['configs'][number]>
+//   >({});
+
+//   useEffect(() => {
+//     getPermissions();
+//     configs.forEach((config) => {
+//       if (!isEqual(instances?.current?.[config.account.username], config)) {
+//         instances.current[config.account.username] = config;
+//         new SipInitializer({
+//           configs: deepMerge(defaultSipConfigs, config as SipConfigs),
+
+//         });
+//       }
+//     });
+//   }, [configs]);
+
+//   const getPermissions = async () => {
+//     await getMediaPermissions('audio');
+//   };
+
+//   return null;
+// };
+
 export class SipManager {
-  private ua?: SipUserAgent;
-  private configs!: SipConfigs;
-  private username!: SipAccountConfig['username'];
-  private setSipStore!: SipStoreStateType['setSipStore'];
-  private setConfig!: SipStoreStateType['setConfig'];
-  private setUserAgent!: SipStoreStateType['setUserAgent'];
+  private instances = new Map<
+    string,
+    {
+      config: SipManagerConfig;
+      instance: SipInitializer;
+    }
+  >();
 
-  constructor({
-    configs,
-    setSipStore,
-    setUserAgent,
-    setConfig,
-  }: {
-    configs: SipConfigs;
-    setSipStore: SipStoreStateType['setSipStore'];
-    setUserAgent: SipStoreStateType['setUserAgent'];
-    setConfig: SipStoreStateType['setConfig'];
-  }) {
-    this.configs = configs;
-    this.username = configs.account.username;
-    this.setSipStore = setSipStore;
-    this.setConfig = setConfig;
-    this.setUserAgent = setUserAgent;
-
-    this.setConfig(this.username, configs);
-    this.init();
+  constructor() {
+    this.getPermissions();
   }
 
-  public initialize({
-    configs,
-    receiveSession,
-    setSipStore,
-    setUserAgent,
-    setConfig,
-  }: {
-    configs: SipConfigs;
-    receiveSession: any;
-    getDevices: (username: SipAccountConfig['username']) => Promise<any>;
-    setSipStore: SipStoreStateType['setSipStore'];
-    setUserAgent: SipStoreStateType['setUserAgent'];
-    setConfig: SipStoreStateType['setConfig'];
-  }) {
-    this.configs = configs;
-    this.username = configs.account.username;
-    this.setSipStore = setSipStore;
-    this.setConfig = setConfig;
-    this.setUserAgent = setUserAgent;
-    this.setConfig(this.username, configs);
-    this.init();
+  private async getPermissions() {
+    await getMediaPermissions('audio');
   }
 
-  private init() {
-    this.detectDevices();
-    this.createUserAgent();
+  /**
+   * Create and initialize a SIP session for an account
+   */
+  public async add(config: SipManagerConfig): Promise<void> {
+    const username = config.account.username;
+
+    if (this.instances.has(username) || isEqual(this.instances.get(username)?.config, config)) {
+      console.warn(`⚠️ SIP instance for ${username} already exists.`);
+      return;
+    }
+
+    const instance = new SipInitializer(deepMerge(defaultSipConfigs, config as SipConfigs));
+    await instance.init();
+
+    this.instances.set(username, { config, instance });
   }
 
-  private async detectDevices() {
-    const devices = await getMediaDevices(this.username);
-    this.setSipStore({ devicesInfo: devices });
+  /**
+   * Get an existing SIP methods by username
+   */
+  public methods(username: string) {
+    return sessionMethods({ username });
   }
 
-  private async createUserAgent() {
-    console.log({
-      domain: `sip:${this.username}@${this.configs.account.domain}`,
-      server: `wss://${this.configs.account.wssServer}:${this.configs.account.webSocketPort}${this.configs.account.serverPath}`,
-    });
-    const ua = new UserAgent({
-      uri: UserAgent.makeURI(`sip:${this.username}@${this.configs.account.domain}`),
-      transportOptions: {
-        server: `wss://${this.configs.account.wssServer}:${this.configs.account.webSocketPort}${this.configs.account.serverPath}`,
-        traceSip: false,
-        connectionTimeout: this.configs.registration.transportConnectionTimeout,
-      },
-      authorizationUsername: this.username,
-      authorizationPassword: this.configs.account.password,
-      delegate: {
-        onInvite: sessionMethods({ username: this.username }).receiveSession as any,
-        onMessage: () => console.log('Received message'),
-      } as UserAgentDelegate,
-    }) as SipUserAgent;
-
-    // Custom properties
-    ua.isRegistered = () =>
-      ua && ua.registerer && ua.registerer.state === RegistererState.Registered;
-    ua.sessions = ua._sessions;
-    ua.registrationCompleted = false;
-    ua.registering = false;
-    ua.transport.reconnectionAttempts =
-      this.configs.registration.transportReconnectionAttempts || 0;
-    ua.transport.attemptingReconnection = false;
-    ua.BlfSubs = [];
-    ua.lastVoicemailCount = 0;
-
-    // Transport events
-    ua.transport.onConnect = () => onTransportConnected(this.username, ua);
-    ua.transport.onDisconnect = (error?: Error) => {
-      if (error) onTransportConnectError(error, this.username, ua);
-      else onTransportDisconnected(this.username, ua);
+  /**
+   * Get an existing SIP status by username
+   */
+  public get(username: string) {
+    const { lines, statuses } = getSipStore();
+    return {
+      status: (statuses?.[username] ?? 'disconnected') as SipUserAgentStatus,
+      lines: Object.values(lines[username] ?? []),
+      watch: useSipProvider({ username }),
     };
-    // Registerer
-    ua.registerer = new Registerer(ua, {
-      logConfiguration: false,
-      expires: this.configs.registration.registerExpires,
-      extraHeaders: [],
-      extraContactHeaderParams: [],
-      refreshFrequency: 75,
-    });
-
-    ua.registerer.stateChange.addListener((newState) => {
-      console.log('User Agent Registration State:', newState);
-      switch (newState) {
-        case RegistererState.Registered:
-          onRegistered(this.username, ua);
-          break;
-        case RegistererState.Unregistered:
-          onUnregistered(this.username, ua);
-          break;
-      }
-    });
-
-    await ua.start().catch((err) => onTransportConnectError(err, this.username));
-    this.ua = ua;
-    this.setUserAgent(this.username, ua);
-    console.log(`SIP UserAgent created ${this.username}`, ua);
   }
 
-  public stop() {
-    this.ua?.stop();
+  /**
+   * Check the existance of SIP instance by username
+   */
+  public has(username: string) {
+    return this.instances.has(username);
+  }
+
+  /**
+   * Stop and remove a SIP session
+   */
+  public async stop(username: string) {
+    const instance = this.instances.get(username)?.instance;
+    if (instance) {
+      await instance.stop();
+      this.instances.delete(username);
+      getSipStore().remove(username);
+    }
+  }
+
+  /**
+   * Stop and clear all SIP sessions
+   */
+  public async stopAll() {
+    for (const [_, { instance }] of this.instances) {
+      await instance.stop();
+    }
+    getSipStore().removeAll();
+    this.instances.clear();
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /* Store lookups as Manager methods                                           */
+  /* -------------------------------------------------------------------------- */
+
+  public getUsernameByNumber(lineNumber: LineType['lineNumber']) {
+    return getSipStore().getUsernameByNumber(lineNumber);
+  }
+
+  public getSessionByNumber(lineNumber: LineType['lineNumber']) {
+    return getSipStore().getSessionByNumber(lineNumber);
   }
 }

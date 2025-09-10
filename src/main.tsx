@@ -1,12 +1,15 @@
 import App from './App.tsx';
 import './index.css';
-import { SipProvider } from './provider.tsx';
-import { StrictMode } from 'react';
+import { SipManager } from './manager.tsx';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
+/* -------------------------------------------------------------------------- */
+export const sipTestManager = new SipManager();
+/* -------------------------------------------------------------------------- */
 const Providers = () => {
   const username = window.location.pathname.replace('/', '');
-  const configs = [
+  const [configs, setConfigs] = useState([
     {
       account: {
         domain: '192.168.82.31',
@@ -17,34 +20,58 @@ const Providers = () => {
         serverPath: '/ws',
       },
     },
-    {
-      account: {
-        domain: 'mttest-0.wscall.dev.abr-plus.com',
-        username: '3226',
-        password: '3226',
-        wssServer: 'mttest-0.wscall.dev.abr-plus.com',
-        webSocketPort: '8089',
-        serverPath: '/ws',
-      },
-    },
-    {
-      account: {
-        domain: '192.168.82.31',
-        username: '1012',
-        password: '1012',
-        wssServer: '192.168.82.31',
-        webSocketPort: '8089',
-        serverPath: '/ws',
-      },
-    },
-  ];
+  ]);
+
+  // const configs = [
+  //   {
+  //     account: {
+  //       domain: '192.168.82.31',
+  //       username: username,
+  //       password: username,
+  //       wssServer: '192.168.82.31',
+  //       webSocketPort: '8089',
+  //       serverPath: '/ws',
+  //     },
+  //   },
+  //   { account: {
+  //         domain: '192.168.82.31',
+  //         username: '1012',
+  //         password: '1012',
+  //         wssServer: '192.168.82.31',
+  //         webSocketPort: '8089',
+  //         serverPath: '/ws',
+  //       },}
+  // ];
+
+  useEffect(() => {
+    setTimeout(() => {
+      setConfigs((prev) => [
+        ...prev,
+        {
+          account: {
+            domain: '192.168.82.31',
+            username: '1012',
+            password: '1012',
+            wssServer: '192.168.82.31',
+            webSocketPort: '8089',
+            serverPath: '/ws',
+          },
+        },
+      ]);
+    }, 10000);
+  }, []);
+
+  useEffect(() => {
+    configs.map((config) => {
+      sipTestManager.add(config);
+    });
+  }, [configs]);
+
   return (
     <StrictMode>
-      <SipProvider configs={configs}>
-        {configs.map((config) => {
-          return <App key={config.account.username} username={config.account.username} />;
-        })}
-      </SipProvider>
+      {configs.map((config) => {
+        return <App key={config.account.username} username={config.account.username} />;
+      })}
     </StrictMode>
   );
 };
