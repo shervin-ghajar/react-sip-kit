@@ -4,7 +4,7 @@ import { useSipStore } from '../../store';
 import { LineType } from '../../store/types';
 import { useMemo } from 'react';
 
-export function useSipProvider({ username }: { username: SipAccountConfig['username'] }) {
+export function useSipManager({ username }: { username: SipAccountConfig['username'] }) {
   return () => {
     // only subscribe to the number of lines
     const lineCount = useSipStore((s) =>

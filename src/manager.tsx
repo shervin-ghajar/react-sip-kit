@@ -1,6 +1,6 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
-import { useSipProvider } from './hooks';
+import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
 import { getMediaPermissions } from './methods/initialization';
 import { sessionMethods } from './methods/session';
@@ -60,7 +60,7 @@ export class SipManager {
     return {
       status: (statuses?.[username] ?? 'disconnected') as SipUserAgentStatus,
       lines: Object.values(lines[username] ?? []),
-      watch: useSipProvider({ username }),
+      watch: useSipManager({ username }),
     };
   }
 

@@ -1,2 +1,2 @@
-export * from './useSipProvider';
+export * from './useSipManager';
 export * from './useWatchSessionData';
