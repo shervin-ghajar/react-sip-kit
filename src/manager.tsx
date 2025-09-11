@@ -1,42 +1,16 @@
 import { defaultSipConfigs } from './configs';
-import { SipAccountConfig, SipConfigs } from './configs/types';
-import { useSipProvider, useWatchSessionData } from './hooks';
+import { SipConfigs } from './configs/types';
+import { useSipProvider } from './hooks';
 import { SipInitializer } from './initializer';
 import { getMediaPermissions } from './methods/initialization';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
-import { LineType, SipStoreStateType, SipUserAgentStatus } from './store/types';
-import { SipManagerConfig, SipManagerProps } from './types';
+import { LineType, SipUserAgentStatus } from './store/types';
+import { SipManagerConfig } from './types';
 import { deepMerge } from './utils';
 import isEqual from 'lodash.isequal';
-import { useEffect, useRef } from 'react';
 
 /* -------------------------------------------------------------------------- */
-// export const SipManager = ({ configs }: SipManagerProps) => {
-//   const instances = useRef<
-//     Record<SipAccountConfig['username'], SipManagerProps['configs'][number]>
-//   >({});
-
-//   useEffect(() => {
-//     getPermissions();
-//     configs.forEach((config) => {
-//       if (!isEqual(instances?.current?.[config.account.username], config)) {
-//         instances.current[config.account.username] = config;
-//         new SipInitializer({
-//           configs: deepMerge(defaultSipConfigs, config as SipConfigs),
-
-//         });
-//       }
-//     });
-//   }, [configs]);
-
-//   const getPermissions = async () => {
-//     await getMediaPermissions('audio');
-//   };
-
-//   return null;
-// };
-
 export class SipManager {
   private instances = new Map<
     string,
