@@ -53,7 +53,7 @@ export class SipManager {
   }
 
   /**
-   * Get an existing SIP status by username
+   * Get an existing SIP by username
    */
   public get(username: string) {
     const { lines, statuses } = getSipStore();

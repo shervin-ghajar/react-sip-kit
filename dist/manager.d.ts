@@ -37,7 +37,7 @@ export declare class SipManager {
         teardownSession: typeof import("./methods/session").teardownSession;
     };
     /**
-     * Get an existing SIP status by username
+     * Get an existing SIP by username
      */
     get(username: string): {
         status: SipUserAgentStatus;
