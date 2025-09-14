@@ -1,13 +1,13 @@
+import { SipConnection } from '.';
 import { Line } from './Line';
-import { useSessionMethods, useSipManager } from 'react-sip-kit';
 
 /* -------------------------------------------------------------------------- */
 /*                                MAIN APP                                    */
 /* -------------------------------------------------------------------------- */
 
 function App({ username }: { username: string }) {
-  const { lines, status } = useSipManager(); // SIP state (lines, status)
-  const { dialByNumber } = useSessionMethods(); // Method to dial numbers
+  const { lines, status } = SipConnection.get(username).watch(); // watch (lines, status) changes
+  const { dialByNumber } = SipConnection.methods(); // Method to dial numbers
 
   // Renders all active SIP lines
   const renderLines = () => {
