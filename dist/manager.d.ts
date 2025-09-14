@@ -2,8 +2,6 @@ import { LineType, SipUserAgentStatus } from './store/types';
 import { SipManagerConfig } from './types';
 export declare class SipManager {
     private instances;
-    constructor();
-    private getPermissions;
     /**
      * Create and initialize a SIP session for an account
      */
