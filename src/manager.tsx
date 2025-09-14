@@ -2,7 +2,6 @@ import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
-import { getMediaPermissions } from './methods/initialization';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
 import { LineType, SipUserAgentStatus } from './store/types';
@@ -19,14 +18,6 @@ export class SipManager {
       instance: SipInitializer;
     }
   >();
-
-  constructor() {
-    this.getPermissions();
-  }
-
-  private async getPermissions() {
-    await getMediaPermissions('audio');
-  }
 
   /**
    * Create and initialize a SIP session for an account
