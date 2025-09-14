@@ -37,8 +37,8 @@ export interface SipAdvancedConfig {
   chatEngine: string;
 }
 export interface SipRecordingConfig {
-  videoResampleSize: 'HD' | 'FHD';
-  recordingVideoSize: 'HD' | 'FHD';
+  videoResampleSize: string;
+  recordingVideoSize: string;
   recordingVideoFps: number;
   recordingLayout: string;
 }
