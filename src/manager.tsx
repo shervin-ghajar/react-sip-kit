@@ -1,8 +1,7 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
-import { useSipProvider } from './hooks';
+import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
-import { getMediaPermissions } from './methods/initialization';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
 import { LineType, SipUserAgentStatus } from './store/types';
@@ -19,14 +18,6 @@ export class SipManager {
       instance: SipInitializer;
     }
   >();
-
-  constructor() {
-    this.getPermissions();
-  }
-
-  private async getPermissions() {
-    await getMediaPermissions('audio');
-  }
 
   /**
    * Create and initialize a SIP session for an account
@@ -53,14 +44,14 @@ export class SipManager {
   }
 
   /**
-   * Get an existing SIP status by username
+   * Get an existing SIP by username
    */
   public get(username: string) {
     const { lines, statuses } = getSipStore();
     return {
       status: (statuses?.[username] ?? 'disconnected') as SipUserAgentStatus,
       lines: Object.values(lines[username] ?? []),
-      watch: useSipProvider({ username }),
+      watch: useSipManager({ username }),
     };
   }
 

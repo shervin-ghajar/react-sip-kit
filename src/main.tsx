@@ -5,7 +5,7 @@ import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 /* -------------------------------------------------------------------------- */
-export const sipTestManager = new SipManager();
+export const SipConnection = new SipManager();
 /* -------------------------------------------------------------------------- */
 const Providers = () => {
   const username = window.location.pathname.replace('/', '');
@@ -22,28 +22,8 @@ const Providers = () => {
     },
   ]);
 
-  // const configs = [
-  //   {
-  //     account: {
-  //       domain: '192.168.82.31',
-  //       username: username,
-  //       password: username,
-  //       wssServer: '192.168.82.31',
-  //       webSocketPort: '8089',
-  //       serverPath: '/ws',
-  //     },
-  //   },
-  //   { account: {
-  //         domain: '192.168.82.31',
-  //         username: '1012',
-  //         password: '1012',
-  //         wssServer: '192.168.82.31',
-  //         webSocketPort: '8089',
-  //         serverPath: '/ws',
-  //       },}
-  // ];
-
   useEffect(() => {
+    // updating configs after 10 seconds
     setTimeout(() => {
       setConfigs((prev) => [
         ...prev,
@@ -62,8 +42,9 @@ const Providers = () => {
   }, []);
 
   useEffect(() => {
+    // adding each config to SipConnection to get initialized
     configs.map((config) => {
-      sipTestManager.add(config);
+      SipConnection.add(config);
     });
   }, [configs]);
 

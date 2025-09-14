@@ -1,14 +1,14 @@
 import './App.css';
 import { Audio, Video } from './components';
 import { useWatchSessionData } from './hooks';
-import { sipTestManager } from './main';
+import { SipConnection } from './main';
 import { sessionMethods } from './methods/session';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
 function App({ username }: { username: string }) {
-  const { dialByNumber } = sipTestManager.methods(username);
-  const { lines, status } = sipTestManager.get(username).watch();
+  const { dialByNumber } = SipConnection.methods(username); // all session methods like dial, answer, toggle video, toggle share-screen and so on
+  const { lines, status } = SipConnection.get(username).watch(); // watches lines and status if they change
   const renderLines = () => {
     return lines.map((line) => <SipLine key={line.lineNumber} username={username} line={line} />);
   };

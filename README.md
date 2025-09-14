@@ -30,46 +30,48 @@ yarn add react-sip-kit
 
 ## 🚀 Basic Usage
 
-### 1. Wrap your app with `SipProvider`
+### 1. Initialize a global `SipManager`
+
+Instead of wrapping your app with a provider, you now create a single `SipManager` instance and add accounts dynamically.
 
 ```tsx
+// main.ts
 import App from './App';
-import { SipProvider } from 'react-sip-kit';
-import { StrictMode } from 'react';
+import { SipManager } from 'react-sip-kit';
+import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-
-const configs = [
-  {
-    account: {
-      domain: 'sip.example.com',
-      username: '1001',
-      password: '1001',
-      wssServer: 'sip.example.com',
-      webSocketPort: '8089',
-      serverPath: '/ws',
+------------------------------------------------------------
+export const SipConnection = new SipManager(); // Initilizing SipManager
+------------------------------------------------------------
+const Providers = () => {
+  const [configs, setConfigs] = useState([
+    {
+      account: {
+        domain: 'sip.example.com',
+        username: '1010',
+        password: 'password',
+        wssServer: 'sip.example.com',
+        webSocketPort: '8089',
+        serverPath: '/ws',
+      },
     },
-  },
-  {
-    account: {
-      domain: 'sip.another.com',
-      username: '2001',
-      password: '2001',
-      wssServer: 'sip.another.com',
-      webSocketPort: '8089',
-      serverPath: '/ws',
-    },
-  },
-];
+  ]);
 
-const Providers = () => (
-  <StrictMode>
-    <SipProvider configs={configs}>
+  useEffect(() => {
+    // Add new accounts dynamically
+    configs.forEach((config) => {
+      SipConnection.add(config);
+    });
+  }, [configs]);
+
+  return (
+    <StrictMode>
       {configs.map((config) => (
         <App key={config.account.username} username={config.account.username} />
       ))}
-    </SipProvider>
-  </StrictMode>
-);
+    </StrictMode>
+  );
+};
 
 createRoot(document.getElementById('root')!).render(<Providers />);
 ```
@@ -78,16 +80,23 @@ createRoot(document.getElementById('root')!).render(<Providers />);
 
 ### 2. Access SIP state and methods (per account)
 
+Each account is keyed by its **username**.
+You can fetch **methods** and **watch state** like this:
+
 ```tsx
-import { useSipProvider, sessionMethods } from 'react-sip-kit';
+// App.tsx
+import { SipConnection } from './main';
 
 function DialPad({ username }: { username: string }) {
-  const { status } = useSipProvider({ username });
-  const { dialByNumber } = sessionMethods({ username });
+  const { dialByNumber } = SipConnection.methods(username);
+  const { watch } = SipConnection.get(username);
+  const { lines, status } = watch();
 
   return (
     <>
-      <p>Status ({username}): {status}</p>
+      <h2>
+        Web Phone {username} — {status}
+      </h2>
       <button onClick={() => dialByNumber('audio', '1012')}>Call 1012</button>
       <button onClick={() => dialByNumber('video', '1012')}>Video Call 1012</button>
     </>
@@ -97,16 +106,15 @@ function DialPad({ username }: { username: string }) {
 
 ---
 
-### 3. Watch line data with `useWatchSessionData`
+### 3. Watch line/session data with `useWatchSessionData`
 
-Each hook call is scoped to a specific `username`:
+For fine-grained updates, subscribe to session fields:
 
 ```tsx
 import { useWatchSessionData } from 'react-sip-kit';
 
-function RecordingStatus({ username, lineNumber }: { username: string; lineNumber: number }) {
+function RecordingStatus({ lineNumber }: { lineNumber: number }) {
   const [isRecording] = useWatchSessionData({
-    username,
     lineNumber,
     name: 'recordMedia.recording',
   });
@@ -118,10 +126,9 @@ function RecordingStatus({ username, lineNumber }: { username: string; lineNumbe
 You can also watch multiple fields:
 
 ```tsx
-const [recording, media] = useWatchSessionData({
-  username,
+const [localMediaStreamStatus, isRecording] = useWatchSessionData({
   lineNumber: 1,
-  name: ['recordMedia.recording', 'recordMedia'],
+  name: ['localMediaStreamStatus', 'recordMedia.recording'],
 });
 ```
 
@@ -129,22 +136,22 @@ const [recording, media] = useWatchSessionData({
 
 ### 4. Render media streams
 
-Media components are also per-line:
+Media components (`<Video/>` & `<Audio/>`) are bound per line:
 
 ```tsx
 import { Video, Audio } from 'react-sip-kit';
 
-<Video username="1001" type="local" lineNumber={1} />
-<Video username="1001" type="remote" lineNumber={1} />
-<Audio username="1001" type="local" lineNumber={1} />
-<Audio username="1001" type="remote" lineNumber={1} />
+<Video type="local" lineNumber={1} />
+<Video type="remote" lineNumber={1} />
+<Audio type="local" lineNumber={1} />
+<Audio type="remote" lineNumber={1} />
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Each account config supports SIP and media options:
+Each account supports SIP and media options:
 
 ```ts
 {
@@ -170,24 +177,24 @@ Each account config supports SIP and media options:
 
 ## 💡 Best Practices
 
-* Always pass `username` into hooks and components (`useSipProvider`, `useWatchSessionData`, `sessionMethods`, `<Video/>`, `<Audio/>`).
-* Use `useSipProvider` for high-level state (connection status, list of lines).
-* Use `useWatchSessionData` for real-time session updates (hold, mute, recording).
-* Render `<Video>` and `<Audio>` only for active calls.
-* Handle device permissions (microphone, camera) early.
-* Reinitialize media streams if components mount after a call starts.
+* Always pass the `username` when calling `SipConnection.methods(username)` or `SipConnection.get(username)`.
+* Use `.watch()` for reactive state (`lines`, `status`).
+* Use `useWatchSessionData` for **line-specific** updates (mute, hold, video state, recording, etc.).
+* Render `<Video>` and `<Audio>` **only for active calls**.
+* Manage device permissions (mic/camera) upfront.
+* If adding accounts dynamically, call `SipConnection.add(config)` for each.
 
 ---
 
 ## 🧑‍💻 Full Example
 
-Check the [`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) folder for a demo showing:
+See the [`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) folder for:
 
 * Multiple SIP accounts in one UI
 * Audio & video calls
-* Hold, mute, transfer
+* Hold, mute, attended transfer
 * Call recording & screen sharing
-* Local/remote media stream rendering
+* Local & remote media rendering
 
 ---
 
