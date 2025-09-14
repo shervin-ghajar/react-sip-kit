@@ -1,23 +1,26 @@
-import { SipConfigs } from '../configs/types';
-import { AudioBlobs } from '../constructors';
+import { SipAccountConfig, SipConfigs } from '../configs/types';
 import { CallbackFunction, CallType, SipUserAgent } from '../types';
 import { Invitation, Inviter, Session, SessionDescriptionHandler, SessionDescriptionHandlerOptions } from 'sip.js';
 import { IncomingInviteRequest } from 'sip.js/lib/core';
 export interface SipStoreStateType {
-    configs: SipConfigs;
-    userAgent?: SipUserAgent;
-    lines: Record<LineType['lineNumber'], LineType>;
-    audioBlobs: AudioBlobs['audioBlobs'];
+    configs: Record<SipAccountConfig['username'], SipConfigs> | null;
+    statuses: Record<SipAccountConfig['username'], SipUserAgentStatus> | null;
+    userAgents?: Record<SipAccountConfig['username'], SipUserAgent>;
+    lines: Record<SipAccountConfig['username'], Record<LineType['lineNumber'], LineType>>;
+    usernamesByLineNumber: Record<LineType['lineNumber'], SipAccountConfig['username']>;
     devicesInfo: DevicesInfoType;
     setSipStore: (state: Partial<SipStoreStateType>) => void;
-    setUserAgent: (userAgent: SipStoreStateType['userAgent']) => void;
-    addLine: (line: LineType) => void;
+    setConfig: (username: SipAccountConfig['username'], userAgent: SipConfigs) => void;
+    setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => void;
+    addLine: (username: SipAccountConfig['username'], line: LineType) => void;
     updateLine: (line: LineType, callback?: CallbackFunction) => void;
-    removeLine: (lineNum: LineType['lineNumber']) => void;
-    findLineByNumber: (lineNum: LineType['lineNumber']) => LineType | null;
-    getSessions: () => SipUserAgent['sessions'] | null;
+    removeLine: (lineNumber: LineType['lineNumber']) => void;
+    remove: (username: SipAccountConfig['username']) => void;
+    removeAll: () => void;
+    findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
+    getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
+    getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
     getNewLineNumber: () => number;
-    countIdSessions: (id: string) => number;
 }
 export interface SipInvitationType extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {
     data: Partial<SipSessionDataType>;
@@ -25,7 +28,6 @@ export interface SipInvitationType extends Omit<Invitation, 'incomingInviteReque
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    callType: CallType;
     initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
     initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
@@ -37,7 +39,6 @@ export interface SipInviterType extends Inviter {
     sessionDescriptionHandler: SipSessionDescriptionHandler;
     sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
     isOnHold: boolean;
-    callType: CallType;
     initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
     initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
 }
@@ -58,8 +59,9 @@ export interface SipSessionType extends Session {
 export interface SipSessionDataType {
     line: number;
     callDirection: 'inbound' | 'outbound';
+    callType: CallType;
     terminateBy: string;
-    src: string;
+    remoteNumber: string;
     earlyReject: boolean;
     reasonCode: number;
     reasonText: string;
@@ -76,7 +78,6 @@ export interface SipSessionDataType {
     localMediaStreamStatus: MediaStremStatus;
     remoteMediaStreamStatus: MediaStremStatus;
     videoAckReceived: boolean;
-    dialledNumber: string;
     transfer: Array<SipSessionTransferType>;
     audioSourceTrack: MediaStreamTrack | null;
     videoSourceTrack: MediaStreamTrack | null;
@@ -121,4 +122,5 @@ interface MediaStremStatus {
     videoEnabled: boolean;
     screenShareEnabled: boolean;
 }
+export type SipUserAgentStatus = 'disconnected' | 'connecting' | 'connected';
 export {};
