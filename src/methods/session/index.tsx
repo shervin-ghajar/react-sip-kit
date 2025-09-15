@@ -159,7 +159,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   function answerAudioSession(lineNumber: LineType['lineNumber']) {
     // Check vitals
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -228,7 +228,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!userAgent.isRegistered()) return;
     if (lineObj === null) return;
     if (!hasAudioDevice) {
-      console.error('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
     console.log('makeAudioSession');
@@ -343,7 +343,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
     // Check vitals
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -406,7 +406,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (lineObj == null) return;
 
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -660,17 +660,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       return;
     }
 
-    // if (EnableAlphanumericDial) {
-    //   numDial = numDial.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
-    // } else {
-    //   numDial = numDial.replace(telNumericRegEx, "").substring(0, MaxDidLength);
-    // }
-    // if (numDial.length == 0) {
-    //   console.warn("Enter number to dial");
-    //   return;
-    // }
+    if (!hasAudioDevice) {
+      alert('No audio device detected!');
+      return;
+    }
 
-    // Create a Buddy if one is not already existing
     // Create a Line
     const lineObj = new Line(getNewLineNumber(), dialNumber);
 
@@ -694,7 +688,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
 
     // Check audio device availability (required)
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
