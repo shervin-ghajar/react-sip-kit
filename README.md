@@ -44,21 +44,20 @@ import { createRoot } from 'react-dom/client';
 export const SipConnection = new SipManager(); // Initilizing SipManager
 ------------------------------------------------------------
 const Providers = () => {
-  const [configs, setConfigs] = useState([
-    {
-      account: {
-        domain: 'sip.example.com',
-        username: '1010',
-        password: 'password',
-        wssServer: 'sip.example.com',
-        webSocketPort: '8089',
-        serverPath: '/ws',
-      },
+  const configs = [{
+    account: {
+      domain: 'sip.example.com',
+      username: '1010',
+      password: 'password',
+      wssServer: 'sip.example.com',
+      webSocketPort: '8089',
+      serverPath: '/ws',
     },
-  ]);
+    // ...(other configs)
+  }]
 
   useEffect(() => {
-    // Add new accounts dynamically
+    // Add new configs dynamically
     configs.forEach((config) => {
       SipConnection.add(config);
     });
@@ -114,7 +113,7 @@ For fine-grained updates, subscribe to session fields:
 import { useWatchSessionData } from 'react-sip-kit';
 
 function RecordingStatus({ lineNumber }: { lineNumber: number }) {
-  const [isRecording] = useWatchSessionData({
+  const isRecording = useWatchSessionData({
     lineNumber,
     name: 'recordMedia.recording',
   });
@@ -139,12 +138,12 @@ const [localMediaStreamStatus, isRecording] = useWatchSessionData({
 Media components (`<Video/>` & `<Audio/>`) are bound per line:
 
 ```tsx
-import { Video, Audio } from 'react-sip-kit';
+import { VideoStream, AudioStream } from 'react-sip-kit';
 
-<Video type="local" lineNumber={1} />
-<Video type="remote" lineNumber={1} />
-<Audio type="local" lineNumber={1} />
-<Audio type="remote" lineNumber={1} />
+<VideoStream type="local" lineNumber={1} />
+<VideoStream type="remote" lineNumber={1} />
+<AudioStream type="local" lineNumber={1} />
+<AudioStream type="remote" lineNumber={1} />
 ```
 
 ---
@@ -180,7 +179,7 @@ Each account supports SIP and media options:
 * Always pass the `username` when calling `SipConnection.methods(username)` or `SipConnection.get(username)`.
 * Use `.watch()` for reactive state (`lines`, `status`).
 * Use `useWatchSessionData` for **line-specific** updates (mute, hold, video state, recording, etc.).
-* Render `<Video>` and `<Audio>` **only for active calls**.
+* Render `<VideoStream>` and `<AudioStream>` **only for active calls**.
 * Manage device permissions (mic/camera) upfront.
 * If adding accounts dynamically, call `SipConnection.add(config)` for each.
 
