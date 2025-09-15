@@ -1,11 +1,6 @@
+import { SipConnection } from '.';
 import { useEffect } from 'react';
-import {
-  AudioStream,
-  LineType,
-  VideoStream,
-  useSessionMethods,
-  useWatchSessionData,
-} from 'react-sip-kit';
+import { AudioStream, LineType, VideoStream, useWatchSessionData } from 'react-sip-kit';
 
 export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => {
   const {
@@ -21,7 +16,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     toggleShareScreen,
     recordSession,
     getSessionByNumber,
-  } = useSessionMethods();
+  } = SipConnection.methods();
 
   // Watch session data reactively
   const [
