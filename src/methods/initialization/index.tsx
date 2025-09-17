@@ -34,6 +34,7 @@ export async function getMediaPermissions(media?: 'audio' | 'video') {
 }
 /* -------------------------------------------------------------------------- */
 export const initilizeMediaStreams = (configs: SipConfigs) => {
+  // TODO only observe configs.media change to reInitiate
   Object.values(getSipStore().lines[configs.account.username] ?? {}).forEach((line) => {
     if (line.sipSession?.data.started) {
       line.sipSession?.initiateLocalMediaStreams({
