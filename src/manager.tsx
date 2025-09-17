@@ -25,7 +25,7 @@ export class SipManager {
   public async add(config: SipManagerConfig): Promise<void> {
     const username = config.account.username;
 
-    if (this.instances.has(username) || isEqual(this.instances.get(username)?.config, config)) {
+    if (this.instances.has(username) && isEqual(this.instances.get(username)?.config, config)) {
       console.warn(`⚠️ SIP instance for ${username} already exists.`);
       return;
     }
