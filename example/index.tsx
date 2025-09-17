@@ -23,7 +23,7 @@ const Providers = () => {
 
   useEffect(() => {
     // adding each config to SipConnection to get initialized
-    configs.map((config) => {
+    configs.forEach((config) => {
       SipConnection.add(config);
     });
   }, [configs]);

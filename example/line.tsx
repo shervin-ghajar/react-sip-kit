@@ -75,7 +75,9 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateLocalMediaStreams(localMediaStreamEnabled);
+      getSessionByNumber(lineNumber)?.initiateLocalMediaStreams({
+        videoEnabled: localMediaStreamEnabled,
+      });
     }
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
@@ -83,7 +85,9 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+      getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams({
+        videoEnabled: remoteMediaStreamEnabled,
+      });
     }
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
