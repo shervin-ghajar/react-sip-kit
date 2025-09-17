@@ -86,7 +86,7 @@ You can fetch **methods** and **watch state** like this:
 // App.tsx
 import { SipConnection } from './main';
 
-function DialPad({ username }: { username: string }) {
+function App({ username }: { username: string }) {
   const { dialByNumber } = SipConnection.methods(username);
   const { watch } = SipConnection.get(username);
   const { lines, status } = watch();
