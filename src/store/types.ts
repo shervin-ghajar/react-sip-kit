@@ -40,8 +40,14 @@ export interface SipInvitationType
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+  initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
+  initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
+}
+
+export interface InitiateMediaStreamsParams {
+  videoEnabled?: boolean;
+  pc?: RTCPeerConnection;
+  configs?: SipConfigs;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -52,8 +58,8 @@ export interface SipInviterType extends Inviter {
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   isOnHold: boolean;
-  initiateLocalMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
-  initiateRemoteMediaStreams: (videoEnabled?: boolean, pc?: RTCPeerConnection) => void;
+  initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
+  initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {

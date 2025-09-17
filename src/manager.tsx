@@ -29,7 +29,15 @@ export class SipManager {
       console.warn(`⚠️ SIP instance for ${username} already exists.`);
       return;
     }
-
+    if (this.instances.has(username))
+      Object.values(getSipStore().lines[username] ?? {}).forEach(
+        (line) =>
+          line.sipSession?.data.started &&
+          line.sipSession?.initiateLocalMediaStreams({
+            videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
+            configs: config as SipConfigs,
+          }),
+      );
     const instance = new SipInitializer(deepMerge(defaultSipConfigs, config as SipConfigs));
     await instance.init();
 

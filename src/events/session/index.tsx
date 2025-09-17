@@ -79,12 +79,12 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = async (
-      isVideoEnabled = videoEnabled,
+    session.initiateLocalMediaStreams = async ({
+      videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-    ) => {
+      configs = getSipUsernameConfigs(username),
+    }) => {
       try {
-        const configs = getSipUsernameConfigs(username);
         const media = configs?.media;
 
         const constraints: MediaStreamConstraints = {
@@ -413,10 +413,10 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     const session = lineObj.sipSession;
     if (!session) return;
 
-    session.initiateRemoteMediaStreams = (
-      isVideoEnabled = videoEnabled,
+    session.initiateRemoteMediaStreams = ({
+      videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-    ) => {
+    }) => {
       const remoteAudioTracks = new Map<string, MediaStream>();
       const remoteVideoTracks = new Map<string, MediaStream>();
       const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
