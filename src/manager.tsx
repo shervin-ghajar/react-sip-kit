@@ -2,6 +2,7 @@ import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
+import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
 import { LineType, SipUserAgentStatus } from './store/types';
@@ -29,15 +30,10 @@ export class SipManager {
       console.warn(`⚠️ SIP instance for ${username} already exists.`);
       return;
     }
-    if (this.instances.has(username))
-      Object.values(getSipStore().lines[username] ?? {}).forEach(
-        (line) =>
-          line.sipSession?.data.started &&
-          line.sipSession?.initiateLocalMediaStreams({
-            videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
-            configs: config as SipConfigs,
-          }),
-      );
+    if (this.instances.has(username)) {
+      initilizeMediaStreams(config as SipConfigs);
+    }
+
     const instance = new SipInitializer(deepMerge(defaultSipConfigs, config as SipConfigs));
     await instance.init();
 
