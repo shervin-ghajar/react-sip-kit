@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { AudioStream, LineType, VideoStream, useWatchSessionData } from 'react-sip-kit';
 
 export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => {
+  const username = SipConnection.getUsernameByNumber(lineNumber); // getUsernameByNumber has O(1) retrieval time-complexity, or instead you can get it as a props
   const {
     answerAudioSession,
     answerVideoSession,
@@ -16,7 +17,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     toggleShareScreen,
     recordSession,
     getSessionByNumber,
-  } = SipConnection.methods();
+  } = SipConnection.methods(username);
 
   // Watch session data reactively
   const [
