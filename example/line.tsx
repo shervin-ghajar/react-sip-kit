@@ -11,9 +11,8 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     toggleLocalVideoTrack,
     toggleMuteSession,
     toggleHoldSession,
-    startTransferSession,
-    cancelAttendedTransferSession,
-    attendedTransferSession,
+    makeTransferSession,
+    cancelTransferSession,
     toggleShareScreen,
     recordSession,
     getSessionByNumber,
@@ -63,33 +62,21 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
   // Recorder instance
   const recorder = recordSession(lineNumber);
 
-  // Attended transfer example (hold, then transfer after 500ms)
-  const handleTransferLine = (transferNumber: LineType['lineNumber']) => {
-    startTransferSession(lineNumber);
-    setTimeout(() => {
-      attendedTransferSession(lineNumber, transferNumber);
-    }, 500);
-  };
-
   /* ------------------------- Auto-initiate streams ------------------------- */
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
-    if (localMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateLocalMediaStreams({
-        videoEnabled: localMediaStreamEnabled,
-      });
-    }
+    getSessionByNumber(lineNumber)?.initiateLocalMediaStreams({
+      videoEnabled: localMediaStreamEnabled,
+    });
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
-    if (remoteMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams({
-        videoEnabled: remoteMediaStreamEnabled,
-      });
-    }
+    getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams({
+      videoEnabled: remoteMediaStreamEnabled,
+    });
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
   /* ------------------------------- UI Render ------------------------------- */
@@ -127,12 +114,12 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
           <button onClick={() => toggleHoldSession(lineNumber)}>
             {isHold ? 'UnHold' : 'Hold'}
           </button>
-          <button onClick={() => handleTransferLine(1012)}>Transfer To 1012</button>
+          <button onClick={() => makeTransferSession(lineNumber, 1012)}>Transfer To 1012</button>
           <button onClick={async () => await toggleShareScreen(lineNumber)}>
             Share Screen {localScreenShareEnabled ? 'ON' : 'OFF'}
           </button>
-          <button onClick={() => cancelAttendedTransferSession(lineNumber, 1010)}>
-            Cancel Transfer To 1010
+          <button onClick={() => cancelTransferSession(lineNumber, 1012)}>
+            Cancel Transfer To 1012
           </button>
           <button
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
