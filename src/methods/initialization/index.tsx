@@ -1,5 +1,6 @@
-import { SipConfigs } from '../../configs/types';
-import { getSipStore } from '../../store';
+import { SipConfigs, SipMediaConfig } from '../../configs/types';
+import { getSipStore, useSipStore } from '../../store';
+import isEqual from 'lodash.isequal';
 
 // Detect Devices
 export async function detectDevices(): Promise<MediaDeviceInfo[]> {
@@ -34,17 +35,21 @@ export async function getMediaPermissions(media?: 'audio' | 'video') {
 }
 /* -------------------------------------------------------------------------- */
 export const initilizeMediaStreams = (configs: SipConfigs) => {
-  // TODO only observe configs.media change to reInitiate
-  Object.values(getSipStore().lines[configs.account.username] ?? {}).forEach((line) => {
-    if (line.sipSession?.data.started) {
-      line.sipSession?.initiateLocalMediaStreams({
-        videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
-        configs,
-      });
-      line.sipSession?.initiateRemoteMediaStreams({
-        videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
-        configs,
-      });
-    }
-  });
+  const prevMediaConfig = getSipStore().configs?.[configs.account.username]?.media;
+  if (prevMediaConfig && !isEqual(prevMediaConfig, configs.media)) {
+    const username = configs.account.username;
+    const lines = getSipStore().lines[username] ?? {};
+    Object.values(lines).forEach((line) => {
+      if (line.sipSession?.data.started) {
+        line.sipSession?.initiateLocalMediaStreams({
+          videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
+          configs,
+        });
+        line.sipSession?.initiateRemoteMediaStreams({
+          videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
+          configs,
+        });
+      }
+    });
+  }
 };

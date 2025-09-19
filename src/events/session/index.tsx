@@ -73,7 +73,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       session.data.earlyMedia = null;
     }
 
-    const startTime = dayJs.utc().toISOString();
+    const startTime = utcDateNow();
     session.data.startTime = startTime;
 
     session.isOnHold = false;

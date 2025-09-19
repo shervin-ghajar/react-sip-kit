@@ -1,5 +1,6 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
+import { reconnectTransport } from './events/transport';
 import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
@@ -89,6 +90,16 @@ export class SipManager {
    */
   public has(username: string) {
     return this.instances.has(username);
+  }
+
+  /**
+   * Attempt to reconnect the SIP transport for a given username.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {void}
+   */
+  public reconnect(username: string): void {
+    reconnectTransport(username);
   }
 
   /**
