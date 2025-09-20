@@ -99,6 +99,13 @@ export declare class SipManager {
      */
     getUsernameByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']): string | null;
     /**
+     * Find the username associated with a specific remoteNumber.
+     *
+     * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+     * @returns {string | undefined} The lineNumber if found, otherwise undefined.
+     */
+    getLineNumberByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']): number | null;
+    /**
      * Find the SIP session associated with a specific line number.
      *
      * @param {LineType['lineNumber']} lineNumber - The line number to look up.

@@ -157,6 +157,16 @@ export class SipManager {
   }
 
   /**
+   * Find the lineNumber associated with a specific remoteNumber.
+   *
+   * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+   * @returns {string | undefined} The lineNumber if found, otherwise undefined.
+   */
+  public getLineNumberByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
+    return getSipStore().getLineNumberByRemoteNumber(remoteNumber);
+  }
+
+  /**
    * Find the SIP session associated with a specific line number.
    *
    * @param {LineType['lineNumber']} lineNumber - The line number to look up.
