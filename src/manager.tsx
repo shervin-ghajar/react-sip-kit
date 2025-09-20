@@ -1,5 +1,6 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
+import { reconnectTransport } from './events/transport';
 import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
@@ -11,7 +12,11 @@ import { deepMerge } from './utils';
 import isEqual from 'lodash.isequal';
 
 /* -------------------------------------------------------------------------- */
+/*  SIP Manager - Central orchestrator for multiple SIP accounts               */
+/* -------------------------------------------------------------------------- */
+
 export class SipManager {
+  // Holds active SIP instances, keyed by username
   private instances = new Map<
     string,
     {
@@ -21,34 +26,52 @@ export class SipManager {
   >();
 
   /**
-   * Create and initialize a SIP session for an account
+   * Create and initialize a SIP session for an account.
+   *
+   * @param {SipManagerConfig} config - SIP account configuration (account, transport, registration, etc.)
+   * @returns {Promise<void>} Resolves when initialization is complete.
    */
   public async add(config: SipManagerConfig): Promise<void> {
     const username = config.account.username;
 
+    // Prevent duplicate identical configs
     if (this.instances.has(username) && isEqual(this.instances.get(username)?.config, config)) {
       console.warn(`⚠️ SIP instance for ${username} already exists.`);
       return;
     }
+
+    // If username exists but config has changed, re-init media streams
     if (this.instances.has(username)) {
       initilizeMediaStreams(config as SipConfigs);
     }
 
+    // Merge with defaults and initialize a new SIP UA instance
     const instance = new SipInitializer(deepMerge(defaultSipConfigs, config as SipConfigs));
     await instance.init();
 
+    // Store instance + config for future lookups
     this.instances.set(username, { config, instance });
   }
 
   /**
-   * Get an existing SIP methods by username
+   * Get session methods (dial, answer, hold, etc.) for a given username.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {ReturnType<typeof sessionMethods>} Object containing call/session methods.
    */
   public methods(username: string) {
     return sessionMethods({ username });
   }
 
   /**
-   * Get an existing SIP by username
+   * Get SIP account state by username.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {{
+   *   status: SipUserAgentStatus;
+   *   lines: LineType[];
+   *   watch: ReturnType<typeof useSipManager>;
+   * }} An object with account status, active lines, and a reactive watcher hook.
    */
   public get(username: string) {
     const { lines, statuses } = getSipStore();
@@ -60,14 +83,31 @@ export class SipManager {
   }
 
   /**
-   * Check the existance of SIP instance by username
+   * Check if a SIP instance already exists for the username.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {boolean} True if the instance exists, false otherwise.
    */
   public has(username: string) {
     return this.instances.has(username);
   }
 
   /**
-   * Stop and remove a SIP session
+   * Attempt to reconnect the SIP transport for a given username.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {void}
+   */
+  public reconnect(username: string): void {
+    reconnectTransport(username);
+  }
+
+  /**
+   * Stop and remove a SIP session for a username.
+   * Also cleans up from the global store.
+   *
+   * @param {string} username - The SIP account username.
+   * @returns {Promise<void>} Resolves when the session is stopped and removed.
    */
   public async stop(username: string) {
     const instance = this.instances.get(username)?.instance;
@@ -79,7 +119,10 @@ export class SipManager {
   }
 
   /**
-   * Stop and clear all SIP sessions
+   * Stop and clear ALL SIP sessions.
+   * Useful on logout or app shutdown.
+   *
+   * @returns {Promise<void>} Resolves when all sessions are stopped and cleared.
    */
   public async stopAll() {
     for (const [_, { instance }] of this.instances) {
@@ -90,13 +133,25 @@ export class SipManager {
   }
 
   /* -------------------------------------------------------------------------- */
-  /* Store lookups as Manager methods                                           */
+  /* Store lookups (wrappers around global SipStore)                            */
   /* -------------------------------------------------------------------------- */
 
+  /**
+   * Find the username associated with a specific line number.
+   *
+   * @param {LineType['lineNumber']} lineNumber - The line number to look up.
+   * @returns {string | undefined} The username if found, otherwise undefined.
+   */
   public getUsernameByNumber(lineNumber: LineType['lineNumber']) {
     return getSipStore().getUsernameByNumber(lineNumber);
   }
 
+  /**
+   * Find the SIP session associated with a specific line number.
+   *
+   * @param {LineType['lineNumber']} lineNumber - The line number to look up.
+   * @returns {any} The SIP session object if found, otherwise undefined.
+   */
   public getSessionByNumber(lineNumber: LineType['lineNumber']) {
     return getSipStore().getSessionByNumber(lineNumber);
   }

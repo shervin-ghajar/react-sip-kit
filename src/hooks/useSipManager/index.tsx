@@ -1,5 +1,4 @@
 import { SipAccountConfig } from '../../configs/types';
-// import { reconnectTransport } from '../../events/transport';
 import { useSipStore } from '../../store';
 import { LineType } from '../../store/types';
 import { useMemo } from 'react';
@@ -17,12 +16,10 @@ export function useSipManager({ username }: { username: SipAccountConfig['userna
     // recompute lines only when lineCount changes
     const lines: LineType[] = useMemo(() => Object.values(linesObj), [lineCount]);
 
-    const status = useSipStore((s) => s?.statuses?.[username]);
-    // const transport = { reconnectTransport };
+    const status = useSipStore((s) => s?.statuses?.[username]) ?? 'connecting';
 
     return {
       status,
-      // transport,
       lines,
     };
   };

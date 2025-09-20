@@ -73,7 +73,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       session.data.earlyMedia = null;
     }
 
-    const startTime = dayJs.utc().toISOString();
+    const startTime = utcDateNow();
     session.data.startTime = startTime;
 
     session.isOnHold = false;
@@ -130,7 +130,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         console.error('initiateLocalMediaStreams failed:', err);
       }
     };
-
+    session.initiateLocalMediaStreams({ videoEnabled });
     updateLine(lineObj);
   }
 
@@ -507,6 +507,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
       updateLine(lineObj);
     };
+    session.initiateRemoteMediaStreams({ videoEnabled });
   }
 
   function onTransferSessionDescriptionHandlerCreated(
