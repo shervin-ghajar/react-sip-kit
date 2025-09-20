@@ -146,8 +146,13 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     return get().usernamesByLineNumber[lineNumber] ?? null;
   },
   getUsernameByRemoteNumber: (remoteNumber) => {
-    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
+    const lineNumber = get().getLineNumberByRemoteNumber(remoteNumber) ?? null;
+    if (!lineNumber) return null;
     return get().getUsernameByNumber(lineNumber);
+  },
+  getLineNumberByRemoteNumber: (remoteNumber) => {
+    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
+    return lineNumber;
   },
   getNewLineNumber: () => ++lineNumber,
 }));

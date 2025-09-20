@@ -34,6 +34,9 @@ export interface SipStoreStateType {
   getUsernameByRemoteNumber: (
     remoteNumber: SipSessionDataType['remoteNumber'],
   ) => SipAccountConfig['username'] | null;
+  getLineNumberByRemoteNumber: (
+    remoteNumber: SipSessionDataType['remoteNumber'],
+  ) => LineType['lineNumber'] | null;
   getNewLineNumber: () => number;
 }
 

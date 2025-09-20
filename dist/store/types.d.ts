@@ -22,6 +22,7 @@ export interface SipStoreStateType {
     getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
     getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
     getUsernameByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => SipAccountConfig['username'] | null;
+    getLineNumberByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType['lineNumber'] | null;
     getNewLineNumber: () => number;
 }
 export interface SipInvitationType extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {
