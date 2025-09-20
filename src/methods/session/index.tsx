@@ -68,9 +68,8 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
    */
   function receiveSession(invitation: SipInvitationType) {
     console.log('receiveSession', { invitation });
-    const callerID =
+    let callerID =
       invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user || '';
-    let did = invitation.remoteIdentity.uri.user ?? '';
 
     console.log(`Incoming call from: ${callerID}`);
 
@@ -82,7 +81,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     session.data.line = lineObj.lineNumber;
     session.data.callDirection = 'inbound';
     session.data.terminateBy = '';
-    session.data.remoteNumber = did;
+    session.data.remoteNumber = callerID;
     session.data.earlyReject = false;
     session.data.callType = 'audio';
     //MediaStreamStatus
@@ -115,8 +114,8 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         const uriParts = rawUri.split('<sip:');
         if (uriParts[1].endsWith('>')) uriParts[1] = uriParts[1].slice(0, -1);
         if (uriParts[1].includes(`@${configs?.account.domain}`)) {
-          did = uriParts[1].split('@')[0];
-          console.log('Using P-Asserted-Identity:', did);
+          callerID = uriParts[1].split('@')[0];
+          console.log('Using P-Asserted-Identity:', callerID);
         }
       }
     }
@@ -1426,8 +1425,3 @@ export async function sendVideoActivationWithAckRetry(
     trySend();
   });
 }
-/* -------------------------------------------------------------------------- */
-
-export const getUsernameByNumber = getSipStore().getUsernameByNumber;
-
-export const getSessionByNumber = getSipStore().getSessionByNumber;

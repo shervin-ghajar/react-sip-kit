@@ -16,6 +16,7 @@ export interface SipStoreStateType {
   userAgents?: Record<SipAccountConfig['username'], SipUserAgent>;
   lines: Record<SipAccountConfig['username'], Record<LineType['lineNumber'], LineType>>;
   usernamesByLineNumber: Record<LineType['lineNumber'], SipAccountConfig['username']>;
+  lineNumberByRemoteNumber: Record<SipSessionDataType['remoteNumber'], LineType['lineNumber']>;
   devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
@@ -30,6 +31,12 @@ export interface SipStoreStateType {
   findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
   getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
   getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
+  getUsernameByRemoteNumber: (
+    remoteNumber: SipSessionDataType['remoteNumber'],
+  ) => SipAccountConfig['username'] | null;
+  getLineNumberByRemoteNumber: (
+    remoteNumber: SipSessionDataType['remoteNumber'],
+  ) => LineType['lineNumber'] | null;
   getNewLineNumber: () => number;
 }
 

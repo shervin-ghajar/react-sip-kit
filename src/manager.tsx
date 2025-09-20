@@ -6,7 +6,7 @@ import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
-import { LineType, SipUserAgentStatus } from './store/types';
+import { LineType, SipSessionDataType, SipUserAgentStatus } from './store/types';
 import { SipManagerConfig } from './types';
 import { deepMerge } from './utils';
 import isEqual from 'lodash.isequal';
@@ -144,6 +144,26 @@ export class SipManager {
    */
   public getUsernameByNumber(lineNumber: LineType['lineNumber']) {
     return getSipStore().getUsernameByNumber(lineNumber);
+  }
+
+  /**
+   * Find the username associated with a specific remoteNumber.
+   *
+   * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+   * @returns {string | undefined} The username if found, otherwise undefined.
+   */
+  public getUsernameByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
+    return getSipStore().getUsernameByRemoteNumber(remoteNumber);
+  }
+
+  /**
+   * Find the lineNumber associated with a specific remoteNumber.
+   *
+   * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+   * @returns {string | undefined} The lineNumber if found, otherwise undefined.
+   */
+  public getLineNumberByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
+    return getSipStore().getLineNumberByRemoteNumber(remoteNumber);
   }
 
   /**
