@@ -21,6 +21,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
   lines: {},
   usernamesByLineNumber: {},
+  lineNumberByRemoteNumber: {},
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setConfig: (username: SipAccountConfig['username'], config: SipConfigs) => {
@@ -42,6 +43,10 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       usernamesByLineNumber: {
         ...state.usernamesByLineNumber,
         [newLine.lineNumber]: username,
+      },
+      lineNumberByRemoteNumber: {
+        ...state.usernamesByLineNumber,
+        [newLine.displayNumber]: newLine.lineNumber,
       },
     }));
   },
@@ -65,11 +70,15 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
 
   removeLine: (lineNumber: LineType['lineNumber']) => {
     const username = get().getUsernameByNumber(lineNumber);
+    const lineObj = get().findLineByNumber(lineNumber);
     if (!username) return null;
+    const remoteNumber = lineObj?.sipSession?.data.remoteNumber ?? '';
     set((state) => {
       if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
-      const { [lineNumber]: _, ...rest } = state.lines[username]; // omit the line immutably
-      const { [lineNumber]: __, ...restUsernamesByLineNumber } = state.usernamesByLineNumber; // omit the line immutably
+      const { [lineNumber]: _, ...rest } = state.lines[username];
+      const { [lineNumber]: __, ...restUsernamesByLineNumber } = state.usernamesByLineNumber;
+      const { [remoteNumber]: ___, ...restLineNumberByRemoteNumber } =
+        state.lineNumberByRemoteNumber;
       return {
         ...state,
         lines: {
@@ -80,6 +89,9 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         },
         usernamesByLineNumber: {
           ...restUsernamesByLineNumber,
+        },
+        lineNumberByRemoteNumber: {
+          ...restLineNumberByRemoteNumber,
         },
       };
     });
@@ -132,6 +144,10 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
   getUsernameByNumber: (lineNumber) => {
     return get().usernamesByLineNumber[lineNumber] ?? null;
+  },
+  getUsernameByRemoteNumber: (remoteNumber) => {
+    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
+    return get().getUsernameByNumber(lineNumber);
   },
   getNewLineNumber: () => ++lineNumber,
 }));
