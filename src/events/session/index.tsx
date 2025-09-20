@@ -11,7 +11,6 @@ import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
 export const sessionEvents = ({ username }: { username: SipAccountConfig['username'] }) => {
   const updateLine = getSipStore().updateLine;
-  const media = getSipStore().configs?.[username]?.media;
 
   function onInviteCancel(
     lineObj: LineType,
@@ -74,17 +73,17 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       session.data.earlyMedia = null;
     }
 
-    const startTime = dayJs.utc().toISOString();
+    const startTime = utcDateNow();
     session.data.startTime = startTime;
 
     session.isOnHold = false;
     session.data.started = true;
-    session.initiateLocalMediaStreams = async (
-      isVideoEnabled = videoEnabled,
+    session.initiateLocalMediaStreams = async ({
+      videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-    ) => {
+      configs = getSipUsernameConfigs(username),
+    }) => {
       try {
-        const configs = getSipUsernameConfigs(username);
         const media = configs?.media;
 
         const constraints: MediaStreamConstraints = {
@@ -131,7 +130,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         console.error('initiateLocalMediaStreams failed:', err);
       }
     };
-
+    session.initiateLocalMediaStreams({ videoEnabled });
     updateLine(lineObj);
   }
 
@@ -413,10 +412,13 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     const session = lineObj.sipSession;
     if (!session) return;
 
-    session.initiateRemoteMediaStreams = (
-      isVideoEnabled = videoEnabled,
+    session.initiateRemoteMediaStreams = ({
+      videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-    ) => {
+      configs = getSipUsernameConfigs(username),
+    }) => {
+      const media = configs?.media;
+
       const remoteAudioTracks = new Map<string, MediaStream>();
       const remoteVideoTracks = new Map<string, MediaStream>();
       const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
@@ -431,8 +433,6 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
       });
 
       // Gather all remote tracks
-      // const audioTracks = pc.getReceivers().filter((r) => r.track && r.track.kind === 'audio');
-      // console.log({ audioTracks: audioTracks.length });
       pc.getTransceivers().forEach((transceiver) => {
         const track = transceiver.receiver?.track;
         if (!track) return;
@@ -490,6 +490,12 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
           video.muted = true;
 
           video.onloadedmetadata = () => {
+            if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
+              video
+                .setSinkId(media?.videoInputDeviceId)
+                .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
+                .catch((e) => console.warn('setSinkId error:', e));
+            }
             video.play().catch((err) => console.error('Video play error:', err));
           };
 
@@ -501,6 +507,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
       updateLine(lineObj);
     };
+    session.initiateRemoteMediaStreams({ videoEnabled });
   }
 
   function onTransferSessionDescriptionHandlerCreated(

@@ -55,24 +55,22 @@ export function useWatchSessionData({
   lineNumber: number;
   name?: string | readonly string[];
 }) {
+  const username = getSipStore().getUsernameByNumber(lineNumber);
   return useSipStore(
     useDeep((state) => {
       try {
-        const username = getSipStore().getUsernameByNumber(lineNumber);
-        if (!username)
-          throw new Error(`useWatchSessionData username by lineNumber=${lineNumber} not found`);
-        const line = state.lines?.[username]?.[lineNumber];
-        if (!line?.sipSession?.data) throw new Error(`useWatchSessionData linew not found`);
-        const data = line.sipSession.data as SipSessionDataType;
+        const line = username ? state.lines?.[username]?.[lineNumber] : null;
+
+        const data = line?.sipSession?.data as SipSessionDataType;
         if (Array.isArray(name)) {
-          return name.map((path) => getByPath(data, path as any));
+          return name.map((path) => (data ? getByPath(data, path as any) : undefined));
         }
 
         if (typeof name === 'string') {
-          return getByPath(data as SipSessionDataType, name as any);
+          return data ? getByPath(data as SipSessionDataType, name as any) : undefined;
         }
 
-        return line.sipSession.data;
+        return line?.sipSession?.data;
       } catch (error) {
         console.error(error);
       }

@@ -159,7 +159,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   function answerAudioSession(lineNumber: LineType['lineNumber']) {
     // Check vitals
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -228,14 +228,14 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!userAgent.isRegistered()) return;
     if (lineObj === null) return;
     if (!hasAudioDevice) {
-      console.error('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
     console.log('makeAudioSession');
 
     const spdOptions = makeAudioSpdOptions({ extraHeaders });
     if (!spdOptions) return;
-    let startTime = dayJs.utc().toISOString();
+    let startTime = utcDateNow();
 
     // Invite
     console.log('INVITE (audio): ' + dialledNumber + '@' + configs?.account.domain);
@@ -343,7 +343,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
     // Check vitals
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -406,7 +406,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (lineObj == null) return;
 
     if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
+      alert('No audio device detected!');
       return;
     }
 
@@ -419,7 +419,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     const spdOptions = makeVideoSpdOptions({ extraHeaders });
     if (!spdOptions) return;
 
-    const startTime = dayJs.utc().toISOString();
+    const startTime = utcDateNow();
 
     // Invite
     console.log('INVITE (video): ' + dialledNumber + '@' + configs?.account.domain);
@@ -654,23 +654,17 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     dialNumber: string,
     extraHeaders?: Array<string>,
   ) {
-    if (userAgent == null || userAgent.isRegistered() == false) {
-      // onError //TODO #SH
-      alert('SIP userAgent not registered');
+    const userAgent = getSipStore().userAgents?.[username];
+    if (!(userAgent && userAgent?.isRegistered())) {
+      alert(`SIP userAgent for ${username} not registered`);
       return;
     }
 
-    // if (EnableAlphanumericDial) {
-    //   numDial = numDial.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
-    // } else {
-    //   numDial = numDial.replace(telNumericRegEx, "").substring(0, MaxDidLength);
-    // }
-    // if (numDial.length == 0) {
-    //   console.warn("Enter number to dial");
-    //   return;
-    // }
+    if (!hasAudioDevice) {
+      alert('No audio device detected!');
+      return;
+    }
 
-    // Create a Buddy if one is not already existing
     // Create a Line
     const lineObj = new Line(getNewLineNumber(), dialNumber);
 
@@ -682,103 +676,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
     addLine(username, lineObj);
   }
-
-  /**
-   * Initiates a video (or audio) SIP session to a predefined conference room (e.g., 700).
-   * Falls back to audio-only if no video device is found.
-   * Handles full session lifecycle with delegates and media configuration.
-   */
-  function makeConferenceSession(lineObj: LineType, extraHeaders?: Array<string>) {
-    // Ensure SIP user agent is available, registered, and line object is valid
-    if (!userAgent || !userAgent.isRegistered() || !lineObj) return;
-
-    // Check audio device availability (required)
-    if (!hasAudioDevice) {
-      alert('lang.alert_no_microphone');
-      return;
-    }
-
-    // Warn if no video device; fallback is handled below
-    if (!hasVideoDevice) {
-      console.warn('No video devices (webcam) found, switching to audio-only conference.');
-    }
-
-    // Create video session options, e.g. constraints, headers
-    const spdOptions = makeVideoSpdOptions({ extraHeaders });
-    if (!spdOptions) return;
-
-    // Start time for logging/metadata
-    const startTime = dayJs.utc().toISOString();
-    const conferenceNumber = '700'; // Conference room address
-
-    console.log('INVITE (conference): ' + conferenceNumber + '@' + configs?.account.domain);
-
-    // Create target SIP URI for conference room
-    const targetURI = UserAgent.makeURI(
-      `sip:${conferenceNumber}@${configs?.account.domain}`,
-    ) as URI;
-
-    // Create SIP Inviter (outgoing call session)
-    lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
-    const session = lineObj.sipSession;
-
-    // Attach session metadata
-    session.data = {
-      line: lineObj.lineNumber,
-      callDirection: 'outbound',
-      remoteNumber: conferenceNumber,
-      startTime,
-      videoSourceDevice: configs?.media.videoInputDeviceId,
-      audioSourceDevice: configs?.media.audioInputDeviceId,
-      audioOutputDevice: configs?.media.audioOutputDeviceId,
-      terminateBy: 'them',
-      localMediaStreamStatus: {
-        screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: !!hasVideoDevice,
-      },
-      remoteMediaStreamStatus: {
-        screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: false,
-      },
-      earlyReject: false,
-    };
-
-    session.data.callType = hasVideoDevice ? 'video' : 'audio';
-    session.isOnHold = false;
-
-    // Define SIP session event handlers
-    session.delegate = {
-      onBye: (sip) => onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj)),
-      onMessage: (sip) => onSessionReceivedMessage(lineObj, sip),
-      onInvite: (sip) => onSessionReinvited(lineObj, sip),
-      onSessionDescriptionHandler: (sdh, provisional) =>
-        onSessionDescriptionHandlerCreated(
-          lineObj,
-          sdh as SipSessionDescriptionHandler,
-          provisional,
-          true,
-        ),
-    };
-
-    // Define response handlers for the INVITE request
-    const inviterOptions: InviterInviteOptions = {
-      requestDelegate: {
-        onTrying: (sip) => onInviteTrying(lineObj, sip),
-        onProgress: (sip) => onInviteProgress(lineObj, sip),
-        onRedirect: (sip) => onInviteRedirected(lineObj, sip),
-        onAccept: (sip) => onInviteAccepted(lineObj, true, sip),
-        onReject: (sip) => onInviteRejected(lineObj, sip, () => teardownSession(lineObj)),
-      },
-    };
-
-    // Send INVITE to join the conference
-    session.invite(inviterOptions).catch((e) => {
-      console.warn('Failed to join conference:', e);
-    });
-  }
-
   /* -------------------------------------------------------------------------- */
   /*                        In-Session Call Functionality                       */
   /*                           HOLD/MUTE/END/TRANSFER                           */
@@ -791,7 +688,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
    * @param forcedValue force to be hold/unhold
    * @returns
    */
-  async function toggleHoldSession(lineNumber: LineType['lineNumber'], forcedValue?: boolean) {
+  function toggleHoldSession(lineNumber: LineType['lineNumber'], forcedValue?: boolean) {
     const lineObj = findLineByNumber(lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
@@ -1064,7 +961,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         lineObj.sipSession.data.recordMedia = {
           recorder,
           recording: true,
-          startTime: dayJs.utc().toISOString(),
+          startTime: utcDateNow(),
         };
         updateLine(lineObj);
 
@@ -1107,92 +1004,40 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /**
    * Start Transfer Call Session
    * @param lineNumber
+   * @param transferLineNumber
    */
-  function startTransferSession(lineNumber: LineType['lineNumber']) {
-    // if ($('#line-' + lineNum + '-btn-CancelConference').is(':visible')) { //TODO #SH
-    //   CancelConference(lineNumber);
-    //   return;
-    // }
-    // $('#line-' + lineNum + '-btn-Transfer').hide();
-    // $('#line-' + lineNum + '-btn-CancelTransfer').show();
+  function makeTransferSession(
+    lineNumber: LineType['lineNumber'],
+    transferLineNumber: LineType['lineNumber'],
+  ) {
     toggleHoldSession(lineNumber, true);
-    // $('#line-' + lineNum + '-txt-FindTransferBuddy').val('');
-    // $('#line-' + lineNum + '-txt-FindTransferBuddy')
-    //   .parent()
-    //   .show();
-    // $('#line-' + lineNum + '-session-avatar').css('width', '50px');
-    // $('#line-' + lineNum + '-session-avatar').css('height', '50px');
-    // RestoreCallControls(lineNumber);
-    // $('#line-' + lineNum + '-btn-blind-transfer').show();
-    // $('#line-' + lineNum + '-btn-attended-transfer').show();
-    // $('#line-' + lineNum + '-btn-complete-transfer').hide();
-    // $('#line-' + lineNum + '-btn-cancel-transfer').hide();
-    // $('#line-' + lineNum + '-btn-complete-attended-transfer').hide();
-    // $('#line-' + lineNum + '-btn-cancel-attended-transfer').hide();
-    // $('#line-' + lineNum + '-btn-terminate-attended-transfer').hide();
-    // $('#line-' + lineNum + '-transfer-status').hide();
-    // $('#line-' + lineNum + '-Transfer').show();
-    // updateLineScroll(lineNumber); TODO #SH
-  }
-
-  /**
-   * Cancel Transfer Call Session
-   * @param lineNumber
-   * @returns
-   */
-  function cancelTransferSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
-    console.log('cancelTransferSession', { lineObj });
-    if (lineObj == null || lineObj.sipSession == null) {
-      console.warn('Null line or session');
-      return;
-    }
-    const session = lineObj.sipSession;
-    if (session.data.childsession) {
-      console.log('Child Transfer call detected:', session.data.childsession.state);
-      session.data.childsession
-        .dispose()
-        .then(function () {
-          session.data.childsession = null;
-        })
-        .catch(function (error) {
-          console.error('cancelTransferSession', { error });
-          session.data.childsession = null;
-          // Suppress message
-        });
-    }
-
-    // $("#line-" + lineNum + "-session-avatar").css("width", "");
-    // $("#line-" + lineNum + "-session-avatar").css("height", "");
-
-    // $("#line-" + lineNum + "-btn-Transfer").show();
-    // $("#line-" + lineNum + "-btn-CancelTransfer").hide();
-
-    toggleHoldSession(lineNumber, false);
-
-    // $("#line-" + lineNum + "-Transfer").hide();
-
-    // updateLineScroll(lineNumber);
-    updateLine(lineObj);
+    queueMicrotask(() => {
+      attendedTransferSession(lineNumber, transferLineNumber);
+    });
   }
 
   /**
    * Attend Transfer Call Session
-   * @param baseLine
+   * @param lineObj
    * @param transferLineNumber
    * @returns
    */
-  function attendedTransferSession(baseLine: LineType, transferLineNumber: LineType['lineNumber']) {
-    if (userAgent == null) return;
-    if (!userAgent.isRegistered()) return;
+  function attendedTransferSession(
+    lineNumber: LineType['lineNumber'],
+    transferLineNumber: LineType['lineNumber'],
+  ) {
+    const userAgent = getSipStore().userAgents?.[username];
+    if (!(userAgent && userAgent?.isRegistered())) {
+      alert(`SIP userAgent for ${username} not registered`);
+      return;
+    }
     const dstNo = String(transferLineNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
 
-    let lineObj = baseLine;
-    console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
+    const lineObj = findLineByNumber(lineNumber);
     if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
@@ -1278,12 +1123,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
 
     // Create new call session
-    console.log(
-      555,
-      'TRANSFER INVITE: ',
-      'sip:' + dstNo + '@' + configs?.account.domain,
-      spdOptions,
-    );
     const targetURI = UserAgent.makeURI(
       'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs?.account.domain,
     ) as URI;
@@ -1335,8 +1174,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         },
         onAccept: function () {
           if (!session.data.transfer) return;
-          // newCallStatus.html(lang.call_in_progress);
-          // $('#line-' + lineNum + '-btn-cancel-attended-transfer').hide();
           session.data.transfer[transferId].disposition = 'accepted';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
 
@@ -1393,100 +1230,14 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     updateLine(lineObj);
   }
 
-  // function BlindTransfer(lineNumber) {
-  //   var dstNo = $("#line-" + lineNum + "-txt-FindTransferBuddy").val();
-  //   if (EnableAlphanumericDial) {
-  //     dstNo = dstNo.replace(telAlphanumericRegEx, "").substring(0, MaxDidLength);
-  //   } else {
-  //     dstNo = dstNo.replace(telNumericRegEx, "").substring(0, MaxDidLength);
-  //   }
-  //   if (dstNo == "") {
-  //     console.warn("Cannot transfer, no number");
-  //     return;
-  //   }
-
-  //   var lineObj = FindLineByNumber(lineNumber);
-  //   if (lineObj == null || lineObj.sipSession == null) {
-  //     console.warn("Null line or session");
-  //     return;
-  //   }
-  //   var session = lineObj.sipSession;
-
-  //   if (!session.data.transfer) session.data.transfer = [];
-  //   session.data.transfer.push({
-  //     type: "Blind",
-  //     to: dstNo,
-  //     transferTime: utcDateNow(),
-  //     disposition: "refer",
-  //     dispositionTime: utcDateNow(),
-  //     accept: {
-  //       complete: null,
-  //       eventTime: null,
-  //       disposition: "",
-  //     },
-  //   });
-  //   var transferId = session.data.transfer.length - 1;
-
-  //   var transferOptions = {
-  //     requestDelegate: {
-  //       onAccept: function (sip) {
-  //         console.log("Blind transfer Accepted");
-
-  //         session.data.terminateBy = "us";
-  //         session.data.reasonCode = 202;
-  //         session.data.reasonText = "Transfer";
-
-  //         session.data.transfer[transferId].accept.complete = true;
-  //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-  //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-  //         // TODO: use lang pack
-  //         $("#line-" + lineNum + "-msg").html("Call Blind Transferred (Accepted)");
-
-  //         updateLineScroll(lineNumber);
-
-  //         session.bye().catch(function (error) {
-  //           console.warn("Could not BYE after blind transfer:", error);
-  //         });
-  //         teardownSession(lineObj);
-  //       },
-  //       onReject: function (sip) {
-  //         console.warn("REFER rejected:", sip);
-
-  //         session.data.transfer[transferId].accept.complete = false;
-  //         session.data.transfer[transferId].accept.disposition = sip.message.reasonPhrase;
-  //         session.data.transfer[transferId].accept.eventTime = utcDateNow();
-
-  //         $("#line-" + lineNum + "-msg").html("Call Blind Failed!");
-
-  //         updateLineScroll(lineNumber);
-
-  //         // Session should still be up, so just allow them to try again
-  //       },
-  //     },
-  //   };
-  //   console.log("REFER: ", dstNo + "@" + sipDomain);
-  //   var referTo = SIP.UserAgent.makeURI("sip:" + dstNo.replace(/#/g, "%23") + "@" + sipDomain);
-  //   session.refer(referTo, transferOptions).catch(function (error) {
-  //     console.warn("Failed to REFER", error);
-  //   });
-
-  //   $("#line-" + lineNum + "-msg").html(lang.call_blind_transfered);
-
-  //   updateLineScroll(lineNumber);
-  // }
-  //
-
-  // Cancel Attend Transfer Call Session
-
   /**
    * Cancel Transfered Call Session
-   * @param baseLine
+   * @param lineObj
    * @param transferLineNumber
    * @returns
    */
-  function cancelAttendedTransferSession(
-    baseLine: LineType,
+  function cancelTransferSession(
+    lineNumber: LineType['lineNumber'],
     transferLineNumber: LineType['lineNumber'],
   ) {
     if (userAgent == null) return;
@@ -1496,9 +1247,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       console.warn('Cannot transfer, no number');
       return;
     }
-
-    let lineObj = baseLine;
-    console.log('attendedTransfer lineNumber', userAgent.isRegistered(), dstNo, lineObj);
+    const lineObj = findLineByNumber(lineNumber);
     if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
@@ -1511,7 +1260,9 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       if (transfer.to === transferLineNumber) transfer.onCancle?.();
     });
 
-    // updateLine(lineObj);
+    toggleHoldSession(lineNumber, false);
+
+    updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   return {
@@ -1524,16 +1275,13 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     toggleShareScreen,
     rejectSession,
     dialByNumber,
-    makeConferenceSession,
     endSession,
     recordSession,
     toggleMuteSession,
     toggleHoldSession,
-    cancelSession,
-    startTransferSession,
+    makeTransferSession,
     cancelTransferSession,
-    attendedTransferSession,
-    cancelAttendedTransferSession,
+    cancelSession,
     teardownSession,
   };
 };
