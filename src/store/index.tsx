@@ -138,7 +138,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     if (!username) return null;
     return get().lines?.[username]?.[lineNumber] ?? null;
   },
-  getSessionByNumber: (lineNumber) => {
+  getSessionByLineNumber: (lineNumber) => {
     const username = get().getUsernameByLineNumber(lineNumber);
     if (!username) return null;
     return get().lines?.[username]?.[lineNumber]?.sipSession ?? null;

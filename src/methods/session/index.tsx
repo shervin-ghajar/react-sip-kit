@@ -1402,7 +1402,7 @@ export async function sendVideoActivationWithAckRetry(
   return new Promise<void>((resolve, reject) => {
     const trySend = async () => {
       if (!session?.data?.lineNumber) return;
-      const ackReceived = getSipStore().getSessionByNumber(session?.data?.lineNumber)?.data
+      const ackReceived = getSipStore().getSessionByLineNumber(session?.data?.lineNumber)?.data
         ?.videoAckReceived;
       console.log('VIDEO_TOGGLE_ACK', { ackReceived });
       if (ackReceived) {

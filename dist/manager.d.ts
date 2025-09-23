@@ -130,5 +130,5 @@ export declare class SipManager {
      * @param {LineType['lineNumber']} lineNumber - The line number to look up.
      * @returns { SipInvitationType | SipInviterType } The SIP session object if found, otherwise null.
      */
-    getSessionByNumber(lineNumber: LineType['lineNumber']): import("./store/types").SipInvitationType | import("./store/types").SipInviterType | null;
+    getSessionByLineNumber(lineNumber: LineType['lineNumber']): import("./store/types").SipInvitationType | import("./store/types").SipInviterType | null;
 }

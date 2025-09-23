@@ -29,7 +29,7 @@ export interface SipStoreStateType {
   removeAll: () => void;
   // Getter
   findLineByLineNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
-  getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
+  getSessionByLineNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
   getUsernameByLineNumber: (
     lineNumber: LineType['lineNumber'],
   ) => SipAccountConfig['username'] | null;

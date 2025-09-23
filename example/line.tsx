@@ -15,7 +15,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     attendedTransferSession,
     toggleShareScreen,
     recordSession,
-    getSessionByNumber,
+    getSessionByLineNumber,
   } = SipConnection.methods();
 
   // Watch session data reactively
@@ -75,7 +75,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateLocalMediaStreams(localMediaStreamEnabled);
+      getSessionByLineNumber(lineNumber)?.initiateLocalMediaStreams(localMediaStreamEnabled);
     }
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
@@ -83,7 +83,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      getSessionByNumber(lineNumber)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+      getSessionByLineNumber(lineNumber)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
     }
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 

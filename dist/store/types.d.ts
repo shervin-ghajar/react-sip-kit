@@ -19,7 +19,7 @@ export interface SipStoreStateType {
     remove: (username: SipAccountConfig['username']) => void;
     removeAll: () => void;
     findLineByLineNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
-    getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
+    getSessionByLineNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
     getUsernameByLineNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
     getUsernameByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => SipAccountConfig['username'] | null;
     getLineNumberByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType['lineNumber'] | null;

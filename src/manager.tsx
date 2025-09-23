@@ -199,7 +199,7 @@ export class SipManager {
    * @param {LineType['lineNumber']} lineNumber - The line number to look up.
    * @returns { SipInvitationType | SipInviterType } The SIP session object if found, otherwise null.
    */
-  public getSessionByNumber(lineNumber: LineType['lineNumber']) {
-    return getSipStore().getSessionByNumber(lineNumber);
+  public getSessionByLineNumber(lineNumber: LineType['lineNumber']) {
+    return getSipStore().getSessionByLineNumber(lineNumber);
   }
 }
