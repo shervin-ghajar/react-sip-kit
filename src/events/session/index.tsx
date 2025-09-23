@@ -76,7 +76,6 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     const startTime = utcDateNow();
     session.data.startTime = startTime;
 
-    session.isOnHold = false;
     session.data.started = true;
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,

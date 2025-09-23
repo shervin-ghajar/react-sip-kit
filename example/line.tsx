@@ -34,7 +34,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
       'callType',
       'startTime',
       'callDirection',
-      'isOnHold',
+      'isHold',
       'recordMedia',
       'localMediaStreamStatus',
       'remoteMediaStreamStatus',

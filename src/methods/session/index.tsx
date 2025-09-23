@@ -269,7 +269,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       earlyReject: false,
     };
     session.data.callType = 'audio';
-    session.isOnHold = false;
     session.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
@@ -454,7 +453,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     };
     session.data.callType = 'video';
     session.data.earlyReject = false;
-    session.isOnHold = false;
     session.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
@@ -694,10 +692,9 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     const lineObj = findLineByLineNumber(lineNumber);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
-    if (session.isOnHold === forcedValue) return;
+    if (session.data.isHold === forcedValue) return;
     console.log('Toggle Call on hold:', lineNumber);
-    const toggledHold = forcedValue ?? !(session.isOnHold ?? false);
-    session.isOnHold = toggledHold;
+    const toggledHold = forcedValue ?? !(session.data.isHold ?? false);
     const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
     sessionDescriptionHandlerOptions.hold = toggledHold;
     session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;

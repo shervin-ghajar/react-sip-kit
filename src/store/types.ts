@@ -49,7 +49,6 @@ export interface SipInvitationType
   incomingInviteRequest: IncomingInviteRequest;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  isOnHold: boolean;
   initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
   initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
 }
@@ -67,7 +66,6 @@ export interface SipInviterType extends Inviter {
   data: Partial<SipSessionDataType>;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  isOnHold: boolean;
   initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
   initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
 }
