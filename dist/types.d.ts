@@ -1,5 +1,6 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
+import { SipInitializer } from './initializer';
 import { SipSessionType } from './store/types';
 import { Registerer, Subscriber, UserAgent } from 'sip.js';
 export interface SipUserAgent extends UserAgent {
@@ -36,3 +37,7 @@ export interface SipContextTransportType {
 }
 export type CallbackFunction<T = any> = (value?: T) => void;
 export type CallType = 'audio' | 'video' | 'conferenceAudio' | 'conferenceVideo' | 'transferAudio' | 'transferVideo';
+export interface SipManagerInstance {
+    config: SipManagerConfig;
+    instance: SipInitializer;
+}

@@ -3,6 +3,18 @@ import { SipManagerConfig } from './types';
 export declare class SipManager {
     private instances;
     /**
+     * Update the configuration for an existing SIP instance.
+     * Replaces the stored config in both the local instance map and the global store.
+     *
+     * ⚠️ Note: This does NOT restart the SIP instance — it only updates configs in memory.
+     * Use `initilizeMediaStreams` or `reconnect` separately if runtime behavior must change.
+     *
+     * @param {string} username - The SIP account username whose config is being updated.
+     * @param {SipManagerConfig} config - The new SIP configuration (account, media, transport, etc.).
+     * @returns {void}
+     */
+    private updateConfig;
+    /**
      * Create and initialize a SIP session for an account.
      *
      * @param {SipManagerConfig} config - SIP account configuration (account, transport, registration, etc.)
@@ -88,28 +100,35 @@ export declare class SipManager {
      * Find the username associated with a specific line number.
      *
      * @param {LineType['lineNumber']} lineNumber - The line number to look up.
-     * @returns {string | undefined} The username if found, otherwise undefined.
+     * @returns {string | null} The username if found, otherwise null.
      */
-    getUsernameByNumber(lineNumber: LineType['lineNumber']): string | null;
+    getUsernameByLineNumber(lineNumber: LineType['lineNumber']): string | null;
     /**
      * Find the username associated with a specific remoteNumber.
      *
      * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
-     * @returns {string | undefined} The username if found, otherwise undefined.
+     * @returns {string | null} The username if found, otherwise null.
      */
     getUsernameByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']): string | null;
     /**
-     * Find the username associated with a specific remoteNumber.
+     * Find the lineNumber associated with a specific remoteNumber.
      *
      * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
-     * @returns {string | undefined} The lineNumber if found, otherwise undefined.
+     * @returns {string | null} The lineNumber if found, otherwise null.
      */
     getLineNumberByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']): number | null;
+    /**
+     * Find the line object associated with a specific remoteNumber.
+     *
+     * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+     * @returns {LineType  | null} The line object if found, otherwise null.
+     */
+    getLineByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']): LineType | null;
     /**
      * Find the SIP session associated with a specific line number.
      *
      * @param {LineType['lineNumber']} lineNumber - The line number to look up.
-     * @returns {any} The SIP session object if found, otherwise undefined.
+     * @returns { SipInvitationType | SipInviterType } The SIP session object if found, otherwise null.
      */
     getSessionByNumber(lineNumber: LineType['lineNumber']): import("./store/types").SipInvitationType | import("./store/types").SipInviterType | null;
 }
