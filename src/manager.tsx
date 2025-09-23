@@ -5,9 +5,9 @@ import { useSipManager } from './hooks';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
-import { getSipStore } from './store';
+import { getSipStore, useSipStore } from './store';
 import { LineType, SipSessionDataType, SipUserAgentStatus } from './store/types';
-import { SipManagerConfig } from './types';
+import { SipManagerConfig, SipManagerInstance } from './types';
 import { deepMerge } from './utils';
 import isEqual from 'lodash.isequal';
 
@@ -17,13 +17,28 @@ import isEqual from 'lodash.isequal';
 
 export class SipManager {
   // Holds active SIP instances, keyed by username
-  private instances = new Map<
-    string,
-    {
-      config: SipManagerConfig;
-      instance: SipInitializer;
-    }
-  >();
+  private instances = new Map<string, SipManagerInstance>();
+
+  /**
+   * Update the configuration for an existing SIP instance.
+   * Replaces the stored config in both the local instance map and the global store.
+   *
+   * ⚠️ Note: This does NOT restart the SIP instance — it only updates configs in memory.
+   * Use `initilizeMediaStreams` or `reconnect` separately if runtime behavior must change.
+   *
+   * @param {string} username - The SIP account username whose config is being updated.
+   * @param {SipManagerConfig} config - The new SIP configuration (account, media, transport, etc.).
+   * @returns {void}
+   */
+  private updateConfig(username: string, config: SipManagerConfig) {
+    const { instance } = this.instances.get(username) as SipManagerInstance;
+
+    // Replace old entry with updated config while preserving instance
+    this.instances.set(username, { config, instance });
+
+    // Sync global store with latest config
+    getSipStore().setConfig(username, config as SipConfigs);
+  }
 
   /**
    * Create and initialize a SIP session for an account.
@@ -43,6 +58,8 @@ export class SipManager {
     // If username exists but config has changed, re-init media streams
     if (this.instances.has(username)) {
       initilizeMediaStreams(config as SipConfigs);
+      this.updateConfig(username, config);
+      return;
     }
 
     // Merge with defaults and initialize a new SIP UA instance
@@ -140,17 +157,17 @@ export class SipManager {
    * Find the username associated with a specific line number.
    *
    * @param {LineType['lineNumber']} lineNumber - The line number to look up.
-   * @returns {string | undefined} The username if found, otherwise undefined.
+   * @returns {string | null} The username if found, otherwise null.
    */
-  public getUsernameByNumber(lineNumber: LineType['lineNumber']) {
-    return getSipStore().getUsernameByNumber(lineNumber);
+  public getUsernameByLineNumber(lineNumber: LineType['lineNumber']) {
+    return getSipStore().getUsernameByLineNumber(lineNumber);
   }
 
   /**
    * Find the username associated with a specific remoteNumber.
    *
    * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
-   * @returns {string | undefined} The username if found, otherwise undefined.
+   * @returns {string | null} The username if found, otherwise null.
    */
   public getUsernameByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
     return getSipStore().getUsernameByRemoteNumber(remoteNumber);
@@ -160,17 +177,27 @@ export class SipManager {
    * Find the lineNumber associated with a specific remoteNumber.
    *
    * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
-   * @returns {string | undefined} The lineNumber if found, otherwise undefined.
+   * @returns {string | null} The lineNumber if found, otherwise null.
    */
   public getLineNumberByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
     return getSipStore().getLineNumberByRemoteNumber(remoteNumber);
   }
 
   /**
+   * Find the line object associated with a specific remoteNumber.
+   *
+   * @param {SipSessionDataType['remoteNumber']} remoteNumber - The remote number to look up.
+   * @returns {LineType  | null} The line object if found, otherwise null.
+   */
+  public getLineByRemoteNumber(remoteNumber: SipSessionDataType['remoteNumber']) {
+    return getSipStore().getLineByRemoteNumber(remoteNumber);
+  }
+
+  /**
    * Find the SIP session associated with a specific line number.
    *
    * @param {LineType['lineNumber']} lineNumber - The line number to look up.
-   * @returns {any} The SIP session object if found, otherwise undefined.
+   * @returns { SipInvitationType | SipInviterType } The SIP session object if found, otherwise null.
    */
   public getSessionByNumber(lineNumber: LineType['lineNumber']) {
     return getSipStore().getSessionByNumber(lineNumber);

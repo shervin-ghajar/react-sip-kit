@@ -30,7 +30,8 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => {
     set((state) => ({ ...state, userAgents: { ...state.userAgents, [username]: userAgent } }));
   },
-  addLine: (username: SipAccountConfig['username'], newLine: LineType) => {
+  addLine: (newLine: LineType) => {
+    const username = newLine.username;
     set((state) => ({
       ...state,
       lines: {
@@ -46,12 +47,12 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       },
       lineNumberByRemoteNumber: {
         ...state.usernamesByLineNumber,
-        [newLine.displayNumber]: newLine.lineNumber,
+        [newLine.remoteNumber]: newLine.lineNumber,
       },
     }));
   },
   updateLine: (updatedLine: LineType) => {
-    const username = get().getUsernameByNumber(updatedLine.lineNumber);
+    const username = updatedLine.username;
     if (!username) return null;
     set((state) => {
       if (!state.lines?.[username]?.[updatedLine.lineNumber]) return state; // nothing to update
@@ -69,8 +70,8 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
 
   removeLine: (lineNumber: LineType['lineNumber']) => {
-    const username = get().getUsernameByNumber(lineNumber);
-    const lineObj = get().findLineByNumber(lineNumber);
+    const username = get().getUsernameByLineNumber(lineNumber);
+    const lineObj = get().findLineByLineNumber(lineNumber);
     if (!username) return null;
     const remoteNumber = lineObj?.sipSession?.data.remoteNumber ?? '';
     set((state) => {
@@ -132,27 +133,31 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  findLineByNumber: (lineNumber) => {
-    const username = get().getUsernameByNumber(lineNumber);
+  findLineByLineNumber: (lineNumber) => {
+    const username = get().getUsernameByLineNumber(lineNumber);
     if (!username) return null;
     return get().lines?.[username]?.[lineNumber] ?? null;
   },
   getSessionByNumber: (lineNumber) => {
-    const username = get().getUsernameByNumber(lineNumber);
+    const username = get().getUsernameByLineNumber(lineNumber);
     if (!username) return null;
     return get().lines?.[username]?.[lineNumber]?.sipSession ?? null;
   },
-  getUsernameByNumber: (lineNumber) => {
+  getUsernameByLineNumber: (lineNumber) => {
     return get().usernamesByLineNumber[lineNumber] ?? null;
   },
   getUsernameByRemoteNumber: (remoteNumber) => {
     const lineNumber = get().getLineNumberByRemoteNumber(remoteNumber) ?? null;
     if (!lineNumber) return null;
-    return get().getUsernameByNumber(lineNumber);
+    return get().getUsernameByLineNumber(lineNumber);
   },
   getLineNumberByRemoteNumber: (remoteNumber) => {
     const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
     return lineNumber;
+  },
+  getLineByRemoteNumber: (remoteNumber) => {
+    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
+    return get().findLineByLineNumber(lineNumber);
   },
   getNewLineNumber: () => ++lineNumber,
 }));

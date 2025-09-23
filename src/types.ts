@@ -1,5 +1,6 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
+import { SipInitializer } from './initializer';
 import { SipSessionType } from './store/types';
 import { Registerer, Subscriber, UserAgent } from 'sip.js';
 
@@ -46,3 +47,8 @@ export type CallType =
   | 'conferenceVideo'
   | 'transferAudio'
   | 'transferVideo';
+
+export interface SipManagerInstance {
+  config: SipManagerConfig;
+  instance: SipInitializer;
+}

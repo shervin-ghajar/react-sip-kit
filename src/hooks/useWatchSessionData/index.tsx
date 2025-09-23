@@ -55,7 +55,7 @@ export function useWatchSessionData({
   lineNumber: number;
   name?: string | readonly string[];
 }) {
-  const username = getSipStore().getUsernameByNumber(lineNumber);
+  const username = getSipStore().getUsernameByLineNumber(lineNumber);
   return useSipStore(
     useDeep((state) => {
       try {

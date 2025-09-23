@@ -22,21 +22,24 @@ export interface SipStoreStateType {
   setSipStore: (state: Partial<SipStoreStateType>) => void;
   setConfig: (username: SipAccountConfig['username'], userAgent: SipConfigs) => void;
   setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => void;
-  addLine: (username: SipAccountConfig['username'], line: LineType) => void;
+  addLine: (line: LineType) => void;
   updateLine: (line: LineType, callback?: CallbackFunction) => void;
   removeLine: (lineNumber: LineType['lineNumber']) => void;
   remove: (username: SipAccountConfig['username']) => void;
   removeAll: () => void;
   // Getter
-  findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
+  findLineByLineNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
   getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
-  getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
+  getUsernameByLineNumber: (
+    lineNumber: LineType['lineNumber'],
+  ) => SipAccountConfig['username'] | null;
   getUsernameByRemoteNumber: (
     remoteNumber: SipSessionDataType['remoteNumber'],
   ) => SipAccountConfig['username'] | null;
   getLineNumberByRemoteNumber: (
     remoteNumber: SipSessionDataType['remoteNumber'],
   ) => LineType['lineNumber'] | null;
+  getLineByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType | null;
   getNewLineNumber: () => number;
 }
 
@@ -76,7 +79,8 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
 /* -------------------------------------------------------------------------- */
 export interface LineType {
   lineNumber: number;
-  displayNumber: string;
+  remoteNumber: string;
+  username: SipAccountConfig['username'];
   sipSession: SipInvitationType | SipInviterType | null;
   localSoundMeter: any;
   remoteSoundMeter: any;
@@ -87,11 +91,12 @@ export interface SipSessionType extends Session {
 }
 
 export interface SipSessionDataType {
-  line: number;
+  lineNumber: number;
   callDirection: 'inbound' | 'outbound';
   callType: CallType;
   terminateBy: string;
   remoteNumber: string;
+  username: SipAccountConfig['username'];
   earlyReject: boolean;
   reasonCode: number;
   reasonText: string;
