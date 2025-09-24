@@ -1,7 +1,7 @@
 import { AudioHTMLAttributes, HTMLAttributes } from 'react';
 
 interface DefaultAudioProps {
-  lineNumber: string | number;
+  lineKey: string | number;
 }
 
 interface LocalAudioProps extends AudioHTMLAttributes<HTMLAudioElement>, DefaultAudioProps {
@@ -16,10 +16,10 @@ interface RemoteAudioProps extends HTMLAttributes<HTMLDivElement>, DefaultAudioP
 
 type AudioProps = LocalAudioProps | RemoteAudioProps;
 
-export const Audio = ({ lineNumber, ...rest }: AudioProps) => {
+export const Audio = ({ lineKey, ...rest }: AudioProps) => {
   return rest.type === 'local' ? (
-    <audio {...rest} id={`line-${lineNumber}-localAudio`} />
+    <audio {...rest} id={`line-${lineKey}-localAudio`} />
   ) : (
-    <div {...rest} id={`line-${lineNumber}-remoteAudios`} />
+    <div {...rest} id={`line-${lineKey}-remoteAudios`} />
   );
 };

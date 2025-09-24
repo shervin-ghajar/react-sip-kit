@@ -6,24 +6,24 @@ export declare const sessionMethods: ({ username }: {
     username: SipAccountConfig["username"];
 }) => {
     receiveSession: (invitation: SipInvitationType) => void;
-    answerAudioSession: (lineNumber: LineType["lineNumber"]) => void;
-    answerVideoSession: (lineNumber: LineType["lineNumber"], enableVideo?: boolean) => void;
+    answerAudioSession: (lineKey: LineType["lineKey"]) => void;
+    answerVideoSession: (lineKey: LineType["lineKey"], enableVideo?: boolean) => void;
     makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
     makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
-    toggleLocalVideoTrack: (lineNumber: LineType["lineNumber"]) => Promise<void>;
-    toggleShareScreen: (lineNumber: LineType["lineNumber"]) => Promise<void>;
-    rejectSession: (lineNumber: LineType["lineNumber"]) => void;
+    toggleLocalVideoTrack: (lineKey: LineType["lineKey"]) => Promise<void>;
+    toggleShareScreen: (lineKey: LineType["lineKey"]) => Promise<void>;
+    rejectSession: (lineKey: LineType["lineKey"]) => void;
     dialByNumber: (type: Extract<CallType, "audio" | "video">, dialNumber: string, extraHeaders?: Array<string>) => void;
-    endSession: (lineNumber: LineType["lineNumber"]) => void;
-    recordSession: (lineNumber: LineType["lineNumber"]) => {
+    endSession: (lineKey: LineType["lineKey"]) => void;
+    recordSession: (lineKey: LineType["lineKey"]) => {
         start: () => Promise<void>;
         stop: () => void;
     };
-    toggleMuteSession: (lineNumber: LineType["lineNumber"]) => void;
-    toggleHoldSession: (lineNumber: LineType["lineNumber"], forcedValue?: boolean) => void;
-    makeTransferSession: (lineNumber: LineType["lineNumber"], transferLineNumber: LineType["lineNumber"]) => void;
-    cancelTransferSession: (lineNumber: LineType["lineNumber"], transferLineNumber: LineType["lineNumber"]) => void;
-    cancelSession: (lineNumber: LineType["lineNumber"]) => void;
+    toggleMuteSession: (lineKey: LineType["lineKey"]) => void;
+    toggleHoldSession: (lineKey: LineType["lineKey"], forcedValue?: boolean) => void;
+    makeTransferSession: (lineKey: LineType["lineKey"], transferLineKey: LineType["lineKey"]) => void;
+    cancelTransferSession: (lineKey: LineType["lineKey"], transferLineKey: LineType["lineKey"]) => void;
+    cancelSession: (lineKey: LineType["lineKey"]) => void;
     teardownSession: typeof teardownSession;
 };
 /**

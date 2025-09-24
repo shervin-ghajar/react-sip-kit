@@ -1,6 +1,6 @@
 import { AudioHTMLAttributes, HTMLAttributes } from 'react';
 interface DefaultAudioProps {
-    lineNumber: string | number;
+    lineKey: string | number;
 }
 interface LocalAudioProps extends AudioHTMLAttributes<HTMLAudioElement>, DefaultAudioProps {
     type: 'local';
@@ -11,5 +11,5 @@ interface RemoteAudioProps extends HTMLAttributes<HTMLDivElement>, DefaultAudioP
     id?: `line-${number}-remoteAudios`;
 }
 type AudioProps = LocalAudioProps | RemoteAudioProps;
-export declare const Audio: ({ lineNumber, ...rest }: AudioProps) => import("react/jsx-runtime").JSX.Element;
+export declare const Audio: ({ lineKey, ...rest }: AudioProps) => import("react/jsx-runtime").JSX.Element;
 export {};

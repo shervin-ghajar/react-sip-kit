@@ -112,9 +112,9 @@ For fine-grained updates, subscribe to session fields:
 ```tsx
 import { useWatchSessionData } from 'react-sip-kit';
 
-function RecordingStatus({ lineNumber }: { lineNumber: number }) {
+function RecordingStatus({ lineKey }: { lineKey: number }) {
   const isRecording = useWatchSessionData({
-    lineNumber,
+    lineKey,
     name: 'recordMedia.recording',
   });
 
@@ -126,7 +126,7 @@ You can also watch multiple fields:
 
 ```tsx
 const [localMediaStreamStatus, isRecording] = useWatchSessionData({
-  lineNumber: 1,
+  lineKey: 1,
   name: ['localMediaStreamStatus', 'recordMedia.recording'],
 });
 ```
@@ -140,10 +140,10 @@ Media components (`<Video/>` & `<Audio/>`) are bound per line:
 ```tsx
 import { VideoStream, AudioStream } from 'react-sip-kit';
 
-<VideoStream type="local" lineNumber={1} />
-<VideoStream type="remote" lineNumber={1} />
-<AudioStream type="local" lineNumber={1} />
-<AudioStream type="remote" lineNumber={1} />
+<VideoStream type="local" lineKey={1} />
+<VideoStream type="remote" lineKey={1} />
+<AudioStream type="local" lineKey={1} />
+<AudioStream type="remote" lineKey={1} />
 ```
 
 ---
