@@ -1,7 +1,7 @@
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
 import { SipInitializer } from './initializer';
-import { SipSessionType } from './store/types';
+import { LineType, SipSessionDataType, SipSessionType } from './store/types';
 import { Registerer, Subscriber, UserAgent } from 'sip.js';
 
 export interface SipUserAgent extends UserAgent {
@@ -52,3 +52,16 @@ export interface SipManagerInstance {
   config: SipManagerConfig;
   instance: SipInitializer;
 }
+
+export type GetAccountKey =
+  | { username: string; lineKey?: never; remoteNumber?: never }
+  | { lineKey: LineType['lineKey']; username?: never; remoteNumber?: never }
+  | { remoteNumber: SipSessionDataType['remoteNumber']; username?: never; lineKey?: never };
+
+export type GetMethodsKey =
+  | { username: string; lineKey?: never; remoteNumber?: never }
+  | { lineKey: LineType['lineKey']; username?: never; remoteNumber?: never }
+  | { remoteNumber: SipSessionDataType['remoteNumber']; username?: never; lineKey?: never };
+export type LineLookup =
+  | { lineKey: LineType['lineKey']; remoteNumber?: never }
+  | { remoteNumber: SipSessionDataType['remoteNumber']; lineKey?: never };

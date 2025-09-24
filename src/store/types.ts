@@ -14,9 +14,9 @@ export interface SipStoreStateType {
   configs: Record<SipAccountConfig['username'], SipConfigs> | null;
   statuses: Record<SipAccountConfig['username'], SipUserAgentStatus> | null;
   userAgents?: Record<SipAccountConfig['username'], SipUserAgent>;
-  lines: Record<SipAccountConfig['username'], Record<LineType['lineNumber'], LineType>>;
-  usernamesByLineNumber: Record<LineType['lineNumber'], SipAccountConfig['username']>;
-  lineNumberByRemoteNumber: Record<SipSessionDataType['remoteNumber'], LineType['lineNumber']>;
+  lines: Record<SipAccountConfig['username'], Record<LineType['lineKey'], LineType>>;
+  usernamesByLineKey: Record<LineType['lineKey'], SipAccountConfig['username']>;
+  lineKeyByRemoteNumber: Record<SipSessionDataType['remoteNumber'], LineType['lineKey']>;
   devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
@@ -24,23 +24,21 @@ export interface SipStoreStateType {
   setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => void;
   addLine: (line: LineType) => void;
   updateLine: (line: LineType, callback?: CallbackFunction) => void;
-  removeLine: (lineNumber: LineType['lineNumber']) => void;
+  removeLine: (lineKey: LineType['lineKey']) => void;
   remove: (username: SipAccountConfig['username']) => void;
   removeAll: () => void;
   // Getter
-  findLineByLineNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
-  getSessionByLineNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
-  getUsernameByLineNumber: (
-    lineNumber: LineType['lineNumber'],
-  ) => SipAccountConfig['username'] | null;
+  findLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
+  getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['sipSession'] | null;
+  getUsernameByLineKey: (lineKey: LineType['lineKey']) => SipAccountConfig['username'] | null;
   getUsernameByRemoteNumber: (
     remoteNumber: SipSessionDataType['remoteNumber'],
   ) => SipAccountConfig['username'] | null;
-  getLineNumberByRemoteNumber: (
+  getLineKeyByRemoteNumber: (
     remoteNumber: SipSessionDataType['remoteNumber'],
-  ) => LineType['lineNumber'] | null;
+  ) => LineType['lineKey'] | null;
   getLineByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType | null;
-  getNewLineNumber: () => number;
+  getNewLineKey: () => number;
 }
 
 export interface SipInvitationType
@@ -76,7 +74,7 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
-  lineNumber: number;
+  lineKey: number;
   remoteNumber: string;
   username: SipAccountConfig['username'];
   sipSession: SipInvitationType | SipInviterType | null;
@@ -89,7 +87,7 @@ export interface SipSessionType extends Session {
 }
 
 export interface SipSessionDataType {
-  lineNumber: number;
+  lineKey: number;
   callDirection: 'inbound' | 'outbound';
   callType: CallType;
   terminateBy: string;

@@ -6,12 +6,12 @@ import { Line } from './Line';
 /* -------------------------------------------------------------------------- */
 
 function App({ username }: { username: string }) {
-  const { lines, status } = SipConnection.get(username).watch(); // watch (lines, status) changes
-  const { dialByNumber } = SipConnection.methods(); // Method to dial numbers
+  const { lines, status } = SipConnection.getAccountBy({ username }).watch(); // watch (lines, status) changes
+  const { dialByNumber } = SipConnection.getSessionMethodsBy({ username }); // Method to dial numbers
 
   // Renders all active SIP lines
   const renderLines = () => {
-    return lines.map((line) => <Line key={line.lineNumber} lineNumber={line.lineNumber} />);
+    return lines.map((line) => <Line key={line.lineKey} lineKey={line.lineKey} />);
   };
 
   return (

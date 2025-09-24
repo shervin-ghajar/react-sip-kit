@@ -113,7 +113,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         // Update local <video> preview
         if (isVideoEnabled) {
           const localVideo = document.getElementById(
-            `line-${lineObj.lineNumber}-localVideo`,
+            `line-${lineObj.lineKey}-localVideo`,
           ) as HTMLVideoElement;
 
           if (localVideo) {
@@ -135,7 +135,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
   // Outgoing INVITE
   function onInviteTrying(lineObj: LineType, response: IncomingResponse) {
-    // $('#line-' + lineObj.LineNumber + '-msg').html(lang.trying);
+    // $('#line-' + lineObj.LineKey + '-msg').html(lang.trying);
   }
   function onInviteProgress(lineObj: LineType, response: IncomingResponse) {
     console.log('Call Progress:', response.message.statusCode);
@@ -145,14 +145,14 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     // response.message.reasonPhrase
     if (response.message.statusCode === 180) {
     } else if (response.message.statusCode === 183) {
-      // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
+      // $('#line-' + lineObj.LineKey + '-msg').html(response.message.reasonPhrase + '...');
       // Add UI to allow DTMF
-      // $('#line-' + lineObj.LineNumber + '-early-dtmf').show();
+      // $('#line-' + lineObj.LineKey + '-early-dtmf').show();
     } else {
       // 181 = Call is Being Forwarded
       // 182 = Call is queued (Busy server!)
       // 199 = Call is Terminated (Early Dialog)
-      // $('#line-' + lineObj.LineNumber + '-msg').html(response.message.reasonPhrase + '...');
+      // $('#line-' + lineObj.LineKey + '-msg').html(response.message.reasonPhrase + '...');
     }
     updateLine(lineObj);
   }
@@ -220,7 +220,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         }
       }
       console.log('videoChannelNames:', session.data.videoChannelNames);
-      // RedrawStage(lineObj.LineNumber, false); TODO #SH
+      // RedrawStage(lineObj.LineKey, false); TODO #SH
     }
   }
   function onSessionReceivedMessage(lineObj: LineType, response: Message) {
@@ -298,7 +298,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
             });
           });
         } else if (msgJson.type === 'ConfbridgeTalking') {
-          const videoContainer = false; //$('#line-' + lineObj.LineNumber + '-remote-videos'); TODO #SH
+          const videoContainer = false; //$('#line-' + lineObj.LineKey + '-remote-videos'); TODO #SH
           if (videoContainer) {
             //TODO #SH
             // msgJson.channels.forEach(function (chan) {
@@ -326,7 +326,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
               }
             });
           });
-          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+          //   RedrawStage(lineObj.LineKey, false); TODO #SH
         } else if (msgJson.type === 'ConfbridgeUnmute') {
           msgJson.channels.forEach(function (chan) {
             session.data.confBridgeChannels?.forEach(function (existingChan) {
@@ -336,13 +336,13 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
               }
             });
           });
-          //   RedrawStage(lineObj.LineNumber, false); TODO #SH
+          //   RedrawStage(lineObj.LineKey, false); TODO #SH
         } else if (msgJson.type == 'ConfbridgeEnd') {
           console.log('The Asterisk Conference has ended, bye!');
         } else {
           console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
         }
-        // RefreshLineActivity(lineObj.LineNumber); TODO #SH
+        // RefreshLineActivity(lineObj.LineKey); TODO #SH
         response.accept();
       } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
         console.log('x-myphone-confbridge-chat', response);
@@ -420,8 +420,8 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
       const remoteAudioTracks = new Map<string, MediaStream>();
       const remoteVideoTracks = new Map<string, MediaStream>();
-      const audioContainerId = `line-${lineObj.lineNumber}-remoteAudios`;
-      const videoContainerId = `line-${lineObj.lineNumber}-remoteVideos`;
+      const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
+      const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
 
       const audioContainer = document.getElementById(audioContainerId);
       const videoContainer = document.getElementById(videoContainerId);
@@ -455,7 +455,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
         remoteAudioTracks.forEach((stream, trackId) => {
           const audio = document.createElement('audio');
-          audio.id = `line-${lineObj.lineNumber}-audio-${trackId}`;
+          audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
           audio.autoplay = true;
           audio.srcObject = stream;
           audio.controls = false;
@@ -482,7 +482,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         console.log({ remoteVideoTracks });
         remoteVideoTracks.forEach((stream, trackId) => {
           const video = document.createElement('video');
-          video.id = `line-${lineObj.lineNumber}-video-${trackId}`;
+          video.id = `line-${lineObj.lineKey}-video-${trackId}`;
           video.srcObject = stream;
           video.autoplay = true;
           video.playsInline = true;
@@ -540,7 +540,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
 
           // Attach Audio Stream
           const remoteAudio = document.createElement('audio');
-          remoteAudio.setAttribute('id', `line-${lineObj.lineNumber}-transfer-remoteAudio`);
+          remoteAudio.setAttribute('id', `line-${lineObj.lineKey}-transfer-remoteAudio`);
           remoteAudio.srcObject = remoteAudioStream;
           remoteAudio.onloadedmetadata = function () {
             if (typeof remoteAudio.sinkId !== 'undefined' && session?.data?.audioOutputDevice) {
@@ -564,7 +564,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
               thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
               thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
               thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-              remoteVideo.id = `line-${lineObj.lineNumber}-video-${index}`;
+              remoteVideo.id = `line-${lineObj.lineKey}-video-${index}`;
               remoteVideo.srcObject = thisRemoteVideoStream;
               remoteVideo.autoplay = true;
               remoteVideo.playsInline = true;

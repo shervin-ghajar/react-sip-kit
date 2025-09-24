@@ -1,5 +1,5 @@
 import { getSipStore, useSipStore } from '../../store';
-import { SipSessionDataType } from '../../store/types';
+import { LineType, SipSessionDataType } from '../../store/types';
 import { useDeep } from '../useDeep';
 
 /* -------------------------------------------------------------------------- */
@@ -29,50 +29,112 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
   return path.split('.').reduce<any>((acc, key) => acc?.[key], obj);
 }
 
-/** ---------- Hook overloads ---------- */
+type UseWatchSessionKey =
+  | { lineKey: LineType['lineKey'] }
+  | { remoteNumber: SipSessionDataType['remoteNumber'] };
 
+/* -------------------------------------------------------------------------- */
+/*  Overloads                                                                 */
+/* -------------------------------------------------------------------------- */
+/**
+ * React hook to watch SIP session data for a specific line.
+ *
+ * Provide a single `key` object containing **either** `lineKey` or `remoteNumber`.
+ * You can also optionally specify `name` to access a specific property (supports dot-paths),
+ * or an array of names to get multiple properties at once.
+ *
+ * @param {Object} params
+ * @param {Object} params.key - Lookup key for the line/session.
+ * @param {number} [params.key.lineKey] - Numeric line identifier. Takes priority if both keys are somehow provided.
+ * @param {string} [params.key.remoteNumber] - Remote number of the SIP session. Used if `lineKey` is not provided.
+ * @param {string | string[]} [params.name] - Optional dot-path string (e.g., 'localMediaStreamStatus.videoEnabled')
+ *                                            or array of dot-paths to select specific data from the session.
+ *
+ * @returns {SipSessionDataType | any | any[]}
+ * Returns the full session data if `name` is undefined,
+ * a single property if `name` is a string,
+ * or an array of properties if `name` is an array.
+ *
+ * @example
+ * // Watch full session data by lineKey
+ * const sessionData = useWatchSessionData({ key: { lineKey: 1 } });
+ *
+ * // Watch a specific property by lineKey
+ * const videoEnabled = useWatchSessionData({ key: { lineKey: 1 }, name: 'localMediaStreamStatus.videoEnabled' });
+ *
+ * // Watch full session data by remoteNumber
+ * const sessionData = useWatchSessionData({ key: { remoteNumber: '1001' } });
+ *
+ * // Watch multiple properties by remoteNumber
+ * const [videoEnabled, audioEnabled] = useWatchSessionData({
+ *   key: { remoteNumber: '1001' },
+ *   name: ['localMediaStreamStatus.videoEnabled', 'localMediaStreamStatus.audioEnabled']
+ * });
+ */
 export function useWatchSessionData(props: {
-  lineNumber: number;
+  key: { lineKey: LineType['lineKey'] };
+  name?: undefined;
+}): SipSessionDataType;
+export function useWatchSessionData(props: {
+  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
   name?: undefined;
 }): SipSessionDataType;
 
+// String typed name
 export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
-  lineNumber: number;
+  key: { lineKey: LineType['lineKey'] };
+  name: P;
+}): PathValue<SipSessionDataType, P>;
+export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
+  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
   name: P;
 }): PathValue<SipSessionDataType, P>;
 
+// Array typed name
 export function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
-  lineNumber: number;
+  key: { lineKey: LineType['lineKey'] };
   name: P;
 }): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
 
-/** ---------- Implementation ---------- */
+export function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
+  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
+  name: P;
+}): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
+
+/* -------------------------------------------------------------------------- */
+/*  Implementation                                                            */
+/* -------------------------------------------------------------------------- */
 
 export function useWatchSessionData({
-  lineNumber,
+  key,
   name,
 }: {
-  lineNumber: number;
+  key: UseWatchSessionKey;
   name?: string | readonly string[];
 }) {
-  const username = getSipStore().getUsernameByLineNumber(lineNumber);
+  const store = getSipStore();
+
+  // Resolve the lineKey internally
+  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber(key.remoteNumber);
+
+  if (!lineKey) return undefined;
+
+  const username = store.getUsernameByLineKey(lineKey);
+
   return useSipStore(
     useDeep((state) => {
       try {
-        const line = username ? state.lines?.[username]?.[lineNumber] : null;
-
+        const line = username ? state.lines?.[username]?.[lineKey] : null;
         const data = line?.sipSession?.data as SipSessionDataType;
-        if (Array.isArray(name)) {
-          return name.map((path) => (data ? getByPath(data, path as any) : undefined));
-        }
 
-        if (typeof name === 'string') {
-          return data ? getByPath(data as SipSessionDataType, name as any) : undefined;
-        }
+        if (!data) return undefined;
 
-        return line?.sipSession?.data;
+        if (Array.isArray(name)) return name.map((path) => getByPath(data, path as any));
+        if (typeof name === 'string') return getByPath(data, name as any);
+
+        return data;
       } catch (error) {
-        console.error(error);
+        console.error('useWatchSessionData', error);
       }
     }),
   );

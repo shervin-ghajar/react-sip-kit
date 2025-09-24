@@ -4,7 +4,7 @@ import { LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
-let lineNumber = 0;
+let lineKey = 0;
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
@@ -20,8 +20,8 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     speakerDevices: [],
   },
   lines: {},
-  usernamesByLineNumber: {},
-  lineNumberByRemoteNumber: {},
+  usernamesByLineKey: {},
+  lineKeyByRemoteNumber: {},
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setConfig: (username: SipAccountConfig['username'], config: SipConfigs) => {
@@ -38,16 +38,16 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         ...state.lines,
         [username]: {
           ...state.lines?.[username],
-          [newLine.lineNumber]: newLine,
+          [newLine.lineKey]: newLine,
         },
       },
-      usernamesByLineNumber: {
-        ...state.usernamesByLineNumber,
-        [newLine.lineNumber]: username,
+      usernamesByLineKey: {
+        ...state.usernamesByLineKey,
+        [newLine.lineKey]: username,
       },
-      lineNumberByRemoteNumber: {
-        ...state.usernamesByLineNumber,
-        [newLine.remoteNumber]: newLine.lineNumber,
+      lineKeyByRemoteNumber: {
+        ...state.usernamesByLineKey,
+        [newLine.remoteNumber]: newLine.lineKey,
       },
     }));
   },
@@ -55,31 +55,30 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     const username = updatedLine.username;
     if (!username) return null;
     set((state) => {
-      if (!state.lines?.[username]?.[updatedLine.lineNumber]) return state; // nothing to update
+      if (!state.lines?.[username]?.[updatedLine.lineKey]) return state; // nothing to update
       return {
         ...state,
         lines: {
           ...state.lines,
           [username]: {
             ...state.lines?.[username],
-            [updatedLine.lineNumber]: updatedLine, // replace immutably
+            [updatedLine.lineKey]: updatedLine, // replace immutably
           },
         },
       };
     });
   },
 
-  removeLine: (lineNumber: LineType['lineNumber']) => {
-    const username = get().getUsernameByLineNumber(lineNumber);
-    const lineObj = get().findLineByLineNumber(lineNumber);
+  removeLine: (lineKey: LineType['lineKey']) => {
+    const username = get().getUsernameByLineKey(lineKey);
+    const lineObj = get().findLineByLineKey(lineKey);
     if (!username) return null;
     const remoteNumber = lineObj?.sipSession?.data.remoteNumber ?? '';
     set((state) => {
-      if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
-      const { [lineNumber]: _, ...rest } = state.lines[username];
-      const { [lineNumber]: __, ...restUsernamesByLineNumber } = state.usernamesByLineNumber;
-      const { [remoteNumber]: ___, ...restLineNumberByRemoteNumber } =
-        state.lineNumberByRemoteNumber;
+      if (!state.lines?.[username]?.[lineKey]) return state; // nothing to remove
+      const { [lineKey]: _, ...rest } = state.lines[username];
+      const { [lineKey]: __, ...restUsernamesByLineKey } = state.usernamesByLineKey;
+      const { [remoteNumber]: ___, ...restLineKeyByRemoteNumber } = state.lineKeyByRemoteNumber;
       return {
         ...state,
         lines: {
@@ -88,11 +87,11 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
             ...rest,
           },
         },
-        usernamesByLineNumber: {
-          ...restUsernamesByLineNumber,
+        usernamesByLineKey: {
+          ...restUsernamesByLineKey,
         },
-        lineNumberByRemoteNumber: {
-          ...restLineNumberByRemoteNumber,
+        lineKeyByRemoteNumber: {
+          ...restLineKeyByRemoteNumber,
         },
       };
     });
@@ -100,7 +99,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   remove: (username: SipAccountConfig['username']) => {
     if (!username) return null;
     set((state) => {
-      if (!state.lines?.[username]?.[lineNumber]) return state; // nothing to remove
+      if (!state.lines?.[username]?.[lineKey]) return state; // nothing to remove
       const { [username]: _, ...restLines } = state.lines;
       const { [username]: __, ...restConfigs } = state.configs as NonNullable<
         SipStoreStateType['configs']
@@ -133,33 +132,33 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  findLineByLineNumber: (lineNumber) => {
-    const username = get().getUsernameByLineNumber(lineNumber);
+  findLineByLineKey: (lineKey) => {
+    const username = get().getUsernameByLineKey(lineKey);
     if (!username) return null;
-    return get().lines?.[username]?.[lineNumber] ?? null;
+    return get().lines?.[username]?.[lineKey] ?? null;
   },
-  getSessionByLineNumber: (lineNumber) => {
-    const username = get().getUsernameByLineNumber(lineNumber);
+  getSessionByLineKey: (lineKey) => {
+    const username = get().getUsernameByLineKey(lineKey);
     if (!username) return null;
-    return get().lines?.[username]?.[lineNumber]?.sipSession ?? null;
+    return get().lines?.[username]?.[lineKey]?.sipSession ?? null;
   },
-  getUsernameByLineNumber: (lineNumber) => {
-    return get().usernamesByLineNumber[lineNumber] ?? null;
+  getUsernameByLineKey: (lineKey) => {
+    return get().usernamesByLineKey[lineKey] ?? null;
   },
   getUsernameByRemoteNumber: (remoteNumber) => {
-    const lineNumber = get().getLineNumberByRemoteNumber(remoteNumber) ?? null;
-    if (!lineNumber) return null;
-    return get().getUsernameByLineNumber(lineNumber);
+    const lineKey = get().getLineKeyByRemoteNumber(remoteNumber) ?? null;
+    if (!lineKey) return null;
+    return get().getUsernameByLineKey(lineKey);
   },
-  getLineNumberByRemoteNumber: (remoteNumber) => {
-    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
-    return lineNumber;
+  getLineKeyByRemoteNumber: (remoteNumber) => {
+    const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
+    return lineKey;
   },
   getLineByRemoteNumber: (remoteNumber) => {
-    const lineNumber = get().lineNumberByRemoteNumber[remoteNumber] ?? null;
-    return get().findLineByLineNumber(lineNumber);
+    const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
+    return get().findLineByLineKey(lineKey);
   },
-  getNewLineNumber: () => ++lineNumber,
+  getNewLineKey: () => ++lineKey,
 }));
 /* -------------------------------------------------------------------------- */
 /**

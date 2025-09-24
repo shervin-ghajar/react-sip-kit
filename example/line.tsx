@@ -2,7 +2,7 @@ import { SipConnection } from '.';
 import { useEffect } from 'react';
 import { AudioStream, LineType, VideoStream, useWatchSessionData } from 'react-sip-kit';
 
-export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => {
+export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const {
     answerAudioSession,
     answerVideoSession,
@@ -10,13 +10,12 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     toggleLocalVideoTrack,
     toggleMuteSession,
     toggleHoldSession,
-    startTransferSession,
-    cancelAttendedTransferSession,
-    attendedTransferSession,
+    cancelTransferSession,
+    makeTransferSession,
     toggleShareScreen,
     recordSession,
-    getSessionByLineNumber,
-  } = SipConnection.methods();
+    getSessionByLineKey,
+  } = SipConnection.getSessionMethodsBy({ lineKey });
 
   // Watch session data reactively
   const [
@@ -29,7 +28,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     remoteMediaStreamStatus,
     displayNumber,
   ] = useWatchSessionData({
-    lineNumber,
+    key: { lineKey },
     name: [
       'callType',
       'startTime',
@@ -60,22 +59,14 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
   const isRecording = recordMedia?.recording ?? false;
 
   // Recorder instance
-  const recorder = recordSession(lineNumber);
-
-  // Attended transfer example (hold, then transfer after 500ms)
-  const handleTransferLine = (transferNumber: LineType['lineNumber']) => {
-    startTransferSession(lineNumber);
-    setTimeout(() => {
-      attendedTransferSession(lineNumber, transferNumber);
-    }, 500);
-  };
+  const recorder = recordSession(lineKey);
 
   /* ------------------------- Auto-initiate streams ------------------------- */
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      getSessionByLineNumber(lineNumber)?.initiateLocalMediaStreams(localMediaStreamEnabled);
+      getSessionByLineKey(lineKey)?.initiateLocalMediaStreams(localMediaStreamEnabled);
     }
   }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
 
@@ -83,7 +74,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      getSessionByLineNumber(lineNumber)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+      getSessionByLineKey(lineKey)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
     }
   }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
 
@@ -91,7 +82,7 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 24 }}
-      id={`line-${lineNumber}`}
+      id={`line-${lineKey}`}
     >
       {/* Call info */}
       <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
@@ -100,33 +91,31 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
       {/* Video streams */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
         {localMediaStreamEnabled && (
-          <VideoStream type="local" lineNumber={lineNumber} width={200} height={200} />
+          <VideoStream type="local" lineKey={lineKey} width={200} height={200} />
         )}
         {remoteMediaStreamEnabled && (
-          <VideoStream type="remote" lineNumber={lineNumber} style={{ width: 200, height: 200 }} />
+          <VideoStream type="remote" lineKey={lineKey} style={{ width: 200, height: 200 }} />
         )}
       </div>
 
       {/* Call controls */}
       {callStarted ? (
         <div style={{ gap: 4, display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button style={{ color: 'red' }} onClick={() => endSession(lineNumber)}>
+          <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
             End Call
           </button>
-          <button style={{ color: 'blue' }} onClick={() => toggleMuteSession(lineNumber)}>
+          <button style={{ color: 'blue' }} onClick={() => toggleMuteSession(lineKey)}>
             {isMute ? 'Unmute' : 'Mute'}
           </button>
-          <button style={{ color: 'blue' }} onClick={() => toggleLocalVideoTrack(lineNumber)}>
+          <button style={{ color: 'blue' }} onClick={() => toggleLocalVideoTrack(lineKey)}>
             Video {localVideoEnabled ? 'ON' : 'OFF'}
           </button>
-          <button onClick={() => toggleHoldSession(lineNumber)}>
-            {isHold ? 'UnHold' : 'Hold'}
-          </button>
-          <button onClick={() => handleTransferLine(1012)}>Transfer To 1012</button>
-          <button onClick={async () => await toggleShareScreen(lineNumber)}>
+          <button onClick={() => toggleHoldSession(lineKey)}>{isHold ? 'UnHold' : 'Hold'}</button>
+          <button onClick={() => makeTransferSession(lineKey, '1012')}>Transfer To 1012</button>
+          <button onClick={async () => await toggleShareScreen(lineKey)}>
             Share Screen {localScreenShareEnabled ? 'ON' : 'OFF'}
           </button>
-          <button onClick={() => cancelAttendedTransferSession(lineNumber, 1010)}>
+          <button onClick={() => cancelTransferSession(lineKey, 1012)}>
             Cancel Transfer To 1010
           </button>
           <button
@@ -140,22 +129,19 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
         !isOutbound && (
           <>
             {isVideoCall && (
-              <button
-                style={{ color: 'green' }}
-                onClick={() => answerVideoSession(lineNumber, true)}
-              >
+              <button style={{ color: 'green' }} onClick={() => answerVideoSession(lineKey, true)}>
                 Answer Video Call
               </button>
             )}
             <button
               style={{ color: 'green' }}
               onClick={() =>
-                isVideoCall ? answerVideoSession(lineNumber, false) : answerAudioSession(lineNumber)
+                isVideoCall ? answerVideoSession(lineKey, false) : answerAudioSession(lineKey)
               }
             >
               Answer Call
             </button>
-            <button style={{ color: 'red' }} onClick={() => endSession(lineNumber)}>
+            <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
               Reject Call
             </button>
           </>
@@ -164,14 +150,14 @@ export const Line = ({ lineNumber }: { lineNumber: LineType['lineNumber'] }) => 
 
       {/* Cancel outbound call before connected */}
       {!callStarted && (
-        <button style={{ color: 'red' }} onClick={() => endSession(lineNumber)}>
+        <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
           Cancel Call
         </button>
       )}
 
       {/* Always render audio */}
-      <AudioStream type="local" lineNumber={lineNumber} />
-      <AudioStream type="remote" lineNumber={lineNumber} />
+      <AudioStream type="local" lineKey={lineKey} />
+      <AudioStream type="remote" lineKey={lineKey} />
     </div>
   );
 };
