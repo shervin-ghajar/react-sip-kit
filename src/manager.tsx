@@ -81,24 +81,20 @@ export class SipManager {
    * Resolves the session by `username`, `lineKey`, or `remoteNumber`.
    *
    * @param key - Identifier for session resolution
-   * @throws Error if no session could be resolved
    */
   public getSessionMethodsBy(key: GetMethodsKey) {
     const store = getSipStore();
 
-    let username: string | null = null;
+    let username: string = '';
 
-    if ('username' in key && key?.username) {
+    if ('username' in key && key.username) {
       username = key.username;
-    } else if ('lineKey' in key && key?.lineKey) {
-      username = store.getUsernameByLineKey(key.lineKey);
-    } else if ('remoteNumber' in key && key?.remoteNumber) {
-      username = store.getUsernameByRemoteNumber(key.remoteNumber);
+    } else if ('lineKey' in key && key.lineKey) {
+      username = store.getUsernameByLineKey(key.lineKey) ?? '';
+    } else if ('remoteNumber' in key && key.remoteNumber) {
+      username = store.getUsernameByRemoteNumber(key.remoteNumber) ?? '';
     }
 
-    if (!username) {
-      throw new Error('❌ Could not resolve username in getSessionMethodsBy()');
-    }
     return sessionMethods({ username });
   }
 
@@ -112,23 +108,18 @@ export class SipManager {
    *   - `status` → UA status
    *   - `lines` → all active lines
    *   - `watch` → reactive watcher hook
-   * @throws Error if no username could be resolved
    */
   public getAccountBy(key: GetAccountKey) {
     const store = getSipStore();
 
-    let username: string | null = null;
+    let username: string = '';
 
     if ('username' in key && key.username) {
       username = key.username;
     } else if ('lineKey' in key && key.lineKey) {
-      username = store.getUsernameByLineKey(key.lineKey);
+      username = store.getUsernameByLineKey(key.lineKey) ?? '';
     } else if ('remoteNumber' in key && key.remoteNumber) {
-      username = store.getUsernameByRemoteNumber(key.remoteNumber);
-    }
-
-    if (!username) {
-      throw new Error('❌ Could not resolve username in getAccountBy()');
+      username = store.getUsernameByRemoteNumber(key.remoteNumber) ?? '';
     }
 
     return {
