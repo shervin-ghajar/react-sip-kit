@@ -86,15 +86,17 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
         const media = configs?.media;
 
         const constraints: MediaStreamConstraints = {
-          audio:
-            media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+          audio: media?.audioInputDeviceId
+            ? media.audioInputDeviceId !== 'default'
               ? { deviceId: { exact: media.audioInputDeviceId } }
-              : true,
-          video: isVideoEnabled
-            ? media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
-              ? { deviceId: { exact: media.videoInputDeviceId } }
               : true
             : false,
+          video:
+            isVideoEnabled && media?.videoInputDeviceId
+              ? media.videoInputDeviceId !== 'default'
+                ? { deviceId: { exact: media.videoInputDeviceId } }
+                : true
+              : false,
         };
 
         const localStream = await navigator.mediaDevices.getUserMedia(constraints);

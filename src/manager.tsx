@@ -1,7 +1,7 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
-import { useSipManager } from './hooks';
+import { useSipManager, useWatchSessionData } from './hooks';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
@@ -24,7 +24,7 @@ import isEqual from 'lodash.isequal';
 export class SipManager {
   // Active SIP instances, keyed by username
   private instances = new Map<string, SipManagerInstance>();
-
+  public useWatchSessionData = useWatchSessionData;
   /**
    * Update the configuration for an existing SIP instance.
    * - Updates both local instance map and global store.

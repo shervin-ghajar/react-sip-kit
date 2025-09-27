@@ -4,7 +4,6 @@ import {
   SipConfigs,
   SipFeaturesConfig,
   SipMediaConfig,
-  SipPermissionsConfig,
   SipPolicyConfig,
   SipRecordingConfig,
   SipRegistrationConfig,
@@ -23,16 +22,8 @@ export const defaultAccountConfig: SipAccountConfig = {
 
 export const defaultFeaturesConfig: SipFeaturesConfig = {
   enableVideo: true,
-  enableRingtone: true,
-  enableTextMessaging: true,
   enableTransfer: true,
   enableConference: true,
-  enableTextExpressions: false,
-  enableTextDictate: false,
-  enableAlphanumericDial: true,
-  enableAccountSettings: true,
-  enableAppearanceSettings: true,
-  enableNotificationSettings: true,
 };
 
 export const defaultMediaConfig: SipMediaConfig = {
@@ -100,27 +91,6 @@ export const defaultAdvancedConfig: SipAdvancedConfig = {
   chatEngine: 'default',
 };
 
-export const defaultXmppConfig: SipXmppConfig = {
-  server: '',
-  websocketPort: '',
-  websocketPath: '',
-  domain: '',
-  profileUser: '',
-  realm: '',
-  realmSeparator: '',
-  chatGroupService: '',
-};
-
-export const defaultPermissionsConfig: SipPermissionsConfig = {
-  enableSendFiles: true,
-  enableSendImages: true,
-  enableAudioRecording: true,
-  enableVideoRecording: true,
-  enableSms: false,
-  enableFax: false,
-  enableEmail: false,
-};
-
 // Unified default config
 export const defaultSipConfigs: SipConfigs = {
   account: defaultAccountConfig,
@@ -131,6 +101,4 @@ export const defaultSipConfigs: SipConfigs = {
   storage: defaultStorageConfig,
   recording: defaultRecordingConfig,
   advanced: defaultAdvancedConfig,
-  xmpp: defaultXmppConfig,
-  permissions: defaultPermissionsConfig,
 };
