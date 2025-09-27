@@ -1,7 +1,9 @@
+import { useWatchSessionData } from './hooks';
 import { LineType, SipUserAgentStatus } from './store/types';
 import { GetAccountKey, GetMethodsKey, LineLookup, SipManagerConfig } from './types';
 export declare class SipManager {
     private instances;
+    useWatchSessionData: typeof useWatchSessionData;
     /**
      * Update the configuration for an existing SIP instance.
      * - Updates both local instance map and global store.

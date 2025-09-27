@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipAdvancedConfig, SipConfigs, SipFeaturesConfig, SipMediaConfig, SipPermissionsConfig, SipPolicyConfig, SipRecordingConfig, SipRegistrationConfig, SipStorageConfig, SipXmppConfig } from './types';
+import { SipAccountConfig, SipAdvancedConfig, SipConfigs, SipFeaturesConfig, SipMediaConfig, SipPolicyConfig, SipRecordingConfig, SipRegistrationConfig, SipStorageConfig } from './types';
 export declare const defaultAccountConfig: SipAccountConfig;
 export declare const defaultFeaturesConfig: SipFeaturesConfig;
 export declare const defaultMediaConfig: SipMediaConfig;
@@ -7,6 +7,4 @@ export declare const defaultRegistrationConfig: SipRegistrationConfig;
 export declare const defaultStorageConfig: SipStorageConfig;
 export declare const defaultRecordingConfig: SipRecordingConfig;
 export declare const defaultAdvancedConfig: SipAdvancedConfig;
-export declare const defaultXmppConfig: SipXmppConfig;
-export declare const defaultPermissionsConfig: SipPermissionsConfig;
 export declare const defaultSipConfigs: SipConfigs;

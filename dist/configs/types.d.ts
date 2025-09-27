@@ -7,17 +7,6 @@ export interface SipConfigs {
     storage: SipStorageConfig;
     recording: SipRecordingConfig;
     advanced: SipAdvancedConfig;
-    xmpp: SipXmppConfig;
-    permissions: SipPermissionsConfig;
-}
-export interface SipPermissionsConfig {
-    enableSendFiles: boolean;
-    enableSendImages: boolean;
-    enableAudioRecording: boolean;
-    enableVideoRecording: boolean;
-    enableSms: boolean;
-    enableFax: boolean;
-    enableEmail: boolean;
 }
 export interface SipXmppConfig {
     server: string;
@@ -90,16 +79,8 @@ export interface SipMediaConfig {
 }
 export interface SipFeaturesConfig {
     enableVideo: boolean;
-    enableRingtone: boolean;
-    enableTextMessaging: boolean;
     enableTransfer: boolean;
     enableConference: boolean;
-    enableTextExpressions: boolean;
-    enableTextDictate: boolean;
-    enableAlphanumericDial: boolean;
-    enableAccountSettings: boolean;
-    enableAppearanceSettings: boolean;
-    enableNotificationSettings: boolean;
 }
 export interface SipAccountConfig {
     username: string;
