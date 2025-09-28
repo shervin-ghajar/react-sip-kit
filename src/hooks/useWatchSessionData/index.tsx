@@ -1,3 +1,4 @@
+import { SipConfigs } from '../../configs/types';
 import { getSipStore, useSipStore } from '../../store';
 import { LineType, SipSessionDataType } from '../../store/types';
 import { useDeep } from '../useDeep';
@@ -31,7 +32,7 @@ function getByPath<T extends SipSessionDataType, P extends Path<T>>(
 
 type UseWatchSessionKey =
   | { lineKey: LineType['lineKey'] }
-  | { remoteNumber: SipSessionDataType['remoteNumber'] };
+  | { remoteNumber: SipSessionDataType['remoteNumber']; configKey: SipConfigs['key'] };
 
 /* -------------------------------------------------------------------------- */
 /*  Overloads                                                                 */
@@ -76,7 +77,7 @@ export function useWatchSessionData(props: {
   name?: undefined;
 }): SipSessionDataType;
 export function useWatchSessionData(props: {
-  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
+  key: { remoteNumber: SipSessionDataType['remoteNumber']; configKey: SipConfigs['key'] };
   name?: undefined;
 }): SipSessionDataType;
 
@@ -86,7 +87,8 @@ export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
   name: P;
 }): PathValue<SipSessionDataType, P>;
 export function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
-  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
+  key: { remoteNumber: SipSessionDataType['remoteNumber']; configKey: SipConfigs['key'] };
+
   name: P;
 }): PathValue<SipSessionDataType, P>;
 
@@ -97,7 +99,7 @@ export function useWatchSessionData<const P extends readonly Path<SipSessionData
 }): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
 
 export function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
-  key: { remoteNumber: SipSessionDataType['remoteNumber'] };
+  key: { remoteNumber: SipSessionDataType['remoteNumber']; configKey: SipConfigs['key'] };
   name: P;
 }): { [K in keyof P]: PathValue<SipSessionDataType, P[K] & string> };
 
@@ -115,7 +117,7 @@ export function useWatchSessionData({
   const store = getSipStore();
 
   // Resolve the lineKey internally
-  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber(key.remoteNumber);
+  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key);
 
   if (!lineKey) return undefined;
 

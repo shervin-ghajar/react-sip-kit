@@ -98,8 +98,6 @@ export class SipManager {
       configKey = key.configKey;
     } else if ('lineKey' in key && key.lineKey) {
       configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    } else if ('remoteNumber' in key && key.remoteNumber) {
-      configKey = store.getConfigKeyByRemoteNumber(key.remoteNumber) ?? '';
     }
 
     return sessionMethods({ configKey });
@@ -119,8 +117,6 @@ export class SipManager {
       configKey = key.configKey;
     } else if ('lineKey' in key && key.lineKey) {
       configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    } else if ('remoteNumber' in key && key.remoteNumber) {
-      configKey = store.getConfigKeyByRemoteNumber(key.remoteNumber) ?? '';
     }
 
     return {
@@ -174,8 +170,8 @@ export class SipManager {
       return store.findLineByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      const lineKey = store.getLineKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.findLineByLineKey(lineKey) : null;
     }
 
@@ -190,8 +186,8 @@ export class SipManager {
       return store.getSessionByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      const lineKey = store.getLineKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.getSessionByLineKey(lineKey) : null;
     }
 
@@ -205,8 +201,8 @@ export class SipManager {
       return store.getConfigKeyByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      return store.getConfigKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      return store.getConfigKeyByRemoteNumber_ConfigKey(key);
     }
 
     return null;
