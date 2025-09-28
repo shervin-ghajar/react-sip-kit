@@ -1,9 +1,9 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { LineType, SipInvitationType } from '../../store/types';
 import { CallType } from '../../types';
 import { SendMessageSessionEnum, SendMessageSessionValueType } from './types';
-export declare const sessionMethods: ({ username }: {
-    username: SipAccountConfig["username"];
+export declare const sessionMethods: ({ configKey }: {
+    configKey: SipConfigs["key"];
 }) => {
     receiveSession: (invitation: SipInvitationType) => void;
     answerAudioSession: (lineKey: LineType["lineKey"]) => void;
@@ -21,8 +21,8 @@ export declare const sessionMethods: ({ username }: {
     };
     toggleMuteSession: (lineKey: LineType["lineKey"]) => void;
     toggleHoldSession: (lineKey: LineType["lineKey"], forcedValue?: boolean) => void;
-    makeTransferSession: (lineKey: LineType["lineKey"], transferLineKey: LineType["lineKey"]) => void;
-    cancelTransferSession: (lineKey: LineType["lineKey"], transferLineKey: LineType["lineKey"]) => void;
+    makeTransferSession: (lineKey: LineType["lineKey"], transferNumber: LineType["lineKey"]) => void;
+    cancelTransferSession: (lineKey: LineType["lineKey"], transferNumber: LineType["lineKey"]) => void;
     cancelSession: (lineKey: LineType["lineKey"]) => void;
     teardownSession: typeof teardownSession;
 };

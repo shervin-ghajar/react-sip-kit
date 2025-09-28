@@ -1,5 +1,5 @@
-import { SipAccountConfig } from '../../configs/types';
-export declare const getMediaDevices: (username: SipAccountConfig["username"]) => Promise<{
+import { SipConfigs } from '../../configs/types';
+export declare const getMediaDevices: (configKey: SipConfigs["key"]) => Promise<{
     hasAudioDevice: boolean;
     audioInputDevices: MediaDeviceInfo[];
     hasSpeakerDevice: boolean;

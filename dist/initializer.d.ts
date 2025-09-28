@@ -4,7 +4,8 @@ export declare class SipInitializer {
     private ua?;
     private configs;
     private username;
-    constructor(configs: SipConfigs);
+    private configKey;
+    constructor(configs: SipConfigs, key: string);
     init(): Promise<void>;
     private detectDevices;
     private createUserAgent;

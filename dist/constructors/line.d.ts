@@ -1,11 +1,12 @@
-import { SipAccountConfig } from '../configs/types';
+import { SipAccountConfig, SipConfigs } from '../configs/types';
 import { LineType, SipInvitationType } from '../store/types';
 export declare class Line implements LineType {
-    lineKey: number;
+    configKey: SipConfigs['key'];
+    lineKey: LineType['lineKey'];
     remoteNumber: string;
     username: string;
     sipSession: SipInvitationType | null;
     localSoundMeter: any;
     remoteSoundMeter: any;
-    constructor(username: SipAccountConfig['username'], lineKey: number, remoteNumber: string);
+    constructor(configKey: SipConfigs['key'], username: SipAccountConfig['username'], lineKey: LineType['lineKey'], remoteNumber: string);
 }

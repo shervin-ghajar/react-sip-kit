@@ -1,7 +1,7 @@
-import { SipAccountConfig } from '../../../configs/types';
+import { SipConfigs } from '../../../configs/types';
 import { SPDOptionsType } from '../types';
-export declare const spdOptions: ({ username }: {
-    username: SipAccountConfig["username"];
+export declare const spdOptions: ({ configKey }: {
+    configKey: SipConfigs["key"];
 }) => {
     answerAudioSpdOptions: ({ option: defaultOption }?: {
         option?: SPDOptionsType;

@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../configs/types';
+import { SipConfigs } from '../configs/types';
 import { SipUserAgent } from '../types';
 import { SipStoreStateType } from './types';
 export declare const useSipStore: import("zustand").UseBoundStore<import("zustand").StoreApi<SipStoreStateType>>;
@@ -16,12 +16,12 @@ export declare const getSipStore: () => SipStoreStateType;
  *
  * Get sip store userAgent for none functional components
  */
-export declare const getSipStoreUserAgent: (username: SipAccountConfig["username"]) => SipUserAgent | null;
+export declare const getSipStoreUserAgent: (configKey: SipConfigs["key"]) => SipUserAgent | null;
 /**
  *
  * Get sip store configs for none functional components
  */
-export declare const getSipUsernameConfigs: (username: SipAccountConfig["username"]) => SipConfigs | null;
+export declare const getSipUsernameConfigs: (configKey: SipConfigs["key"]) => SipConfigs | null;
 /**
  *
  * Init sip store for none functional components
