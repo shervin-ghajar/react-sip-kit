@@ -26,7 +26,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     recordMedia,
     localMediaStreamStatus,
     remoteMediaStreamStatus,
-    displayNumber,
+    remoteNumber,
   ] = useWatchSessionData({
     key: { lineKey },
     name: [
@@ -37,7 +37,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       'recordMedia',
       'localMediaStreamStatus',
       'remoteMediaStreamStatus',
-      'displayNumber',
+      'remoteNumber',
     ],
   });
 
@@ -86,7 +86,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     >
       {/* Call info */}
       <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
-      <p>Number: {displayNumber}</p>
+      <p>Number: {remoteNumber}</p>
 
       {/* Video streams */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
