@@ -169,6 +169,7 @@ const remoteUsername = SipConnection.getUsernameBy({ remoteNumber: '1001' });
 ```
 
 **Notes:**
+
 * These methods are **lookup helpers only** — they do not return reactive data.
 * Combine with `getAccountBy()` or `useWatchSessionData()` for reactive state.
 * Useful when you have only a `lineKey` or `remoteNumber` but need the username or session quickly.
