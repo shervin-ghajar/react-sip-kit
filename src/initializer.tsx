@@ -15,13 +15,14 @@ export class SipInitializer {
   private ua?: SipUserAgent;
   private configs: SipConfigs;
   private username: SipAccountConfig['username'];
+  private configKey: string;
 
-  constructor(configs: SipConfigs) {
+  constructor(configs: SipConfigs, key: string) {
     this.configs = configs;
     this.username = configs.account.username;
-
+    this.configKey = key;
     // write configs to store
-    getSipStore().setConfig(this.username, configs);
+    getSipStore().setConfig(this.configKey, configs);
   }
 
   public async init() {
@@ -30,7 +31,7 @@ export class SipInitializer {
   }
 
   private async detectDevices() {
-    const devices = await getMediaDevices(this.username);
+    const devices = await getMediaDevices(this.configKey);
     getSipStore().setSipStore({ devicesInfo: devices });
   }
 
@@ -50,7 +51,7 @@ export class SipInitializer {
       authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,
       delegate: {
-        onInvite: sessionMethods({ username: this.username }).receiveSession as any,
+        onInvite: sessionMethods({ configKey: this.configKey }).receiveSession as any,
         onMessage: () => console.log('Received message'),
       } as UserAgentDelegate,
     }) as SipUserAgent;
@@ -68,10 +69,10 @@ export class SipInitializer {
     ua.lastVoicemailCount = 0;
 
     // Transport events
-    ua.transport.onConnect = () => onTransportConnected(this.username, ua);
+    ua.transport.onConnect = () => onTransportConnected(this.configKey, ua);
     ua.transport.onDisconnect = (error?: Error) => {
-      if (error) onTransportConnectError(error, this.username, ua);
-      else onTransportDisconnected(this.username, ua);
+      if (error) onTransportConnectError(error, this.configKey, ua);
+      else onTransportDisconnected(this.configKey, ua);
     };
 
     // Registerer
@@ -87,20 +88,20 @@ export class SipInitializer {
       console.log(`UserAgent ${this.username} registration:`, newState);
       switch (newState) {
         case RegistererState.Registered:
-          onRegistered(this.username, ua);
+          onRegistered(this.configKey, ua);
           break;
         case RegistererState.Unregistered:
-          onUnregistered(this.username, ua);
+          onUnregistered(this.configKey, ua);
           break;
       }
     });
 
-    await ua.start().catch((err) => onTransportConnectError(err, this.username));
+    await ua.start().catch((err) => onTransportConnectError(err, this.configKey));
     this.ua = ua;
 
     // save to store
-    getSipStore().setUserAgent(this.username, ua);
-    console.log(`✅ SIP UserAgent created for ${this.username}`, ua);
+    getSipStore().setUserAgent(this.configKey, ua);
+    console.log(`✅ SIP UserAgent created for ${this.configKey}`, ua);
   }
 
   public getUserAgent() {
@@ -110,7 +111,7 @@ export class SipInitializer {
   public async stop() {
     if (this.ua) {
       await this.ua.stop();
-      console.log(`🛑 SIP UserAgent stopped for ${this.username}`);
+      console.log(`🛑 SIP UserAgent stopped for ${this.configKey}`);
     }
   }
 }

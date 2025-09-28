@@ -1,11 +1,11 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipAccountConfig, SipConfigs } from '../../configs/types';
 import { onRegisterFailed } from '../../events/registration';
 import { getSipStore, getSipStoreUserAgent, setSipStore } from '../../store';
 
 /* -------------------------------------------------------------------------- */
 export function register(
-  username: SipAccountConfig['username'],
-  userAgent = getSipStoreUserAgent(username),
+  configKey: SipConfigs['key'],
+  userAgent = getSipStoreUserAgent(configKey),
 ) {
   if (!userAgent) return;
   if (userAgent?.registering) return;
@@ -15,19 +15,19 @@ export function register(
   userAgent.registerer.register({
     requestDelegate: {
       onReject(sip) {
-        onRegisterFailed(username, sip.message.reasonPhrase, sip.message.statusCode);
+        onRegisterFailed(configKey, sip.message.reasonPhrase, sip.message.statusCode);
       },
     },
   });
   const { userAgents } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
+    userAgents: { ...userAgents, [configKey]: userAgent },
   });
 }
 export function unregister(
-  username: SipAccountConfig['username'],
+  configKey: SipConfigs['key'],
   skipUnsubscribe?: boolean,
-  userAgent = getSipStoreUserAgent(username),
+  userAgent = getSipStoreUserAgent(configKey),
 ) {
   if (!userAgent?.isRegistered()) return;
   if (skipUnsubscribe == true) {
@@ -47,15 +47,15 @@ export function unregister(
   userAgent.isReRegister = false;
   const { userAgents } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
+    userAgents: { ...userAgents, [configKey]: userAgent },
   });
 }
 
-export function refreshRegistration(username: SipAccountConfig['username']) {
-  unregister(username);
+export function refreshRegistration(configKey: SipConfigs['key']) {
+  unregister(configKey);
   console.log('Unregister complete...');
   window.setTimeout(function () {
     console.log('Starting registration...');
-    register(username);
+    register(configKey);
   }, 1000);
 }

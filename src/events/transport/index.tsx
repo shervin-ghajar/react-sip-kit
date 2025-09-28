@@ -1,13 +1,13 @@
 import { defaultSipConfigs } from '../../configs';
-import { SipAccountConfig } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { register } from '../../methods/registration';
-import { getSipUsernameConfigs, getSipStoreUserAgent, setSipStore, getSipStore } from '../../store';
+import { getSipStore, getSipStoreUserAgent, getSipUsernameConfigs, setSipStore } from '../../store';
 import { SipUserAgent } from '../../types';
 
 /* -------------------------------------------------------------------------- */
 export function onTransportConnected(
-  username: SipAccountConfig['username'],
-  userAgent = getSipStoreUserAgent(username),
+  configKey: SipConfigs['key'],
+  userAgent = getSipStoreUserAgent(configKey),
 ) {
   console.log('Connected to Web Socket!');
   if (!userAgent) return;
@@ -21,7 +21,7 @@ export function onTransportConnected(
   // Auto start register
   if (!userAgent.transport.attemptingReconnection && !userAgent.registering) {
     window.setTimeout(function () {
-      register(username, userAgent);
+      register(configKey, userAgent);
     }, 500);
   } else {
     console.warn(
@@ -30,15 +30,15 @@ export function onTransportConnected(
   }
   const { userAgents, statuses } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
-    statuses: { ...statuses, [username]: 'connecting' },
+    userAgents: { ...userAgents, [configKey]: userAgent },
+    statuses: { ...statuses, [configKey]: 'connecting' },
   });
 }
 
 export function onTransportConnectError(
   error: Error,
-  username: SipAccountConfig['username'],
-  userAgent = getSipStoreUserAgent(username),
+  configKey: SipConfigs['key'],
+  userAgent = getSipStoreUserAgent(configKey),
 ) {
   console.warn('WebSocket Connection Failed:', error);
   if (!userAgent) return;
@@ -54,37 +54,34 @@ export function onTransportConnectError(
     // I know!!!
   }
 
-  reconnectTransport(username, userAgent);
+  reconnectTransport(configKey, userAgent);
   const { userAgents, statuses } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
-    statuses: { ...statuses, [username]: 'disconnected' },
+    userAgents: { ...userAgents, [configKey]: userAgent },
+    statuses: { ...statuses, [configKey]: 'disconnected' },
   });
 }
-export function onTransportDisconnected(
-  username: SipAccountConfig['username'],
-  userAgent: SipUserAgent,
-) {
+export function onTransportDisconnected(configKey: SipConfigs['key'], userAgent: SipUserAgent) {
   console.log('Disconnected from Web Socket!');
 
   userAgent.isReRegister = false;
 
   const { userAgents } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
+    userAgents: { ...userAgents, [configKey]: userAgent },
   });
 }
 
 export function reconnectTransport(
-  username: SipAccountConfig['username'],
-  userAgent = getSipStoreUserAgent(username),
+  configKey: SipConfigs['key'],
+  userAgent = getSipStoreUserAgent(configKey),
 ) {
   if (!userAgent) return;
 
   userAgent.registering = false; // if the transport was down, you will not be registered
   if (userAgent.transport && userAgent.transport.isConnected()) {
     // Asked to re-connect, but ws is connected
-    onTransportConnected(username, userAgent);
+    onTransportConnected(configKey, userAgent);
     return;
   }
   console.log('Reconnect Transport...');
@@ -95,7 +92,7 @@ export function reconnectTransport(
     if (userAgent.transport && userAgent.transport.isConnected()) {
       // Already Connected
       console.log('Transport Already Connected...');
-      onTransportConnected(username, userAgent);
+      onTransportConnected(configKey, userAgent);
       return;
     } else if (userAgent.transport.reconnectionAttempts > 0) {
       userAgent.transport.attemptingReconnection = true;
@@ -103,10 +100,10 @@ export function reconnectTransport(
         userAgent.transport.attemptingReconnection = false;
         console.warn('Failed to reconnect', error);
         // Try Again
-        reconnectTransport(username, userAgent);
+        reconnectTransport(configKey, userAgent);
       });
     }
-  }, getSipUsernameConfigs(username)?.registration.transportReconnectionTimeout);
+  }, getSipUsernameConfigs(configKey)?.registration.transportReconnectionTimeout);
 
   console.log(
     'Waiting to Re-connect...',
@@ -116,7 +113,7 @@ export function reconnectTransport(
   userAgent.transport.reconnectionAttempts = userAgent.transport.reconnectionAttempts - 1;
   const { userAgents, statuses } = getSipStore();
   setSipStore({
-    userAgents: { ...userAgents, [username]: userAgent },
-    statuses: { ...statuses, [username]: 'connecting' },
+    userAgents: { ...userAgents, [configKey]: userAgent },
+    statuses: { ...statuses, [configKey]: 'connecting' },
   });
 }

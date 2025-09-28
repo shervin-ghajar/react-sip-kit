@@ -25,9 +25,26 @@ export interface SipUserAgent extends UserAgent {
   selfSub: Subscriber | null;
   voicemailSub: Subscriber | null;
 }
+
 export type SipManagerConfig = {
+  /**
+   * Unique identifier for the SIP account instance.
+   *
+   * - Default: `account.username`
+   * - Useful when the same username can exist across multiple domains.
+   * - All internal maps and store entries use this key.
+   */
+  key?: string;
+
+  /**
+   * Core SIP account information (username, password, domain, etc.)
+   */
   account: SipConfigs['account'];
 } & {
+  /**
+   * Optional overrides for other parts of the config.
+   * Each key corresponds to a subset of SipConfigs.
+   */
   [P in Exclude<keyof SipConfigs, 'account'>]?: Partial<SipConfigs[P]>;
 };
 
@@ -48,20 +65,39 @@ export type CallType =
   | 'transferAudio'
   | 'transferVideo';
 
+/**
+ * Wrapper for a SIP account + its active UserAgent instance.
+ */
 export interface SipManagerInstance {
   config: SipManagerConfig;
   instance: SipInitializer;
 }
 
+/**
+ * Keys that can resolve an account:
+ * - `configKey` → explicit instance key
+ * - `lineKey` → active line identifier
+ * - `remoteNumber` → peer phone number
+ */
 export type GetAccountKey =
-  | { username: string; lineKey?: never; remoteNumber?: never }
-  | { lineKey: LineType['lineKey']; username?: never; remoteNumber?: never }
-  | { remoteNumber: SipSessionDataType['remoteNumber']; username?: never; lineKey?: never };
+  | { configKey: SipManagerConfig['key']; lineKey?: never; remoteNumber?: never }
+  | { lineKey: LineType['lineKey']; configKey?: never; remoteNumber?: never }
+  | { remoteNumber: SipSessionDataType['remoteNumber']; configKey?: never; lineKey?: never };
 
+/**
+ * Keys that can resolve session control methods:
+ * - `configKey` → explicit instance key
+ * - `lineKey` → active line identifier
+ * - `remoteNumber` → peer phone number
+ */
 export type GetMethodsKey =
-  | { username: string; lineKey?: never; remoteNumber?: never }
-  | { lineKey: LineType['lineKey']; username?: never; remoteNumber?: never }
-  | { remoteNumber: SipSessionDataType['remoteNumber']; username?: never; lineKey?: never };
+  | { configKey: SipManagerConfig['key']; lineKey?: never; remoteNumber?: never }
+  | { lineKey: LineType['lineKey']; configKey?: never; remoteNumber?: never }
+  | { remoteNumber: SipSessionDataType['remoteNumber']; configKey?: never; lineKey?: never };
+
+/**
+ * Keys for resolving lines/sessions (mutually exclusive).
+ */
 export type LineLookup =
   | { lineKey: LineType['lineKey']; remoteNumber?: never }
   | { remoteNumber: SipSessionDataType['remoteNumber']; lineKey?: never };

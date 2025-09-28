@@ -1,10 +1,9 @@
 import { SipAccountConfig, SipConfigs } from '../configs/types';
 import { SipUserAgent } from '../types';
+import { generateUUID } from '../utils';
 import { LineType, SipStoreStateType } from './types';
 import { create } from 'zustand';
 
-/* -------------------------------------------------------------------------- */
-let lineKey = 0;
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
@@ -20,48 +19,48 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     speakerDevices: [],
   },
   lines: {},
-  usernamesByLineKey: {},
+  configKeysByLineKey: {},
   lineKeyByRemoteNumber: {},
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
-  setConfig: (username: SipAccountConfig['username'], config: SipConfigs) => {
-    set((state) => ({ ...state, configs: { ...state.configs, [username]: config } }));
+  setConfig: (configKey: SipConfigs['key'], config: SipConfigs) => {
+    set((state) => ({ ...state, configs: { ...state.configs, [configKey]: config } }));
   },
-  setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => {
-    set((state) => ({ ...state, userAgents: { ...state.userAgents, [username]: userAgent } }));
+  setUserAgent: (configKey: SipConfigs['key'], userAgent: SipUserAgent) => {
+    set((state) => ({ ...state, userAgents: { ...state.userAgents, [configKey]: userAgent } }));
   },
   addLine: (newLine: LineType) => {
-    const username = newLine.username;
+    const configKey = newLine.configKey;
     set((state) => ({
       ...state,
       lines: {
         ...state.lines,
-        [username]: {
-          ...state.lines?.[username],
+        [configKey]: {
+          ...state.lines?.[configKey],
           [newLine.lineKey]: newLine,
         },
       },
-      usernamesByLineKey: {
-        ...state.usernamesByLineKey,
-        [newLine.lineKey]: username,
+      configKeysByLineKey: {
+        ...state.configKeysByLineKey,
+        [newLine.lineKey]: configKey,
       },
       lineKeyByRemoteNumber: {
-        ...state.usernamesByLineKey,
+        ...state.configKeysByLineKey,
         [newLine.remoteNumber]: newLine.lineKey,
       },
     }));
   },
   updateLine: (updatedLine: LineType) => {
-    const username = updatedLine.username;
-    if (!username) return null;
+    const configKey = updatedLine.configKey;
+    if (!configKey) return null;
     set((state) => {
-      if (!state.lines?.[username]?.[updatedLine.lineKey]) return state; // nothing to update
+      if (!state.lines?.[configKey]?.[updatedLine.lineKey]) return state; // nothing to update
       return {
         ...state,
         lines: {
           ...state.lines,
-          [username]: {
-            ...state.lines?.[username],
+          [configKey]: {
+            ...state.lines?.[configKey],
             [updatedLine.lineKey]: updatedLine, // replace immutably
           },
         },
@@ -70,25 +69,25 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
 
   removeLine: (lineKey: LineType['lineKey']) => {
-    const username = get().getUsernameByLineKey(lineKey);
+    const configKey = get().getConfigKeyByLineKey(lineKey);
     const lineObj = get().findLineByLineKey(lineKey);
-    if (!username) return null;
+    if (!configKey) return null;
     const remoteNumber = lineObj?.sipSession?.data.remoteNumber ?? '';
     set((state) => {
-      if (!state.lines?.[username]?.[lineKey]) return state; // nothing to remove
-      const { [lineKey]: _, ...rest } = state.lines[username];
-      const { [lineKey]: __, ...restUsernamesByLineKey } = state.usernamesByLineKey;
+      if (!state.lines?.[configKey]?.[lineKey]) return state; // nothing to remove
+      const { [lineKey]: _, ...rest } = state.lines[configKey];
+      const { [lineKey]: __, ...restConfigKeysByLineKey } = state.configKeysByLineKey;
       const { [remoteNumber]: ___, ...restLineKeyByRemoteNumber } = state.lineKeyByRemoteNumber;
       return {
         ...state,
         lines: {
           ...state.lines,
-          [username]: {
+          [configKey]: {
             ...rest,
           },
         },
-        usernamesByLineKey: {
-          ...restUsernamesByLineKey,
+        configKeysByLineKey: {
+          ...restConfigKeysByLineKey,
         },
         lineKeyByRemoteNumber: {
           ...restLineKeyByRemoteNumber,
@@ -96,18 +95,18 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  remove: (username: SipAccountConfig['username']) => {
-    if (!username) return null;
+  remove: (configKey: SipConfigs['key']) => {
+    if (!configKey) return null;
     set((state) => {
-      if (!state.lines?.[username]?.[lineKey]) return state; // nothing to remove
-      const { [username]: _, ...restLines } = state.lines;
-      const { [username]: __, ...restConfigs } = state.configs as NonNullable<
+      if (!state.lines?.[configKey]) return state; // nothing to remove
+      const { [configKey]: _, ...restLines } = state.lines;
+      const { [configKey]: __, ...restConfigs } = state.configs as NonNullable<
         SipStoreStateType['configs']
       >;
-      const { [username]: ___, ...restUserAgents } = state.userAgents as NonNullable<
+      const { [configKey]: ___, ...restUserAgents } = state.userAgents as NonNullable<
         SipStoreStateType['userAgents']
       >;
-      const { [username]: ____, ...restStatuses } = state.statuses as NonNullable<
+      const { [configKey]: ____, ...restStatuses } = state.statuses as NonNullable<
         SipStoreStateType['statuses']
       >;
       return {
@@ -133,22 +132,22 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     });
   },
   findLineByLineKey: (lineKey) => {
-    const username = get().getUsernameByLineKey(lineKey);
-    if (!username) return null;
-    return get().lines?.[username]?.[lineKey] ?? null;
+    const configKey = get().getConfigKeyByLineKey(lineKey);
+    if (!configKey) return null;
+    return get().lines?.[configKey]?.[lineKey] ?? null;
   },
   getSessionByLineKey: (lineKey) => {
-    const username = get().getUsernameByLineKey(lineKey);
-    if (!username) return null;
-    return get().lines?.[username]?.[lineKey]?.sipSession ?? null;
+    const configKey = get().getConfigKeyByLineKey(lineKey);
+    if (!configKey) return null;
+    return get().lines?.[configKey]?.[lineKey]?.sipSession ?? null;
   },
-  getUsernameByLineKey: (lineKey) => {
-    return get().usernamesByLineKey[lineKey] ?? null;
+  getConfigKeyByLineKey: (lineKey) => {
+    return get().configKeysByLineKey[lineKey] ?? null;
   },
-  getUsernameByRemoteNumber: (remoteNumber) => {
+  getConfigKeyByRemoteNumber: (remoteNumber) => {
     const lineKey = get().getLineKeyByRemoteNumber(remoteNumber) ?? null;
     if (!lineKey) return null;
-    return get().getUsernameByLineKey(lineKey);
+    return get().getConfigKeyByLineKey(lineKey);
   },
   getLineKeyByRemoteNumber: (remoteNumber) => {
     const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
@@ -158,7 +157,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
     return get().findLineByLineKey(lineKey);
   },
-  getNewLineKey: () => ++lineKey,
+  getNewLineKey: () => generateUUID(),
 }));
 /* -------------------------------------------------------------------------- */
 /**
@@ -179,19 +178,15 @@ export const getSipStore = (): SipStoreStateType => {
  *
  * Get sip store userAgent for none functional components
  */
-export const getSipStoreUserAgent = (
-  username: SipAccountConfig['username'],
-): SipUserAgent | null => {
-  return useSipStore.getState()?.userAgents?.[username] ?? null;
+export const getSipStoreUserAgent = (configKey: SipConfigs['key']): SipUserAgent | null => {
+  return useSipStore.getState()?.userAgents?.[configKey] ?? null;
 };
 /**
  *
  * Get sip store configs for none functional components
  */
-export const getSipUsernameConfigs = (
-  username: SipAccountConfig['username'],
-): SipConfigs | null => {
-  return (useSipStore?.getState()?.configs as Record<string, SipConfigs>)?.[username] ?? null;
+export const getSipUsernameConfigs = (configKey: SipConfigs['key']): SipConfigs | null => {
+  return (useSipStore?.getState()?.configs as Record<string, SipConfigs>)?.[configKey] ?? null;
 };
 /**
  *

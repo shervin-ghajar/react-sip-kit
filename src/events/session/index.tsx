@@ -1,15 +1,15 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { sendMessageSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
 import { CallbackFunction } from '../../types';
-import { dayJs, utcDateNow } from '../../utils';
+import { utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
-export const sessionEvents = ({ username }: { username: SipAccountConfig['username'] }) => {
+export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) => {
   const updateLine = getSipStore().updateLine;
 
   function onInviteCancel(
@@ -80,21 +80,23 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-      configs = getSipUsernameConfigs(username),
+      configs = getSipUsernameConfigs(configKey),
     }) => {
       try {
         const media = configs?.media;
 
         const constraints: MediaStreamConstraints = {
-          audio:
-            media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+          audio: media?.audioInputDeviceId
+            ? media.audioInputDeviceId !== 'default'
               ? { deviceId: { exact: media.audioInputDeviceId } }
-              : true,
-          video: isVideoEnabled
-            ? media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
-              ? { deviceId: { exact: media.videoInputDeviceId } }
               : true
             : false,
+          video:
+            isVideoEnabled && media?.videoInputDeviceId
+              ? media.videoInputDeviceId !== 'default'
+                ? { deviceId: { exact: media.videoInputDeviceId } }
+                : true
+              : false,
         };
 
         const localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -414,7 +416,7 @@ export const sessionEvents = ({ username }: { username: SipAccountConfig['userna
     session.initiateRemoteMediaStreams = ({
       videoEnabled: isVideoEnabled = videoEnabled,
       pc = session.sessionDescriptionHandler.peerConnection,
-      configs = getSipUsernameConfigs(username),
+      configs = getSipUsernameConfigs(configKey),
     }) => {
       const media = configs?.media;
 
