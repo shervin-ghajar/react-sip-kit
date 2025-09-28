@@ -93,6 +93,7 @@ export const defaultAdvancedConfig: SipAdvancedConfig = {
 
 // Unified default config
 export const defaultSipConfigs: SipConfigs = {
+  key: defaultAccountConfig.username,
   account: defaultAccountConfig,
   features: defaultFeaturesConfig,
   media: defaultMediaConfig,

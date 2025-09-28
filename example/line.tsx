@@ -1,6 +1,6 @@
 import { SipConnection } from '.';
 import { useEffect } from 'react';
-import { AudioStream, LineType, VideoStream, useWatchSessionData } from 'react-sip-kit';
+import { AudioStream, LineType, VideoStream } from 'react-sip-kit';
 
 export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const {
@@ -27,7 +27,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     localMediaStreamStatus,
     remoteMediaStreamStatus,
     displayNumber,
-  ] = useWatchSessionData({
+  ] = SipConnection.useWatchSessionData({
     key: { lineKey },
     name: [
       'callType',

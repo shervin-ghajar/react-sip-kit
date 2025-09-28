@@ -1,22 +1,22 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipAccountConfig, SipConfigs } from '../../configs/types';
 import { useSipStore } from '../../store';
 import { LineType } from '../../store/types';
 import { useMemo } from 'react';
 
-export function useSipManager({ username }: { username: SipAccountConfig['username'] }) {
+export function useSipManager({ configKey }: { configKey: SipConfigs['key'] }) {
   return () => {
     // only subscribe to the number of lines
     const lineCount = useSipStore((s) =>
-      username && s.lines?.[username] ? Object.keys(s.lines?.[username]).length : 0,
+      configKey && s.lines?.[configKey] ? Object.keys(s.lines?.[configKey]).length : 0,
     );
 
     // access full lines object once, but don't subscribe to its updates
-    const linesObj = useSipStore.getState().lines?.[username] ?? {};
+    const linesObj = useSipStore.getState().lines?.[configKey] ?? {};
 
     // recompute lines only when lineCount changes
     const lines: LineType[] = useMemo(() => Object.values(linesObj), [lineCount]);
 
-    const status = useSipStore((s) => s?.statuses?.[username]) ?? 'connecting';
+    const status = useSipStore((s) => s?.statuses?.[configKey]) ?? 'connecting';
 
     return {
       status,

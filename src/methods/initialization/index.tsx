@@ -35,10 +35,10 @@ export async function getMediaPermissions(media?: 'audio' | 'video') {
 }
 /* -------------------------------------------------------------------------- */
 export const initilizeMediaStreams = (configs: SipConfigs) => {
-  const prevMediaConfig = getSipStore().configs?.[configs.account.username]?.media;
+  const prevMediaConfig = getSipStore().configs?.[configs.key]?.media;
   if (prevMediaConfig && !isEqual(prevMediaConfig, configs.media)) {
-    const username = configs.account.username;
-    const lines = getSipStore().lines[username] ?? {};
+    const configKey = configs.key;
+    const lines = getSipStore().lines[configKey] ?? {};
     Object.values(lines).forEach((line) => {
       if (line.sipSession?.data.started) {
         line.sipSession?.initiateLocalMediaStreams({

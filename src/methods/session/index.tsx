@@ -1,4 +1,4 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipAccountConfig, SipConfigs } from '../../configs/types';
 import { Line } from '../../constructors';
 import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../events/session/types';
@@ -31,14 +31,14 @@ import {
 /* -------------------------------------------------------------------------- */
 /*                            MAIN SESSION METHODS                            */
 /* -------------------------------------------------------------------------- */
-export const sessionMethods = ({ username }: { username: SipAccountConfig['username'] }) => {
-  const configs = getSipStore().configs?.[username];
+export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) => {
+  const configs = getSipStore().configs?.[configKey];
+  const username = configs?.account.username ?? '';
   const findLineByLineKey = getSipStore().findLineByLineKey;
   const getNewLineKey = getSipStore().getNewLineKey;
   const addLine = getSipStore().addLine;
   const updateLine = getSipStore().updateLine;
-  const userAgent = getSipStore().userAgents?.[username];
-  console.log({ userAgent });
+  const userAgent = getSipStore().userAgents?.[configKey];
   const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
 
   const {
@@ -53,17 +53,16 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     onSessionReceivedMessage,
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
-  } = sessionEvents({ username });
+  } = sessionEvents({ configKey });
 
   const { makeAudioSpdOptions, answerAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
-    spdOptions({ username });
+    spdOptions({ configKey });
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
   /**
    * Handle incoming calls
-   * @param username
-   * @param session
+   * @param invitation
    * @returns
    */
   function receiveSession(invitation: SipInvitationType) {
@@ -74,10 +73,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     console.log(`Incoming call from: ${callerID}`);
 
     // Create or update buddy based on DID
-    const lineObj = new Line(username, getNewLineKey(), callerID);
+    const lineObj = new Line(configKey, username, getNewLineKey(), callerID);
     lineObj.sipSession = invitation as SipInvitationType;
     const session = lineObj.sipSession;
     session.data = {};
+    session.data.configKey = lineObj.configKey;
     session.data.lineKey = lineObj.lineKey;
     session.data.callDirection = 'inbound';
     session.data.terminateBy = '';
@@ -246,6 +246,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     const session = lineObj.sipSession;
 
     session.data = {
+      configKey: lineObj.configKey,
       lineKey: lineObj.lineKey,
       callDirection: 'outbound',
       remoteNumber: dialledNumber,
@@ -431,6 +432,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     const session = lineObj.sipSession;
     session.data = {
+      configKey: lineObj.configKey,
       lineKey: lineObj.lineKey,
       callDirection: 'outbound',
       remoteNumber: dialledNumber,
@@ -654,9 +656,9 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     dialNumber: string,
     extraHeaders?: Array<string>,
   ) {
-    const userAgent = getSipStore().userAgents?.[username];
+    const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
-      alert(`SIP userAgent for ${username} not registered`);
+      alert(`SIP userAgent for ${configKey} not registered`);
       return;
     }
 
@@ -666,7 +668,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
 
     // Create a Line
-    const lineObj = new Line(username, getNewLineKey(), dialNumber);
+    const lineObj = new Line(configKey, username, getNewLineKey(), dialNumber);
 
     // Start Call Invite
     if (type === 'audio') {
@@ -1003,31 +1005,31 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /**
    * Start Transfer Call Session
    * @param lineKey
-   * @param transferLineKey
+   * @param transferNumber
    */
-  function makeTransferSession(lineKey: LineType['lineKey'], transferLineKey: LineType['lineKey']) {
+  function makeTransferSession(lineKey: LineType['lineKey'], transferNumber: LineType['lineKey']) {
     toggleHoldSession(lineKey, true);
     queueMicrotask(() => {
-      attendedTransferSession(lineKey, transferLineKey);
+      attendedTransferSession(lineKey, transferNumber);
     });
   }
 
   /**
    * Attend Transfer Call Session
    * @param lineObj
-   * @param transferLineKey
+   * @param transferNumber
    * @returns
    */
   function attendedTransferSession(
     lineKey: LineType['lineKey'],
-    transferLineKey: LineType['lineKey'],
+    transferNumber: LineType['remoteNumber'],
   ) {
-    const userAgent = getSipStore().userAgents?.[username];
+    const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
-      alert(`SIP userAgent for ${username} not registered`);
+      alert(`SIP userAgent for ${configKey} not registered`);
       return;
     }
-    const dstNo = String(transferLineKey);
+    const dstNo = String(transferNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
@@ -1044,7 +1046,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!session.data.transfer) session.data.transfer = [];
     session.data.transfer.push({
       type: 'Attended',
-      to: transferLineKey,
+      to: transferNumber,
       transferTime: utcDateNow(),
       disposition: 'invite',
       dispositionTime: utcDateNow(),
@@ -1229,16 +1231,16 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /**
    * Cancel Transfered Call Session
    * @param lineObj
-   * @param transferLineKey
+   * @param transferNumber
    * @returns
    */
   function cancelTransferSession(
     lineKey: LineType['lineKey'],
-    transferLineKey: LineType['lineKey'],
+    transferNumber: LineType['lineKey'],
   ) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
-    const dstNo = String(transferLineKey);
+    const dstNo = String(transferNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
@@ -1253,7 +1255,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!session) return;
     if (!session.data.transfer) return;
     session.data.transfer.forEach((transfer) => {
-      if (transfer.to === transferLineKey) transfer.onCancle?.();
+      if (transfer.to === transferNumber) transfer.onCancle?.();
     });
 
     toggleHoldSession(lineKey, false);

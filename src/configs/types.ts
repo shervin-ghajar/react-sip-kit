@@ -1,4 +1,5 @@
 export interface SipConfigs {
+  key: string;
   account: SipAccountConfig;
   features: SipFeaturesConfig;
   media: SipMediaConfig;

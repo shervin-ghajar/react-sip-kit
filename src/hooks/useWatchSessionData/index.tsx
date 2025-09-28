@@ -119,12 +119,12 @@ export function useWatchSessionData({
 
   if (!lineKey) return undefined;
 
-  const username = store.getUsernameByLineKey(lineKey);
+  const configKey = store.getConfigKeyByLineKey(lineKey);
 
   return useSipStore(
     useDeep((state) => {
       try {
-        const line = username ? state.lines?.[username]?.[lineKey] : null;
+        const line = configKey ? state.lines?.[configKey]?.[lineKey] : null;
         const data = line?.sipSession?.data as SipSessionDataType;
 
         if (!data) return undefined;
