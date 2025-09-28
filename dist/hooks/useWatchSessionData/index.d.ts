@@ -1,3 +1,4 @@
+import { SipConfigs } from '../../configs/types';
 import { LineType, SipSessionDataType } from '../../store/types';
 type Primitive = string | number | boolean | symbol | null | undefined;
 type Path<T> = {
@@ -49,6 +50,7 @@ export declare function useWatchSessionData(props: {
 export declare function useWatchSessionData(props: {
     key: {
         remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
     };
     name?: undefined;
 }): SipSessionDataType;
@@ -61,6 +63,7 @@ export declare function useWatchSessionData<P extends Path<SipSessionDataType>>(
 export declare function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
     key: {
         remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
     };
     name: P;
 }): PathValue<SipSessionDataType, P>;
@@ -75,6 +78,7 @@ export declare function useWatchSessionData<const P extends readonly Path<SipSes
 export declare function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
     key: {
         remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
     };
     name: P;
 }): {

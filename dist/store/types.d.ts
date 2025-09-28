@@ -8,7 +8,7 @@ export interface SipStoreStateType {
     userAgents?: Record<SipConfigs['key'], SipUserAgent>;
     lines: Record<SipConfigs['key'], Record<LineType['lineKey'], LineType>>;
     configKeysByLineKey: Record<LineType['lineKey'], SipConfigs['key']>;
-    lineKeyByRemoteNumber: Record<SipSessionDataType['remoteNumber'], LineType['lineKey']>;
+    lineKeyByRemoteNumber_ConfigKey: Record<SipSessionDataType['remoteNumber'], LineType['lineKey']>;
     devicesInfo: DevicesInfoType;
     setSipStore: (state: Partial<SipStoreStateType>) => void;
     setConfig: (key: SipConfigs['key'], userAgent: SipConfigs) => void;
@@ -21,9 +21,22 @@ export interface SipStoreStateType {
     findLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
     getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['sipSession'] | null;
     getConfigKeyByLineKey: (lineKey: LineType['lineKey']) => SipConfigs['key'] | null;
-    getConfigKeyByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => SipConfigs['key'] | null;
-    getLineKeyByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType['lineKey'] | null;
-    getLineByRemoteNumber: (remoteNumber: SipSessionDataType['remoteNumber']) => LineType | null;
+    getConfigKeyByRemoteNumber_ConfigKey: ({ remoteNumber, configKey, }: {
+        remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
+    }) => SipConfigs['key'] | null;
+    getLineKeyByRemoteNumber_ConfigKey: ({ remoteNumber, configKey, }: {
+        remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
+    }) => LineType['lineKey'] | null;
+    getLineBy: ({ remoteNumber, configKey, }: {
+        remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
+    }) => LineType | null;
+    remoteNumberConfigKeyResolver: ({ remoteNumber, configKey, }: {
+        remoteNumber: SipSessionDataType['remoteNumber'];
+        configKey: SipConfigs['key'];
+    }) => `${typeof remoteNumber}:${typeof configKey}`;
     getNewLineKey: () => LineType['lineKey'];
 }
 export interface SipInvitationType extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {

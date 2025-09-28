@@ -32,7 +32,7 @@ export type SipManagerConfig = {
      * - Useful when the same username can exist across multiple domains.
      * - All internal maps and store entries use this key.
      */
-    key?: string;
+    key?: SipConfigs['key'];
     /**
      * Core SIP account information (username, password, domain, etc.)
      */
@@ -59,47 +59,37 @@ export interface SipManagerInstance {
  * Keys that can resolve an account:
  * - `configKey` → explicit instance key
  * - `lineKey` → active line identifier
- * - `remoteNumber` → peer phone number
  */
 export type GetAccountKey = {
     configKey: SipManagerConfig['key'];
     lineKey?: never;
-    remoteNumber?: never;
 } | {
     lineKey: LineType['lineKey'];
     configKey?: never;
-    remoteNumber?: never;
-} | {
-    remoteNumber: SipSessionDataType['remoteNumber'];
-    configKey?: never;
-    lineKey?: never;
 };
 /**
  * Keys that can resolve session control methods:
  * - `configKey` → explicit instance key
  * - `lineKey` → active line identifier
- * - `remoteNumber` → peer phone number
  */
 export type GetMethodsKey = {
     configKey: SipManagerConfig['key'];
     lineKey?: never;
-    remoteNumber?: never;
 } | {
     lineKey: LineType['lineKey'];
     configKey?: never;
-    remoteNumber?: never;
-} | {
-    remoteNumber: SipSessionDataType['remoteNumber'];
-    configKey?: never;
-    lineKey?: never;
 };
 /**
  * Keys for resolving lines/sessions (mutually exclusive).
+ * - `configKey` & `remoteNumber` → explicit instance key and peer phone number(aka remoteNumber)
+ * - `lineKey` → active line identifier
  */
 export type LineLookup = {
     lineKey: LineType['lineKey'];
     remoteNumber?: never;
+    configKey?: never;
 } | {
+    configKey: SipConfigs['key'];
     remoteNumber: SipSessionDataType['remoteNumber'];
     lineKey?: never;
 };
