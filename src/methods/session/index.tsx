@@ -70,7 +70,12 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     let callerID =
       invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user || '';
 
-    console.log(`Incoming call from: ${callerID}`);
+    console.log(
+      `Incoming call from: ${callerID}`,
+      invitation.remoteIdentity,
+      invitation.remoteIdentity.displayName,
+      invitation.remoteIdentity.uri.user,
+    );
 
     // Create or update buddy based on DID
     const lineObj = new Line(configKey, username, getNewLineKey(), callerID);
