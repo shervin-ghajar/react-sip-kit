@@ -118,12 +118,11 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   /* ------------------------- Auto-initiate streams ------------------------- */
   useEffect(() => {
     if (!callStarted) return;
-    console.log({ localMediaStreamEnabled });
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
       SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams();
     }
-  }, [callStarted, localMediaStreamEnabled]);
+  }, [callStarted, localMediaStreamEnabled, localScreenShareEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
@@ -131,7 +130,7 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (remoteMediaStreamEnabled) {
       SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams();
     }
-  }, [callStarted, remoteMediaStreamEnabled]);
+  }, [callStarted, remoteMediaStreamEnabled, remoteScreenShareEnabled]);
 
   /* ------------------------------- UI Render ------------------------------- */
   return (

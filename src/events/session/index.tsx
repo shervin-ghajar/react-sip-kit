@@ -120,9 +120,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
         // Replace existing audio/video tracks in PeerConnection
         localStream.getTracks().forEach((track) => {
-          console.log('initiateLocalMediaStreams', { kind: track.kind });
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
-          console.log('initiateLocalMediaStreams', { sender });
           if (sender) {
             sender.replaceTrack(track);
           } else {
@@ -240,7 +238,6 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         }
       }
       console.log('videoChannelNames:', session.data.videoChannelNames);
-      // RedrawStage(lineObj.LineKey, false); TODO #SH
     }
   }
   function onSessionReceivedMessage(lineObj: LineType, response: Message) {
@@ -321,21 +318,6 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           const videoContainer = false; //$('#line-' + lineObj.LineKey + '-remote-videos'); TODO #SH
           if (videoContainer) {
             //TODO #SH
-            // msgJson.channels.forEach(function (chan) {
-            //   videoContainer.find('video').each(function () {
-            //     if (this.srcObject.channel && this.srcObject.channel == chan.id) {
-            //       if (chan.talking_status == 'on') {
-            //         console.log(chan.caller.name, 'is talking.');
-            //         this.srcObject.isTalking = true;
-            //         $(this).css('border', '1px solid red');
-            //       } else {
-            //         console.log(chan.caller.name, 'stopped talking.');
-            //         this.srcObject.isTalking = false;
-            //         $(this).css('border', '1px solid transparent');
-            //       }
-            //     }
-            //   });
-            // });
           }
         } else if (msgJson.type == 'ConfbridgeMute') {
           msgJson.channels.forEach(function (chan) {
@@ -356,13 +338,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
               }
             });
           });
-          //   RedrawStage(lineObj.LineKey, false); TODO #SH
         } else if (msgJson.type == 'ConfbridgeEnd') {
           console.log('The Asterisk Conference has ended, bye!');
         } else {
           console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
         }
-        // RefreshLineActivity(lineObj.LineKey); TODO #SH
         response.accept();
       } else if (messageType.indexOf('application/x-myphone-confbridge-chat') > -1) {
         console.log('x-myphone-confbridge-chat', response);
