@@ -1,16 +1,13 @@
-import './App.css';
-import { Audio, Video } from './components';
-import { useWatchSessionData } from './hooks';
+import { AudioStream, VideoStream } from '.';
 import { SipConnection } from './main';
-import { sessionMethods } from './methods/session';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
 function App({ username }: { username: string }) {
-  const { dialByNumber } = SipConnection.methods(username); // all session methods like dial, answer, toggle video, toggle share-screen and so on
-  const { lines, status } = SipConnection.get(username).watch(); // watches lines and status if they change
+  const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey: username }); // all session methods like dial, answer, toggle video, toggle share-screen and so on
+  const { lines, status } = SipConnection.getAccountBy({ configKey: username }).watch(); // watches lines and status if they change
   const renderLines = () => {
-    return lines.map((line) => <SipLine key={line.lineNumber} username={username} line={line} />);
+    return lines.map((line) => <SipLine key={line.lineKey} lineKey={line.lineKey} />);
   };
   return (
     <div
@@ -61,7 +58,7 @@ function App({ username }: { username: string }) {
 /* -------------------------------------------------------------------------- */
 export default App;
 
-const SipLine = ({ username, line }: { username: string; line: LineType }) => {
+const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const {
     answerAudioSession,
     answerVideoSession,
@@ -69,148 +66,153 @@ const SipLine = ({ username, line }: { username: string; line: LineType }) => {
     toggleLocalVideoTrack,
     toggleMuteSession,
     toggleHoldSession,
-    startTransferSession,
-    cancelAttendedTransferSession,
-    attendedTransferSession,
+    cancelTransferSession,
+    makeTransferSession,
     toggleShareScreen,
     recordSession,
-  } = sessionMethods({ username });
-  const data = useWatchSessionData({ lineNumber: line.lineNumber });
-  const sipSession = line.sipSession;
-  const isVideoCall = data?.callType === 'video';
-  const callStarted = data.started;
-  const localVideoEnabled = data.localMediaStreamStatus?.videoEnabled;
-  const remoteVideoEnabled = data.remoteMediaStreamStatus?.videoEnabled;
-  const remoteScreenShareEnabled = data.remoteMediaStreamStatus?.screenShareEnabled;
-  const localScreenShareEnabled = data.localMediaStreamStatus?.screenShareEnabled;
+  } = SipConnection.getSessionMethodsBy({ lineKey });
+
+  // Watch session data reactively
+  const [
+    callType,
+    started,
+    callDirection,
+    isOnHold,
+    recordMedia,
+    localMediaStreamStatus,
+    remoteMediaStreamStatus,
+    remoteNumber,
+  ] = SipConnection.useWatchSessionData({
+    key: { lineKey },
+    name: [
+      'callType',
+      'started',
+      'callDirection',
+      'isHold',
+      'recordMedia',
+      'localMediaStreamStatus',
+      'remoteMediaStreamStatus',
+      'remoteNumber',
+    ],
+  });
+
+  // Media state
+  const localVideoEnabled = localMediaStreamStatus?.videoEnabled ?? false;
+  const remoteVideoEnabled = remoteMediaStreamStatus?.videoEnabled ?? false;
+  const remoteScreenShareEnabled = remoteMediaStreamStatus?.screenShareEnabled ?? false;
+  const localScreenShareEnabled = localMediaStreamStatus?.screenShareEnabled ?? false;
 
   const localMediaStreamEnabled = localVideoEnabled || localScreenShareEnabled;
   const remoteMediaStreamEnabled = remoteVideoEnabled || remoteScreenShareEnabled;
-  const isOutbound = data.callDirection === 'outbound';
-  const isMute = !data.localMediaStreamStatus?.soundEnabled;
-  const isHold = sipSession?.isOnHold;
-  const isRecording = data?.recordMedia?.recording;
-  const recorder = recordSession(line.lineNumber);
-  const handleTransferLine = (line: LineType, transferNumber: LineType['lineNumber']) => {
-    startTransferSession(line.lineNumber); // just holds the call
-    setTimeout(() => {
-      attendedTransferSession(line, transferNumber);
-    }, 500);
-  };
+  // Misc session flags
+  const callStarted = started;
+  const isVideoCall = callType === 'video';
+  const isOutbound = callDirection === 'outbound';
+  const isMute = !localMediaStreamStatus?.soundEnabled;
+  const isHold = isOnHold ?? false;
+  const isRecording = recordMedia?.recording ?? false;
+
+  // Recorder instance
+  const recorder = recordSession(lineKey);
+
+  /* ------------------------- Auto-initiate streams ------------------------- */
+  useEffect(() => {
+    if (!callStarted) return;
+    console.log({ localMediaStreamEnabled });
+    // Lazy-initiate streams when needed
+    if (localMediaStreamEnabled) {
+      SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams();
+    }
+  }, [callStarted, localMediaStreamEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
-    sipSession?.initiateLocalMediaStreams(localMediaStreamEnabled);
-  }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
+    // Lazy-initiate streams when needed
+    if (remoteMediaStreamEnabled) {
+      SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams();
+    }
+  }, [callStarted, remoteMediaStreamEnabled]);
 
-  useEffect(() => {
-    if (!callStarted) return;
-    sipSession?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
-  }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
-
+  /* ------------------------------- UI Render ------------------------------- */
   return (
     <div
       style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 24 }}
-      id={`line-${line.lineNumber}`}
+      id={`line-${lineKey}`}
     >
+      {/* Call info */}
       <p>Call Started: {callStarted ? 'Yes' : 'No'}</p>
-      <div style={{ display: 'flex', flexDirection: 'row', gap: 4 }}>
+      <p>Number: {remoteNumber}</p>
+
+      {/* Video streams */}
+      <div style={{ display: 'flex', flexDirection: 'row', gap: 4, overflow: 'auto' }}>
         {localMediaStreamEnabled && (
-          <Video type="local" lineNumber={line.lineNumber} width={200} height={200} />
+          <VideoStream type="local" lineKey={lineKey} width={200} height={200} />
         )}
         {remoteMediaStreamEnabled && (
-          <Video
-            type="remote"
-            lineNumber={line.lineNumber}
-            style={{ display: 'flex', width: 200, height: 200 }}
-          />
+          <VideoStream type="remote" lineKey={lineKey} style={{ width: 200, height: 200 }} />
         )}
       </div>
-      <div>
-        {/* <p>Name: {line.metaData?.displayName}</p> */}
-        <p>Number: {line.displayNumber}</p>
-      </div>
+
+      {/* Call controls */}
       {callStarted ? (
-        <div style={{ gap: 4, display: 'flex', justifyContent: 'center' }}>
-          <button
-            style={{ color: 'red' }}
-            onClick={() => endSession(line.lineNumber)}
-          >{`Cancel Call`}</button>
-          <button
-            style={{ color: 'blue' }}
-            onClick={() => toggleMuteSession(line.lineNumber)}
-          >{`${isMute ? 'Unmute' : 'Mute'} Call`}</button>
-          <button
-            style={{ color: 'blue' }}
-            onClick={() => toggleLocalVideoTrack(line.lineNumber)}
-          >{`Video ${localVideoEnabled ? 'ON' : 'OFF'}`}</button>
-          <button
-            onClick={() => toggleHoldSession(line.lineNumber)}
-          >{`${isHold ? 'UnHold' : 'Hold'} Call`}</button>
-          <button style={{ color: 'kemon' }} onClick={() => handleTransferLine(line, 1012)}>
-            {'Transfer To 1012'}
+        <div style={{ gap: 4, display: 'flex', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
+            End Call
+          </button>
+          <button style={{ color: 'blue' }} onClick={() => toggleMuteSession(lineKey)}>
+            {isMute ? 'Unmute' : 'Mute'}
+          </button>
+          <button style={{ color: 'blue' }} onClick={() => toggleLocalVideoTrack(lineKey)}>
+            Video {localVideoEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button onClick={() => toggleHoldSession(lineKey)}>{isHold ? 'UnHold' : 'Hold'}</button>
+          <button onClick={() => makeTransferSession(lineKey, '1012')}>Transfer To 1012</button>
+          <button onClick={async () => toggleShareScreen(lineKey)}>
+            Share Screen {localScreenShareEnabled ? 'ON' : 'OFF'}
+          </button>
+          <button onClick={() => cancelTransferSession(lineKey, '1012')}>
+            Cancel Transfer To 1010
           </button>
           <button
-            style={{ color: 'kemon' }}
-            onClick={async () => await toggleShareScreen(line.lineNumber)}
-          >
-            {`Share Screen ${localScreenShareEnabled ? 'ON' : 'OFF'}`}
-          </button>
-          <button
-            style={{ color: 'darkred' }}
-            onClick={() => cancelAttendedTransferSession(line, 1010)}
-          >
-            {'Cancel Transfer To 1010'}
-          </button>
-          <button
-            style={{ color: 'darkred' }}
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
           >
-            {`${isRecording ? 'Recording' : 'Record'}`}
+            {isRecording ? 'Recording...' : 'Record'}
           </button>
         </div>
       ) : (
+        // Incoming call actions
         !isOutbound && (
           <>
             {isVideoCall && (
-              <button
-                style={{ color: 'green' }}
-                onClick={() => answerVideoSession(line.lineNumber, true)}
-              >{`Answer Video Call`}</button>
+              <button style={{ color: 'green' }} onClick={() => answerVideoSession(lineKey, true)}>
+                Answer Video Call
+              </button>
             )}
             <button
               style={{ color: 'green' }}
               onClick={() =>
-                isVideoCall
-                  ? answerVideoSession(line.lineNumber, false)
-                  : answerAudioSession(line.lineNumber)
+                isVideoCall ? answerVideoSession(lineKey, false) : answerAudioSession(lineKey)
               }
-            >{`Answer Call`}</button>
-            <button
-              style={{ color: 'red' }}
-              onClick={() => endSession(line.lineNumber)}
-            >{`Reject Call`}</button>
+            >
+              Answer Call
+            </button>
+            <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
+              Reject Call
+            </button>
           </>
         )
       )}
+
+      {/* Cancel outbound call before connected */}
       {!callStarted && (
-        <button
-          style={{ color: 'red' }}
-          onClick={() => endSession(line.lineNumber)}
-        >{`Cancel Call`}</button>
+        <button style={{ color: 'red' }} onClick={() => endSession(lineKey)}>
+          Cancel Call
+        </button>
       )}
 
-      <Audio type="local" lineNumber={line.lineNumber} />
-      <Audio type="remote" lineNumber={line.lineNumber} />
-      <TestComponent lineNumber={line.lineNumber} />
+      {/* Always render audio */}
+      <AudioStream type="local" lineKey={lineKey} />
+      <AudioStream type="remote" lineKey={lineKey} />
     </div>
   );
-};
-const TestComponent = memo(({ lineNumber }: { lineNumber: number }) => {
-  const [localMediaStreamStatus, isRecording] = useWatchSessionData({
-    lineNumber,
-    name: ['localMediaStreamStatus', 'recordMedia.recording'],
-  });
-  console.log({ localMediaStreamStatus, isRecording });
-  return <>Test {localMediaStreamStatus.soundEnabled}</>;
 });

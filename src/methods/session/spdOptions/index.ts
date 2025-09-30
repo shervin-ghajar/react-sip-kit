@@ -1,9 +1,9 @@
 import { defaultSipConfigs } from '../../../configs';
-import { SipAccountConfig } from '../../../configs/types';
+import { SipAccountConfig, SipConfigs } from '../../../configs/types';
 import { getSipStore } from '../../../store';
 import { SPDOptionsType } from '../types';
 
-export const spdOptions = ({ username }: { username: SipAccountConfig['username'] }) => {
+export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
   // TODO configurable
   const { audioInputDevices, videoInputDevices } = getSipStore().devicesInfo;
   const {
@@ -18,7 +18,7 @@ export const spdOptions = ({ username }: { username: SipAccountConfig['username'
       echoCancellation,
     },
     registration: { inviteExtraHeaders },
-  } = getSipStore().configs?.[username] ?? defaultSipConfigs;
+  } = getSipStore().configs?.[configKey] ?? defaultSipConfigs;
   const getSupportedConstraints = () => navigator.mediaDevices.getSupportedConstraints();
   const audioDeviceConfirmation = (currentAudioDevice: string) => {
     let confirmedAudioDevice = false;

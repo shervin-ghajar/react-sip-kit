@@ -1,5 +1,4 @@
 import App from './App.tsx';
-import './index.css';
 import { SipManager } from './manager.tsx';
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -24,21 +23,21 @@ const Providers = () => {
 
   useEffect(() => {
     // updating configs after 10 seconds
-    setTimeout(() => {
-      setConfigs((prev) => [
-        ...prev,
-        {
-          account: {
-            domain: '192.168.82.31',
-            username: '1012',
-            password: '1012',
-            wssServer: '192.168.82.31',
-            webSocketPort: '8089',
-            serverPath: '/ws',
-          },
-        },
-      ]);
-    }, 10000);
+    // setTimeout(() => {
+    //   setConfigs((prev) => [
+    //     ...prev,
+    //     {
+    //       account: {
+    //         domain: '192.168.82.31',
+    //         username: '1012',
+    //         password: '1012',
+    //         wssServer: '192.168.82.31',
+    //         webSocketPort: '8089',
+    //         serverPath: '/ws',
+    //       },
+    //     },
+    //   ]);
+    // }, 10000);
   }, []);
 
   useEffect(() => {

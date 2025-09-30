@@ -1,4 +1,4 @@
-import { SipAccountConfig } from '../../configs/types';
+import { SipAccountConfig, SipConfigs } from '../../configs/types';
 import { Line } from '../../constructors';
 import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../events/session/types';
@@ -31,14 +31,14 @@ import {
 /* -------------------------------------------------------------------------- */
 /*                            MAIN SESSION METHODS                            */
 /* -------------------------------------------------------------------------- */
-export const sessionMethods = ({ username }: { username: SipAccountConfig['username'] }) => {
-  const configs = getSipStore().configs?.[username];
-  const findLineByNumber = getSipStore().findLineByNumber;
-  const getNewLineNumber = getSipStore().getNewLineNumber;
+export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) => {
+  const configs = getSipStore().configs?.[configKey];
+  const username = configs?.account.username ?? '';
+  const findLineByLineKey = getSipStore().findLineByLineKey;
+  const getNewLineKey = getSipStore().getNewLineKey;
   const addLine = getSipStore().addLine;
   const updateLine = getSipStore().updateLine;
-  const userAgent = getSipStore().userAgents?.[username];
-  console.log({ userAgent });
+  const userAgent = getSipStore().userAgents?.[configKey];
   const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
 
   const {
@@ -53,35 +53,35 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     onSessionReceivedMessage,
     onSessionReinvited,
     onTransferSessionDescriptionHandlerCreated,
-  } = sessionEvents({ username });
+  } = sessionEvents({ configKey });
 
   const { makeAudioSpdOptions, answerAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
-    spdOptions({ username });
+    spdOptions({ configKey });
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
   /**
    * Handle incoming calls
-   * @param username
-   * @param session
+   * @param invitation
    * @returns
    */
   function receiveSession(invitation: SipInvitationType) {
     console.log('receiveSession', { invitation });
-    let callerID =
-      invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user || '';
+    let callerID = invitation.remoteIdentity.uri.user || invitation.remoteIdentity.displayName;
 
     console.log(`Incoming call from: ${callerID}`);
 
     // Create or update buddy based on DID
-    const lineObj = new Line(getNewLineNumber(), callerID);
+    const lineObj = new Line(configKey, username, getNewLineKey(), callerID);
     lineObj.sipSession = invitation as SipInvitationType;
     const session = lineObj.sipSession;
     session.data = {};
-    session.data.line = lineObj.lineNumber;
+    session.data.configKey = lineObj.configKey;
+    session.data.lineKey = lineObj.lineKey;
     session.data.callDirection = 'inbound';
     session.data.terminateBy = '';
     session.data.remoteNumber = callerID;
+    session.data.username = lineObj.username;
     session.data.earlyReject = false;
     session.data.callType = 'audio';
     //MediaStreamStatus
@@ -147,25 +147,25 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       },
     };
 
-    addLine(username, lineObj);
+    addLine(lineObj);
   }
 
   /**
    * Handle inbound calls
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function answerAudioSession(lineNumber: LineType['lineNumber']) {
+  function answerAudioSession(lineKey: LineType['lineKey']) {
     // Check vitals
     if (!hasAudioDevice) {
       alert('No audio device detected!');
       return;
     }
 
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByLineKey(lineKey);
 
     if (lineObj === null) {
-      console.warn('Failed to get line (' + lineNumber + ')');
+      console.warn('Failed to get line (' + lineKey + ')');
       return;
     }
     const session = lineObj.sipSession;
@@ -245,9 +245,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     const session = lineObj.sipSession;
 
     session.data = {
-      line: lineObj.lineNumber,
+      configKey: lineObj.configKey,
+      lineKey: lineObj.lineKey,
       callDirection: 'outbound',
       remoteNumber: dialledNumber,
+      username,
       startTime: startTime,
       videoSourceDevice: null,
       audioSourceDevice: configs?.media.audioInputDeviceId,
@@ -267,7 +269,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
       earlyReject: false,
     };
     session.data.callType = 'audio';
-    session.isOnHold = false;
     session.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
@@ -322,13 +323,13 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
 
   /**
    * Handle inbound video calls
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function answerVideoSession(lineNumber: LineType['lineNumber'], enableVideo?: boolean) {
-    const lineObj = findLineByNumber(lineNumber);
+  function answerVideoSession(lineKey: LineType['lineKey'], enableVideo?: boolean) {
+    const lineObj = findLineByLineKey(lineKey);
     if (!lineObj || !configs) {
-      console.warn('Failed to get line (' + lineNumber + ')');
+      console.warn('Failed to get line (' + lineKey + ')');
       return;
     }
     const session = lineObj.sipSession;
@@ -430,9 +431,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     lineObj.sipSession = new Inviter(userAgent, targetURI, spdOptions) as SipInviterType;
     const session = lineObj.sipSession;
     session.data = {
-      line: lineObj.lineNumber,
+      configKey: lineObj.configKey,
+      lineKey: lineObj.lineKey,
       callDirection: 'outbound',
       remoteNumber: dialledNumber,
+      username,
       startTime: startTime,
       localMediaStreamStatus: {
         screenShareEnabled: false,
@@ -451,7 +454,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     };
     session.data.callType = 'video';
     session.data.earlyReject = false;
-    session.isOnHold = false;
     session.delegate = {
       onBye: function (sip) {
         onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
@@ -498,17 +500,17 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /**
    * Toggling local video source (CallType: video)
    *
-   * @param lineObj - The lineNumber object that holds the active SIP session.
+   * @param lineObj - The lineKey object that holds the active SIP session.
    * @param extraHeaders
    */
-  const toggleLocalVideoTrack = async (lineNumber: LineType['lineNumber']) => {
-    const lineObj = findLineByNumber(lineNumber);
+  const toggleLocalVideoTrack = async (lineKey: LineType['lineKey']) => {
+    const lineObj = findLineByLineKey(lineKey);
     if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
     if (!session.data.localMediaStreamStatus || !session.data.remoteMediaStreamStatus) return;
     const screenShareEnabled = session.data.localMediaStreamStatus.screenShareEnabled;
-    if (screenShareEnabled) await toggleShareScreen(lineNumber);
+    if (screenShareEnabled) await toggleShareScreen(lineKey);
     const toggledLocalVideo = !session.data.localMediaStreamStatus.videoEnabled;
     session.data.localMediaStreamStatus.videoEnabled = toggledLocalVideo;
 
@@ -539,11 +541,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
 
   /**
    * Handle toggle share screen (CallType: video)
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  async function toggleShareScreen(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+  async function toggleShareScreen(lineKey: LineType['lineKey']) {
+    const lineObj = findLineByLineKey(lineKey);
     if (!lineObj || !lineObj.sipSession || lineObj.sipSession.data.callType === 'audio') return;
 
     const session = lineObj.sipSession;
@@ -555,7 +557,6 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (screenShareEnabled) {
       // === STOP screen sharing ===
       const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-
       if (videoSender?.track) {
         // await videoSender.replaceTrack(null); // Optional: remove track
         const wasCameraEnabled = session.data.localMediaStreamStatus.videoEnabled;
@@ -584,16 +585,17 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         const screenTrack = displayStream.getVideoTracks()[0];
 
         screenTrack.onended = () => {
-          toggleShareScreen(lineNumber);
-        }; // Auto-toggle back on stop
+          console.log('Screen share ended, restoring camera');
+          toggleShareScreen(lineKey);
+        };
 
-        const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-        const videoEnabled = session.data.localMediaStreamStatus.videoEnabled;
-        if (videoEnabled) await toggleLocalVideoTrack(lineNumber);
+        let videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+
         if (videoSender) {
           await videoSender.replaceTrack(screenTrack);
         } else {
           pc.addTrack(screenTrack);
+          videoSender = pc.getSenders().find((s) => s.track === screenTrack);
         }
 
         session.data.localMediaStreamStatus.screenShareEnabled = true;
@@ -609,13 +611,13 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
 
   /**
    * Handle reject calls
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function rejectSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+  function rejectSession(lineKey: LineType['lineKey']) {
+    const lineObj = findLineByLineKey(lineKey);
     if (lineObj == null) {
-      console.warn('Unable to find line (' + lineNumber + ')');
+      console.warn('Unable to find line (' + lineKey + ')');
       return;
     }
     const session = lineObj.sipSession;
@@ -653,9 +655,9 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     dialNumber: string,
     extraHeaders?: Array<string>,
   ) {
-    const userAgent = getSipStore().userAgents?.[username];
+    const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
-      alert(`SIP userAgent for ${username} not registered`);
+      alert(`SIP userAgent for ${configKey} not registered`);
       return;
     }
 
@@ -665,7 +667,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
 
     // Create a Line
-    const lineObj = new Line(getNewLineNumber(), dialNumber);
+    const lineObj = new Line(configKey, username, getNewLineKey(), dialNumber);
 
     // Start Call Invite
     if (type === 'audio') {
@@ -673,7 +675,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     } else {
       makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
     }
-    addLine(username, lineObj);
+    addLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   /*                        In-Session Call Functionality                       */
@@ -683,18 +685,17 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /* ------------------------------- TOGGLE-HOLD ------------------------------ */
   /**
    * Toggle Hold Call Session
-   * @param lineNumber
+   * @param lineKey
    * @param forcedValue force to be hold/unhold
    * @returns
    */
-  function toggleHoldSession(lineNumber: LineType['lineNumber'], forcedValue?: boolean) {
-    const lineObj = findLineByNumber(lineNumber);
+  function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
+    const lineObj = findLineByLineKey(lineKey);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
-    if (session.isOnHold === forcedValue) return;
-    console.log('Toggle Call on hold:', lineNumber);
-    const toggledHold = forcedValue ?? !(session.isOnHold ?? false);
-    session.isOnHold = toggledHold;
+    if (session.data.isHold === forcedValue) return;
+    console.log('Toggle Call on hold:', lineKey);
+    const toggledHold = forcedValue ?? !(session.data.isHold ?? false);
     const sessionDescriptionHandlerOptions = session.sessionDescriptionHandlerOptionsReInvite;
     sessionDescriptionHandlerOptions.hold = toggledHold;
     session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;
@@ -729,7 +730,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         }
       });
     }
-    console.log('Call is is on hold:', lineNumber);
+    console.log('Call is is on hold:', lineKey);
 
     session.data.isHold = toggledHold;
 
@@ -739,11 +740,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /* ------------------------------- TOGGLE-MUTE ------------------------------ */
   /**
    * Toggle-Mute Call Session
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function toggleMuteSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+  function toggleMuteSession(lineKey: LineType['lineKey']) {
+    const lineObj = findLineByLineKey(lineKey);
     if (lineObj == null || lineObj.sipSession == null) return;
 
     const session = lineObj.sipSession;
@@ -779,11 +780,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /* ------------------------------- CANCEL/END/TEARDOWN ------------------------------- */
   /**
    * Cancle And Terminate Call Session
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function cancelSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+  function cancelSession(lineKey: LineType['lineKey']) {
+    const lineObj = findLineByLineKey(lineKey);
     if (lineObj == null || lineObj.sipSession == null) return;
     const session = lineObj.sipSession;
     if (!(session instanceof Inviter)) return;
@@ -791,25 +792,25 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     session.data.reasonCode = 0;
     session.data.reasonText = 'Call Cancelled';
 
-    console.log('Cancelling session : ' + lineNumber);
+    console.log('Cancelling session : ' + lineKey);
     if (session.state == SessionState.Initial || session.state == SessionState.Establishing) {
       session.cancel();
     } else {
       console.warn('Session not in correct state for cancel.', session.state);
-      console.log('Attempting teardown : ' + lineNumber);
+      console.log('Attempting teardown : ' + lineKey);
       teardownSession(lineObj);
     }
   }
 
   /**
    * Terminate Call Session Based on Session State
-   * @param lineNumber
+   * @param lineKey
    * @returns
    */
-  function endSession(lineNumber: LineType['lineNumber']) {
-    const lineObj = findLineByNumber(lineNumber);
+  function endSession(lineKey: LineType['lineKey']) {
+    const lineObj = findLineByLineKey(lineKey);
     if (lineObj == null) {
-      console.warn('Unable to find line (' + lineNumber + ')');
+      console.warn('Unable to find line (' + lineKey + ')');
       return;
     }
     const session = lineObj.sipSession;
@@ -852,7 +853,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         break;
       default:
         console.warn('Session not in correct state for cancel.', session.state);
-        console.log('Attempting teardown : ' + lineNumber);
+        console.log('Attempting teardown : ' + lineKey);
         teardownSession(lineObj);
         break;
     }
@@ -862,11 +863,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
    * Records the main screen + SIP audio into a WebM file.
    * Prompts user to download the recording after stopping.
    */
-  function recordSession(lineNumber: LineType['lineNumber']) {
+  function recordSession(lineKey: LineType['lineKey']) {
     async function start() {
-      const lineObj = findLineByNumber(lineNumber);
+      const lineObj = findLineByLineKey(lineKey);
       if (!lineObj?.sipSession) {
-        console.warn(`Line ${lineNumber} not found or has no SIP session`);
+        console.warn(`Line ${lineKey} not found or has no SIP session`);
         return;
       }
       const isVideoCall = lineObj.sipSession.data.callType === 'video';
@@ -964,7 +965,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         };
         updateLine(lineObj);
 
-        console.log('Recording started for line', lineNumber);
+        console.log('Recording started for line', lineKey);
       } catch (err) {
         console.error('Failed to start recording:', err);
         if (!lineObj?.sipSession?.data.recordMedia) return;
@@ -978,11 +979,11 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     }
 
     function stop() {
-      const lineObj = findLineByNumber(lineNumber);
+      const lineObj = findLineByLineKey(lineKey);
       if (!lineObj?.sipSession) return;
       const recorder = lineObj?.sipSession?.data.recordMedia?.recorder;
       if (!recorder) {
-        console.warn(`No active recorder for line ${lineNumber}`);
+        console.warn(`No active recorder for line ${lineKey}`);
         return;
       }
 
@@ -993,7 +994,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
         startTime: null,
       };
       updateLine(lineObj);
-      console.log('Recording stopped for line', lineNumber);
+      console.log('Recording stopped for line', lineKey);
     }
 
     return { start, stop };
@@ -1002,41 +1003,38 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /* -------------------------------- TRANSFER -------------------------------- */
   /**
    * Start Transfer Call Session
-   * @param lineNumber
-   * @param transferLineNumber
+   * @param lineKey
+   * @param transferNumber
    */
-  function makeTransferSession(
-    lineNumber: LineType['lineNumber'],
-    transferLineNumber: LineType['lineNumber'],
-  ) {
-    toggleHoldSession(lineNumber, true);
+  function makeTransferSession(lineKey: LineType['lineKey'], transferNumber: LineType['lineKey']) {
+    toggleHoldSession(lineKey, true);
     queueMicrotask(() => {
-      attendedTransferSession(lineNumber, transferLineNumber);
+      attendedTransferSession(lineKey, transferNumber);
     });
   }
 
   /**
    * Attend Transfer Call Session
    * @param lineObj
-   * @param transferLineNumber
+   * @param transferNumber
    * @returns
    */
   function attendedTransferSession(
-    lineNumber: LineType['lineNumber'],
-    transferLineNumber: LineType['lineNumber'],
+    lineKey: LineType['lineKey'],
+    transferNumber: LineType['remoteNumber'],
   ) {
-    const userAgent = getSipStore().userAgents?.[username];
+    const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
-      alert(`SIP userAgent for ${username} not registered`);
+      alert(`SIP userAgent for ${configKey} not registered`);
       return;
     }
-    const dstNo = String(transferLineNumber);
+    const dstNo = String(transferNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
 
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByLineKey(lineKey);
     if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
@@ -1047,7 +1045,7 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!session.data.transfer) session.data.transfer = [];
     session.data.transfer.push({
       type: 'Attended',
-      to: transferLineNumber,
+      to: transferNumber,
       transferTime: utcDateNow(),
       disposition: 'invite',
       dispositionTime: utcDateNow(),
@@ -1232,21 +1230,21 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
   /**
    * Cancel Transfered Call Session
    * @param lineObj
-   * @param transferLineNumber
+   * @param transferNumber
    * @returns
    */
   function cancelTransferSession(
-    lineNumber: LineType['lineNumber'],
-    transferLineNumber: LineType['lineNumber'],
+    lineKey: LineType['lineKey'],
+    transferNumber: LineType['lineKey'],
   ) {
     if (userAgent == null) return;
     if (!userAgent.isRegistered()) return;
-    const dstNo = String(transferLineNumber);
+    const dstNo = String(transferNumber);
     if (dstNo === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
-    const lineObj = findLineByNumber(lineNumber);
+    const lineObj = findLineByLineKey(lineKey);
     if (!lineObj?.sipSession) {
       console.warn('Null line or session');
       return;
@@ -1256,10 +1254,10 @@ export const sessionMethods = ({ username }: { username: SipAccountConfig['usern
     if (!session) return;
     if (!session.data.transfer) return;
     session.data.transfer.forEach((transfer) => {
-      if (transfer.to === transferLineNumber) transfer.onCancle?.();
+      if (transfer.to === transferNumber) transfer.onCancle?.();
     });
 
-    toggleHoldSession(lineNumber, false);
+    toggleHoldSession(lineKey, false);
 
     updateLine(lineObj);
   }
@@ -1334,7 +1332,7 @@ export function teardownSession(lineObj: LineType) {
   }
 
   // Stop Recording if we are TODO #SH
-  //   StopRecording(lineObj.LineNumber, true);
+  //   StopRecording(lineObj.LineKey, true);
 
   // Audio Meters
   if (lineObj.localSoundMeter !== null) {
@@ -1360,7 +1358,7 @@ export function teardownSession(lineObj: LineType) {
     });
   }
 
-  removeLine(lineObj.lineNumber);
+  removeLine(lineObj.lineKey);
 }
 /* -------------------------------------------------------------------------- */
 export async function sendMessageSession<T extends SendMessageSessionEnum>(
@@ -1401,8 +1399,8 @@ export async function sendVideoActivationWithAckRetry(
 
   return new Promise<void>((resolve, reject) => {
     const trySend = async () => {
-      if (!session?.data?.line) return;
-      const ackReceived = getSipStore().findLineByNumber(session?.data?.line)?.sipSession?.data
+      if (!session?.data?.lineKey) return;
+      const ackReceived = getSipStore().getSessionByLineKey(session?.data?.lineKey)?.data
         ?.videoAckReceived;
       console.log('VIDEO_TOGGLE_ACK', { ackReceived });
       if (ackReceived) {

@@ -11,33 +11,55 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 export interface SipStoreStateType {
-  configs: Record<SipAccountConfig['username'], SipConfigs> | null;
-  statuses: Record<SipAccountConfig['username'], SipUserAgentStatus> | null;
-  userAgents?: Record<SipAccountConfig['username'], SipUserAgent>;
-  lines: Record<SipAccountConfig['username'], Record<LineType['lineNumber'], LineType>>;
-  usernamesByLineNumber: Record<LineType['lineNumber'], SipAccountConfig['username']>;
-  lineNumberByRemoteNumber: Record<SipSessionDataType['remoteNumber'], LineType['lineNumber']>;
+  configs: Record<SipConfigs['key'], SipConfigs> | null;
+  statuses: Record<SipConfigs['key'], SipUserAgentStatus> | null;
+  userAgents?: Record<SipConfigs['key'], SipUserAgent>;
+  lines: Record<SipConfigs['key'], Record<LineType['lineKey'], LineType>>;
+  configKeysByLineKey: Record<LineType['lineKey'], SipConfigs['key']>;
+  lineKeyByRemoteNumber_ConfigKey: Record<SipSessionDataType['remoteNumber'], LineType['lineKey']>;
   devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
-  setConfig: (username: SipAccountConfig['username'], userAgent: SipConfigs) => void;
-  setUserAgent: (username: SipAccountConfig['username'], userAgent: SipUserAgent) => void;
-  addLine: (username: SipAccountConfig['username'], line: LineType) => void;
+  setConfig: (key: SipConfigs['key'], userAgent: SipConfigs) => void;
+  setUserAgent: (key: SipConfigs['key'], userAgent: SipUserAgent) => void;
+  addLine: (line: LineType) => void;
   updateLine: (line: LineType, callback?: CallbackFunction) => void;
-  removeLine: (lineNumber: LineType['lineNumber']) => void;
-  remove: (username: SipAccountConfig['username']) => void;
+  removeLine: (lineKey: LineType['lineKey']) => void;
+  remove: (key: SipConfigs['key']) => void;
   removeAll: () => void;
   // Getter
-  findLineByNumber: (lineNumber: LineType['lineNumber']) => LineType | null;
-  getSessionByNumber: (lineNumber: LineType['lineNumber']) => LineType['sipSession'] | null;
-  getUsernameByNumber: (lineNumber: LineType['lineNumber']) => SipAccountConfig['username'] | null;
-  getUsernameByRemoteNumber: (
-    remoteNumber: SipSessionDataType['remoteNumber'],
-  ) => SipAccountConfig['username'] | null;
-  getLineNumberByRemoteNumber: (
-    remoteNumber: SipSessionDataType['remoteNumber'],
-  ) => LineType['lineNumber'] | null;
-  getNewLineNumber: () => number;
+  findLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
+  getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['sipSession'] | null;
+  getConfigKeyByLineKey: (lineKey: LineType['lineKey']) => SipConfigs['key'] | null;
+  getConfigKeyByRemoteNumber_ConfigKey: ({
+    remoteNumber,
+    configKey,
+  }: {
+    remoteNumber: SipSessionDataType['remoteNumber'];
+    configKey: SipConfigs['key'];
+  }) => SipConfigs['key'] | null;
+  getLineKeyByRemoteNumber_ConfigKey: ({
+    remoteNumber,
+    configKey,
+  }: {
+    remoteNumber: SipSessionDataType['remoteNumber'];
+    configKey: SipConfigs['key'];
+  }) => LineType['lineKey'] | null;
+  getLineBy: ({
+    remoteNumber,
+    configKey,
+  }: {
+    remoteNumber: SipSessionDataType['remoteNumber'];
+    configKey: SipConfigs['key'];
+  }) => LineType | null;
+  remoteNumberConfigKeyResolver: ({
+    remoteNumber,
+    configKey,
+  }: {
+    remoteNumber: SipSessionDataType['remoteNumber'];
+    configKey: SipConfigs['key'];
+  }) => `${typeof remoteNumber}:${typeof configKey}`;
+  getNewLineKey: () => LineType['lineKey'];
 }
 
 export interface SipInvitationType
@@ -46,9 +68,8 @@ export interface SipInvitationType
   incomingInviteRequest: IncomingInviteRequest;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  isOnHold: boolean;
-  initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
-  initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
+  initiateLocalMediaStreams: (params?: InitiateMediaStreamsParams) => void;
+  initiateRemoteMediaStreams: (params?: InitiateMediaStreamsParams) => void;
 }
 
 export interface InitiateMediaStreamsParams {
@@ -64,9 +85,8 @@ export interface SipInviterType extends Inviter {
   data: Partial<SipSessionDataType>;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  isOnHold: boolean;
-  initiateLocalMediaStreams: (params: InitiateMediaStreamsParams) => void;
-  initiateRemoteMediaStreams: (params: InitiateMediaStreamsParams) => void;
+  initiateLocalMediaStreams: (params?: InitiateMediaStreamsParams) => void;
+  initiateRemoteMediaStreams: (params?: InitiateMediaStreamsParams) => void;
 }
 
 export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
@@ -75,8 +95,9 @@ export interface SipSessionDescriptionHandler extends SessionDescriptionHandler 
 }
 /* -------------------------------------------------------------------------- */
 export interface LineType {
-  lineNumber: number;
-  displayNumber: string;
+  lineKey: string;
+  remoteNumber: string;
+  configKey: SipConfigs['key'];
   sipSession: SipInvitationType | SipInviterType | null;
   localSoundMeter: any;
   remoteSoundMeter: any;
@@ -87,11 +108,13 @@ export interface SipSessionType extends Session {
 }
 
 export interface SipSessionDataType {
-  line: number;
+  configKey: SipConfigs['key'];
+  lineKey: LineType['lineKey'];
   callDirection: 'inbound' | 'outbound';
   callType: CallType;
   terminateBy: string;
   remoteNumber: string;
+  username: SipAccountConfig['username'];
   earlyReject: boolean;
   reasonCode: number;
   reasonText: string;
@@ -124,7 +147,7 @@ export interface SipSessionDataType {
 
 export interface SipSessionTransferType {
   type: 'Attended' | 'Blind';
-  to: number;
+  to: LineType['remoteNumber'];
   transferTime: string;
   disposition: string;
   dispositionTime: string;
