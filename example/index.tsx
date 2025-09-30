@@ -8,7 +8,8 @@ export const SipConnection = new SipManager();
 /* -------------------------------------------------------------------------- */
 const Providers = () => {
   const username = window.location.pathname.replace('/', '');
-  const configs = [
+  const configs = SipConnection.useWatchConfigs(); // recommended for rendering lines and accessing to the initialized configs with key(custom key when adding config / default: config.account.username)
+  const apiConfigs = [
     {
       account: {
         domain: '192.168.82.31',
@@ -23,15 +24,15 @@ const Providers = () => {
 
   useEffect(() => {
     // adding each config to SipConnection to get initialized
-    configs.map((config) => {
+    apiConfigs.map((config) => {
       SipConnection.add(config);
     });
-  }, [configs]);
+  }, [apiConfigs]);
 
   return (
     <StrictMode>
       {configs.map((config) => {
-        return <App key={config.account.username} username={config.account.username} />;
+        return <App key={config.key} username={config.account.username} />;
       })}
     </StrictMode>
   );

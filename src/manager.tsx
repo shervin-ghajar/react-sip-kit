@@ -38,6 +38,8 @@ export class SipManager {
 
   /**
    * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
+   *
+   * Recommended for rendering `Lines` with unique key(config.key)
    */
   public useWatchConfigs = useWatchConfigs;
 

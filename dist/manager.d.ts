@@ -1,3 +1,4 @@
+import { SipConfigs } from './configs/types';
 import { useWatchSessionData } from './hooks';
 import { LineType, SipUserAgentStatus } from './store/types';
 import { GetAccountKey, GetMethodsKey, LineLookup, SipManagerConfig } from './types';
@@ -13,6 +14,12 @@ export declare class SipManager {
      * Hook for reactively watching session data (delegates to Zustand store).
      */
     useWatchSessionData: typeof useWatchSessionData;
+    /**
+     * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
+     *
+     * Recommended for rendering `Lines` with unique key(config.key)
+     */
+    useWatchConfigs: () => SipConfigs[];
     /**
      * Update the configuration for an existing SIP instance.
      *
