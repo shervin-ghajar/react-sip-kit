@@ -1,4 +1,4 @@
-import { defaultSipConfigs } from '../../configs';
+import { defaultRegistrationConfig } from '../../configs';
 import { SipConfigs } from '../../configs/types';
 import { register } from '../../methods/registration';
 import { getSipStore, getSipStoreUserAgent, getSipUsernameConfigs, setSipStore } from '../../store';
@@ -15,9 +15,6 @@ export function onTransportConnected(
   userAgent.isReRegister = false;
   userAgent.transport.attemptingReconnection = false;
 
-  userAgent.transport.reconnectionAttempts =
-    defaultSipConfigs.registration.transportReconnectionAttempts;
-
   // Auto start register
   if (!userAgent.transport.attemptingReconnection && !userAgent.registering) {
     window.setTimeout(function () {
@@ -29,9 +26,17 @@ export function onTransportConnected(
     );
   }
   const { userAgents, statuses } = getSipStore();
+
+  userAgent.transport.reconnectionAttempts =
+    getSipUsernameConfigs(configKey)?.registration?.transportReconnectionAttempts ||
+    defaultRegistrationConfig.transportReconnectionAttempts;
+
   setSipStore({
     userAgents: { ...userAgents, [configKey]: userAgent },
-    statuses: { ...statuses, [configKey]: 'connecting' },
+    statuses: {
+      ...statuses,
+      [configKey]: userAgent.transport.isConnected() ? 'connected' : 'connecting',
+    },
   });
 }
 
@@ -75,6 +80,7 @@ export function onTransportDisconnected(configKey: SipConfigs['key'], userAgent:
 export function reconnectTransport(
   configKey: SipConfigs['key'],
   userAgent = getSipStoreUserAgent(configKey),
+  forceReconnect: boolean = false,
 ) {
   if (!userAgent) return;
 
@@ -94,7 +100,7 @@ export function reconnectTransport(
       console.log('Transport Already Connected...');
       onTransportConnected(configKey, userAgent);
       return;
-    } else if (userAgent.transport.reconnectionAttempts > 0) {
+    } else if (userAgent.transport.reconnectionAttempts > 0 || forceReconnect) {
       userAgent.transport.attemptingReconnection = true;
       userAgent.reconnect().catch(function (error) {
         userAgent.transport.attemptingReconnection = false;
@@ -110,7 +116,7 @@ export function reconnectTransport(
     'Attempt remaining',
     userAgent.transport.reconnectionAttempts,
   );
-  userAgent.transport.reconnectionAttempts = userAgent.transport.reconnectionAttempts - 1;
+  if (userAgent.transport.reconnectionAttempts > 0) --userAgent.transport.reconnectionAttempts;
   const { userAgents, statuses } = getSipStore();
   setSipStore({
     userAgents: { ...userAgents, [configKey]: userAgent },

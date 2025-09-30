@@ -3,9 +3,9 @@ import { SipConnection } from './main';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
-function App({ username }: { username: string }) {
-  const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey: username }); // all session methods like dial, answer, toggle video, toggle share-screen and so on
-  const { lines, status } = SipConnection.getAccountBy({ configKey: username }).watch(); // watches lines and status if they change
+function App({ configKey }: { configKey: string }) {
+  const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey }); // all session methods like dial, answer, toggle video, toggle share-screen and so on
+  const { lines, status } = SipConnection.getAccountBy({ configKey }).watch(); // watches lines and status if they change
   const renderLines = () => {
     return lines.map((line) => <SipLine key={line.lineKey} lineKey={line.lineKey} />);
   };
@@ -21,7 +21,7 @@ function App({ username }: { username: string }) {
       }}
     >
       <h2>
-        Web Phone {username} {status}
+        Web Phone {configKey} {status}
       </h2>
       <div
         style={{
@@ -51,6 +51,7 @@ function App({ username }: { username: string }) {
         <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
         <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
         <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
+        <button onClick={() => SipConnection.reconnect(configKey)}>{`Reconnect`}</button>
       </div>
     </div>
   );
