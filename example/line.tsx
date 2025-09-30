@@ -1,8 +1,8 @@
 import { SipConnection } from '.';
-import { useEffect } from 'react';
+import { memo, useEffect } from 'react';
 import { AudioStream, LineType, VideoStream } from 'react-sip-kit';
 
-export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
+export const Line = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const {
     answerAudioSession,
     answerVideoSession,
@@ -14,13 +14,12 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     makeTransferSession,
     toggleShareScreen,
     recordSession,
-    getSessionByLineKey,
   } = SipConnection.getSessionMethodsBy({ lineKey });
 
   // Watch session data reactively
   const [
     callType,
-    startTime,
+    started,
     callDirection,
     isOnHold,
     recordMedia,
@@ -31,7 +30,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     key: { lineKey },
     name: [
       'callType',
-      'startTime',
+      'started',
       'callDirection',
       'isHold',
       'recordMedia',
@@ -51,7 +50,7 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const remoteMediaStreamEnabled = remoteVideoEnabled || remoteScreenShareEnabled;
 
   // Misc session flags
-  const callStarted = !!startTime;
+  const callStarted = started;
   const isVideoCall = callType === 'video';
   const isOutbound = callDirection === 'outbound';
   const isMute = !localMediaStreamStatus?.soundEnabled;
@@ -66,17 +65,17 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      getSessionByLineKey(lineKey)?.initiateLocalMediaStreams(localMediaStreamEnabled);
+      SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams();
     }
-  }, [callStarted, localVideoEnabled, localScreenShareEnabled]);
+  }, [callStarted, localScreenShareEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      getSessionByLineKey(lineKey)?.initiateRemoteMediaStreams(remoteMediaStreamEnabled);
+      SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams();
     }
-  }, [callStarted, remoteVideoEnabled, remoteScreenShareEnabled]);
+  }, [callStarted, remoteScreenShareEnabled]);
 
   /* ------------------------------- UI Render ------------------------------- */
   return (
@@ -160,4 +159,4 @@ export const Line = ({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       <AudioStream type="remote" lineKey={lineKey} />
     </div>
   );
-};
+});

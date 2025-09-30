@@ -557,7 +557,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     if (screenShareEnabled) {
       // === STOP screen sharing ===
       const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-
       if (videoSender?.track) {
         // await videoSender.replaceTrack(null); // Optional: remove track
         const wasCameraEnabled = session.data.localMediaStreamStatus.videoEnabled;
@@ -586,16 +585,17 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         const screenTrack = displayStream.getVideoTracks()[0];
 
         screenTrack.onended = () => {
+          console.log('Screen share ended, restoring camera');
           toggleShareScreen(lineKey);
-        }; // Auto-toggle back on stop
+        };
 
-        const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-        const videoEnabled = session.data.localMediaStreamStatus.videoEnabled;
-        if (videoEnabled) await toggleLocalVideoTrack(lineKey);
+        let videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+
         if (videoSender) {
           await videoSender.replaceTrack(screenTrack);
         } else {
           pc.addTrack(screenTrack);
+          videoSender = pc.getSenders().find((s) => s.track === screenTrack);
         }
 
         session.data.localMediaStreamStatus.screenShareEnabled = true;

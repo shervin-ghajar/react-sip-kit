@@ -79,32 +79,48 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     session.data.started = true;
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
-      pc = session.sessionDescriptionHandler.peerConnection,
+      pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+        .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
       configs = getSipUsernameConfigs(configKey),
-    }) => {
+    } = {}) => {
       try {
         const media = configs?.media;
+        const line = getSipStore().findLineByLineKey(lineObj.lineKey);
+        const screenShareEnabled =
+          line?.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
 
-        const constraints: MediaStreamConstraints = {
-          audio: media?.audioInputDeviceId
-            ? media.audioInputDeviceId !== 'default'
-              ? { deviceId: { exact: media.audioInputDeviceId } }
-              : true
-            : false,
-          video:
-            isVideoEnabled && media?.videoInputDeviceId
-              ? media.videoInputDeviceId !== 'default'
-                ? { deviceId: { exact: media.videoInputDeviceId } }
+        let localStream: MediaStream;
+
+        if (screenShareEnabled) {
+          // === screen share already in place, preserve it ===
+          localStream = new MediaStream();
+          pc.getSenders().forEach(function (sender) {
+            if (sender.track && sender.track.kind === 'video') {
+              localStream.addTrack(sender.track);
+            }
+          });
+        } else {
+          // === normal camera/audio ===
+          const constraints: MediaStreamConstraints = {
+            audio: media?.audioInputDeviceId
+              ? media.audioInputDeviceId !== 'default'
+                ? { deviceId: { exact: media.audioInputDeviceId } }
                 : true
               : false,
-        };
+            video:
+              isVideoEnabled && media?.videoInputDeviceId
+                ? media.videoInputDeviceId !== 'default'
+                  ? { deviceId: { exact: media.videoInputDeviceId } }
+                  : true
+                : false,
+          };
 
-        const localStream = await navigator.mediaDevices.getUserMedia(constraints);
+          localStream = await navigator.mediaDevices.getUserMedia(constraints);
+        }
 
         // Replace existing audio/video tracks in PeerConnection
         localStream.getTracks().forEach((track) => {
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
-
           if (sender) {
             sender.replaceTrack(track);
           } else {
@@ -131,7 +147,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         console.error('initiateLocalMediaStreams failed:', err);
       }
     };
-    session.initiateLocalMediaStreams({ videoEnabled });
+    session.initiateLocalMediaStreams();
     updateLine(lineObj);
   }
 
@@ -409,15 +425,15 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
   async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
     // Gets remote tracks
-    console.log('onTrackAddedEvent');
     const session = lineObj.sipSession;
     if (!session) return;
 
     session.initiateRemoteMediaStreams = ({
       videoEnabled: isVideoEnabled = videoEnabled,
-      pc = session.sessionDescriptionHandler.peerConnection,
+      pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+        .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
       configs = getSipUsernameConfigs(configKey),
-    }) => {
+    } = {}) => {
       const media = configs?.media;
 
       const remoteAudioTracks = new Map<string, MediaStream>();
@@ -508,7 +524,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
       updateLine(lineObj);
     };
-    session.initiateRemoteMediaStreams({ videoEnabled });
+    session.initiateRemoteMediaStreams();
   }
 
   function onTransferSessionDescriptionHandlerCreated(
