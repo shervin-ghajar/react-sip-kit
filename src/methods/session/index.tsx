@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { Line } from '../../constructors';
 import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../events/session/types';
@@ -11,7 +11,7 @@ import {
   SipSessionType,
 } from '../../store/types';
 import { CallType } from '../../types';
-import { dayJs, utcDateNow } from '../../utils';
+import { utcDateNow } from '../../utils';
 import { spdOptions } from './spdOptions';
 import {
   SendMessageSessionEnum,
@@ -605,7 +605,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         return;
       }
     }
-
     updateLine(lineObj);
   }
 

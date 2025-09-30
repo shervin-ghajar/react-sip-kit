@@ -2,6 +2,7 @@ import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
 import { useSipManager, useWatchSessionData } from './hooks';
+import { useWatchConfigs } from './hooks/useWatchConfigs';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
@@ -36,6 +37,11 @@ export class SipManager {
   public useWatchSessionData = useWatchSessionData;
 
   /**
+   * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
+   */
+  public useWatchConfigs = useWatchConfigs;
+
+  /**
    * Update the configuration for an existing SIP instance.
    *
    * - Replaces stored config in memory and global store.
@@ -64,25 +70,28 @@ export class SipManager {
    */
   public async add(config: SipManagerConfig): Promise<void> {
     const configKey = config?.key ?? config.account.username;
-
-    if (this.instances.has(configKey) && isEqual(this.instances.get(configKey)?.config, config)) {
+    const clonedConfig = { ...config, key: configKey };
+    if (
+      this.instances.has(configKey) &&
+      isEqual(this.instances.get(configKey)?.config, clonedConfig)
+    ) {
       console.warn(`⚠️ SIP instance for ${configKey} already exists.`);
       return;
     }
 
     if (this.instances.has(configKey)) {
-      initilizeMediaStreams(config as SipConfigs);
-      this.updateConfig(configKey, config);
+      initilizeMediaStreams(clonedConfig as SipConfigs);
+      this.updateConfig(configKey, clonedConfig);
       return;
     }
 
     const instance = new SipInitializer(
-      deepMerge(defaultSipConfigs, config as SipConfigs),
+      deepMerge(defaultSipConfigs, clonedConfig as SipConfigs),
       configKey,
     );
     await instance.init();
 
-    this.instances.set(configKey, { config, instance });
+    this.instances.set(configKey, { config: clonedConfig, instance });
   }
 
   /**

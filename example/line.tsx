@@ -67,7 +67,7 @@ export const Line = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (localMediaStreamEnabled) {
       SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams();
     }
-  }, [callStarted, localScreenShareEnabled]);
+  }, [callStarted, localScreenShareEnabled, localMediaStreamEnabled]);
 
   useEffect(() => {
     if (!callStarted) return;
@@ -75,7 +75,7 @@ export const Line = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (remoteMediaStreamEnabled) {
       SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams();
     }
-  }, [callStarted, remoteScreenShareEnabled]);
+  }, [callStarted, remoteScreenShareEnabled, remoteMediaStreamEnabled]);
 
   /* ------------------------------- UI Render ------------------------------- */
   return (
