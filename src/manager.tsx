@@ -72,28 +72,25 @@ export class SipManager {
    */
   public async add(config: SipManagerConfig): Promise<void> {
     const configKey = config?.key ?? config.account.username;
-    const clonedConfig = { ...config, key: configKey };
+    const mergedConfig = deepMerge(defaultSipConfigs, { ...config, key: configKey } as SipConfigs);
     if (
       this.instances.has(configKey) &&
-      isEqual(this.instances.get(configKey)?.config, clonedConfig)
+      isEqual(this.instances.get(configKey)?.config, mergedConfig)
     ) {
       console.warn(`⚠️ SIP instance for ${configKey} already exists.`);
       return;
     }
 
     if (this.instances.has(configKey)) {
-      initilizeMediaStreams(clonedConfig as SipConfigs);
-      this.updateConfig(configKey, clonedConfig);
+      initilizeMediaStreams(mergedConfig as SipConfigs);
+      this.updateConfig(configKey, mergedConfig);
       return;
     }
 
-    const instance = new SipInitializer(
-      deepMerge(defaultSipConfigs, clonedConfig as SipConfigs),
-      configKey,
-    );
+    const instance = new SipInitializer(mergedConfig, configKey);
     await instance.init();
 
-    this.instances.set(configKey, { config: clonedConfig, instance });
+    this.instances.set(configKey, { config: mergedConfig, instance });
   }
 
   /**
@@ -144,7 +141,7 @@ export class SipManager {
 
   /** Force reconnect transport for an existing SIP instance. */
   public reconnect(configKey: string): void {
-    reconnectTransport(configKey);
+    reconnectTransport(configKey, undefined, true);
   }
 
   /**
