@@ -1,6 +1,6 @@
 import App from './App.tsx';
 import { SipManager } from './manager.tsx';
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 
 /* -------------------------------------------------------------------------- */
@@ -8,8 +8,10 @@ export const SipConnection = new SipManager();
 /* -------------------------------------------------------------------------- */
 const Providers = () => {
   const username = window.location.pathname.replace('/', '');
-  const [configs, setConfigs] = useState([
-    {
+  const configs = SipConnection.useWatchConfigs();
+
+  useEffect(() => {
+    SipConnection.add({
       account: {
         domain: '192.168.82.31',
         username: username,
@@ -18,39 +20,40 @@ const Providers = () => {
         webSocketPort: '8089',
         serverPath: '/ws',
       },
-    },
-  ]);
-
-  useEffect(() => {
-    // updating configs after 10 seconds
-    // setTimeout(() => {
-    //   setConfigs((prev) => [
-    //     ...prev,
-    //     {
-    //       account: {
-    //         domain: '192.168.82.31',
-    //         username: '1012',
-    //         password: '1012',
-    //         wssServer: '192.168.82.31',
-    //         webSocketPort: '8089',
-    //         serverPath: '/ws',
-    //       },
-    //     },
-    //   ]);
-    // }, 10000);
-  }, []);
-
-  useEffect(() => {
-    // adding each config to SipConnection to get initialized
-    configs.map((config) => {
-      SipConnection.add(config);
     });
-  }, [configs]);
+    // updating configs after 5 seconds
+    setTimeout(() => {
+      SipConnection.add({
+        account: {
+          domain: '192.168.82.31',
+          username: '1012',
+          password: '1012',
+          wssServer: '192.168.82.31',
+          webSocketPort: '8089',
+          serverPath: '/ws',
+        },
+      });
+    }, 5000);
+
+    setTimeout(() => {
+      SipConnection.add({
+        key: 'test',
+        account: {
+          domain: '192.168.82.31',
+          username: '1012',
+          password: '1012',
+          wssServer: '192.168.82.31',
+          webSocketPort: '8089',
+          serverPath: '/ws',
+        },
+      });
+    }, 10000);
+  }, []);
 
   return (
     <StrictMode>
       {configs.map((config) => {
-        return <App key={config.account.username} username={config.account.username} />;
+        return <App key={config.key} username={config.account.username} />;
       })}
     </StrictMode>
   );
