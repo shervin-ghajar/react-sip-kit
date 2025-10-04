@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { useSipStore } from '../../store';
 import { LineType } from '../../store/types';
 import { useMemo } from 'react';
@@ -17,7 +17,6 @@ export function useSipManager({ configKey }: { configKey: SipConfigs['key'] }) {
     const lines: LineType[] = useMemo(() => Object.values(linesObj), [lineCount]);
 
     const status = useSipStore((s) => s?.statuses?.[configKey]) ?? 'connecting';
-
     return {
       status,
       lines,

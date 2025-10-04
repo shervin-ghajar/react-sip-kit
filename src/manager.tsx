@@ -2,6 +2,7 @@ import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
 import { useSipManager, useWatchSessionData } from './hooks';
+import { useWatchConfigs } from './hooks/useWatchConfigs';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';
@@ -36,6 +37,13 @@ export class SipManager {
   public useWatchSessionData = useWatchSessionData;
 
   /**
+   * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
+   *
+   * Recommended for rendering `Lines` with unique key(config.key)
+   */
+  public useWatchConfigs = useWatchConfigs;
+
+  /**
    * Update the configuration for an existing SIP instance.
    *
    * - Replaces stored config in memory and global store.
@@ -64,25 +72,25 @@ export class SipManager {
    */
   public async add(config: SipManagerConfig): Promise<void> {
     const configKey = config?.key ?? config.account.username;
-
-    if (this.instances.has(configKey) && isEqual(this.instances.get(configKey)?.config, config)) {
+    const mergedConfig = deepMerge(defaultSipConfigs, { ...config, key: configKey } as SipConfigs);
+    if (
+      this.instances.has(configKey) &&
+      isEqual(this.instances.get(configKey)?.config, mergedConfig)
+    ) {
       console.warn(`⚠️ SIP instance for ${configKey} already exists.`);
       return;
     }
 
     if (this.instances.has(configKey)) {
-      initilizeMediaStreams(config as SipConfigs);
-      this.updateConfig(configKey, config);
+      initilizeMediaStreams(mergedConfig as SipConfigs);
+      this.updateConfig(configKey, mergedConfig);
       return;
     }
 
-    const instance = new SipInitializer(
-      deepMerge(defaultSipConfigs, config as SipConfigs),
-      configKey,
-    );
+    const instance = new SipInitializer(mergedConfig, configKey);
     await instance.init();
 
-    this.instances.set(configKey, { config, instance });
+    this.instances.set(configKey, { config: mergedConfig, instance });
   }
 
   /**
@@ -98,8 +106,6 @@ export class SipManager {
       configKey = key.configKey;
     } else if ('lineKey' in key && key.lineKey) {
       configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    } else if ('remoteNumber' in key && key.remoteNumber) {
-      configKey = store.getConfigKeyByRemoteNumber(key.remoteNumber) ?? '';
     }
 
     return sessionMethods({ configKey });
@@ -119,8 +125,6 @@ export class SipManager {
       configKey = key.configKey;
     } else if ('lineKey' in key && key.lineKey) {
       configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    } else if ('remoteNumber' in key && key.remoteNumber) {
-      configKey = store.getConfigKeyByRemoteNumber(key.remoteNumber) ?? '';
     }
 
     return {
@@ -137,7 +141,7 @@ export class SipManager {
 
   /** Force reconnect transport for an existing SIP instance. */
   public reconnect(configKey: string): void {
-    reconnectTransport(configKey);
+    reconnectTransport(configKey, undefined, true);
   }
 
   /**
@@ -174,8 +178,8 @@ export class SipManager {
       return store.findLineByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      const lineKey = store.getLineKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.findLineByLineKey(lineKey) : null;
     }
 
@@ -190,8 +194,8 @@ export class SipManager {
       return store.getSessionByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      const lineKey = store.getLineKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.getSessionByLineKey(lineKey) : null;
     }
 
@@ -205,8 +209,8 @@ export class SipManager {
       return store.getConfigKeyByLineKey(key.lineKey);
     }
 
-    if ('remoteNumber' in key && key?.remoteNumber) {
-      return store.getConfigKeyByRemoteNumber(key.remoteNumber);
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      return store.getConfigKeyByRemoteNumber_ConfigKey(key);
     }
 
     return null;

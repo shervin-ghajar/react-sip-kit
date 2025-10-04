@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { Line } from '../../constructors';
 import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../events/session/types';
@@ -11,7 +11,7 @@ import {
   SipSessionType,
 } from '../../store/types';
 import { CallType } from '../../types';
-import { dayJs, utcDateNow } from '../../utils';
+import { utcDateNow } from '../../utils';
 import { spdOptions } from './spdOptions';
 import {
   SendMessageSessionEnum,
@@ -67,8 +67,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    */
   function receiveSession(invitation: SipInvitationType) {
     console.log('receiveSession', { invitation });
-    let callerID =
-      invitation.remoteIdentity.displayName || invitation.remoteIdentity.uri.user || '';
+    let callerID = invitation.remoteIdentity.uri.user || invitation.remoteIdentity.displayName;
 
     console.log(`Incoming call from: ${callerID}`);
 
@@ -558,7 +557,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     if (screenShareEnabled) {
       // === STOP screen sharing ===
       const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-
       if (videoSender?.track) {
         // await videoSender.replaceTrack(null); // Optional: remove track
         const wasCameraEnabled = session.data.localMediaStreamStatus.videoEnabled;
@@ -587,16 +585,17 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         const screenTrack = displayStream.getVideoTracks()[0];
 
         screenTrack.onended = () => {
+          console.log('Screen share ended, restoring camera');
           toggleShareScreen(lineKey);
-        }; // Auto-toggle back on stop
+        };
 
-        const videoSender = pc.getSenders().find((sender) => sender.track?.kind === 'video');
-        const videoEnabled = session.data.localMediaStreamStatus.videoEnabled;
-        if (videoEnabled) await toggleLocalVideoTrack(lineKey);
+        let videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+
         if (videoSender) {
           await videoSender.replaceTrack(screenTrack);
         } else {
           pc.addTrack(screenTrack);
+          videoSender = pc.getSenders().find((s) => s.track === screenTrack);
         }
 
         session.data.localMediaStreamStatus.screenShareEnabled = true;
@@ -606,7 +605,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         return;
       }
     }
-
     updateLine(lineObj);
   }
 

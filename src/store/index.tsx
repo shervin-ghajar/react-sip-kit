@@ -20,7 +20,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   },
   lines: {},
   configKeysByLineKey: {},
-  lineKeyByRemoteNumber: {},
+  lineKeyByRemoteNumber_ConfigKey: {},
   setSipStore: (newState: Partial<SipStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
   setConfig: (configKey: SipConfigs['key'], config: SipConfigs) => {
@@ -44,9 +44,12 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         ...state.configKeysByLineKey,
         [newLine.lineKey]: configKey,
       },
-      lineKeyByRemoteNumber: {
+      lineKeyByRemoteNumber_ConfigKey: {
         ...state.configKeysByLineKey,
-        [newLine.remoteNumber]: newLine.lineKey,
+        [get().remoteNumberConfigKeyResolver({
+          remoteNumber: newLine.remoteNumber,
+          configKey: newLine.configKey,
+        })]: newLine.lineKey,
       },
     }));
   },
@@ -77,7 +80,10 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       if (!state.lines?.[configKey]?.[lineKey]) return state; // nothing to remove
       const { [lineKey]: _, ...rest } = state.lines[configKey];
       const { [lineKey]: __, ...restConfigKeysByLineKey } = state.configKeysByLineKey;
-      const { [remoteNumber]: ___, ...restLineKeyByRemoteNumber } = state.lineKeyByRemoteNumber;
+      const {
+        [get().remoteNumberConfigKeyResolver({ remoteNumber, configKey })]: ___,
+        ...restLineKeyByRemoteNumber_ConfigKey
+      } = state.lineKeyByRemoteNumber_ConfigKey;
       return {
         ...state,
         lines: {
@@ -89,8 +95,8 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         configKeysByLineKey: {
           ...restConfigKeysByLineKey,
         },
-        lineKeyByRemoteNumber: {
-          ...restLineKeyByRemoteNumber,
+        lineKeyByRemoteNumber_ConfigKey: {
+          ...restLineKeyByRemoteNumber_ConfigKey,
         },
       };
     });
@@ -144,18 +150,30 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   getConfigKeyByLineKey: (lineKey) => {
     return get().configKeysByLineKey[lineKey] ?? null;
   },
-  getConfigKeyByRemoteNumber: (remoteNumber) => {
-    const lineKey = get().getLineKeyByRemoteNumber(remoteNumber) ?? null;
+  getConfigKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
+    const lineKey =
+      get().lineKeyByRemoteNumber_ConfigKey[
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+      ] ?? null;
     if (!lineKey) return null;
     return get().getConfigKeyByLineKey(lineKey);
   },
-  getLineKeyByRemoteNumber: (remoteNumber) => {
-    const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
+  getLineKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
+    const lineKey =
+      get().lineKeyByRemoteNumber_ConfigKey[
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+      ] ?? null;
     return lineKey;
   },
-  getLineByRemoteNumber: (remoteNumber) => {
-    const lineKey = get().lineKeyByRemoteNumber[remoteNumber] ?? null;
+  getLineBy: ({ configKey, remoteNumber }) => {
+    const lineKey =
+      get().lineKeyByRemoteNumber_ConfigKey[
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+      ] ?? null;
     return get().findLineByLineKey(lineKey);
+  },
+  remoteNumberConfigKeyResolver: ({ configKey, remoteNumber }) => {
+    return `${remoteNumber}:${configKey}`;
   },
   getNewLineKey: () => generateUUID(),
 }));
