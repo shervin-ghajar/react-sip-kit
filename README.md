@@ -149,16 +149,42 @@ import { VideoStream, AudioStream } from 'react-sip-kit';
 
 ---
 
-## 🧠 Managing Config Keys
+### 🧠 Managing Config Keys & Dynamic Rendering
 
 ```tsx
-import { useWatchConfigs } from 'react-sip-kit';
-
-const configs = useWatchConfigs();
-// [{ key: 'support-01', account: {...} }, ...]
+const configs = SipConnection.useWatchConfigs();
+// → [{ key: 'support-01', account: {...} }, { key: 'sales-02', ... }]
 ```
 
-⚠️ **Always use `useWatchConfigs()` when configs are added dynamically to ensure correct `configKey` resolution.**
+✅ **When to use `useWatchConfigs()`**
+
+| Scenario                                               | Should you use it?      | Reason                                                                          |
+| ------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------- |
+| Static single account                                  | ❌ Not required          | `configKey` is constant                                                         |
+| You manually track configs in your own state           | ❌ Optional              | You already control the list                                                    |
+| **Rendering UI for *each* config account dynamically** | ✅ **Yes — recommended** | Ensures you always use the correct `configKey`, even if keys are auto-generated |
+| **Configs can be added or removed at runtime**         | ✅ **Always**            | Prevents mismatched lookups or stale references                                 |
+
+> **✔ Best Practice:**
+> Always call `useWatchConfigs()` when rendering **lists of lines or accounts**, to ensure that each component receives the correct and *current* `configKey`.
+
+---
+
+Example (Rendering a phone UI for *every* config dynamically):
+
+```tsx
+const AccountsUI = () => {
+  const configs = SipConnection.useWatchConfigs();
+
+  return (
+    <>
+      {configs.map((config) => (
+        <Lines key={config.key} configKey={config.key} />
+      ))}
+    </>
+  );
+};
+```
 
 ---
 

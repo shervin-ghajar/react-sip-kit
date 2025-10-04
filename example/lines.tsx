@@ -5,7 +5,7 @@ import { Line } from './Line';
 /*                                MAIN APP                                    */
 /* -------------------------------------------------------------------------- */
 
-function App({ configKey }: { configKey: string }) {
+function Lines({ configKey }: { configKey: string }) {
   const { lines, status } = SipConnection.getAccountBy({ configKey }).watch(); // watch (lines, status) changes
   const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey }); // Method to dial numbers
 
@@ -71,4 +71,4 @@ function App({ configKey }: { configKey: string }) {
   );
 }
 
-export default App;
+export default Lines;

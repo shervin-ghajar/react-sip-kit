@@ -1,4 +1,4 @@
-import App from './App.tsx';
+import Lines from './lines.tsx';
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { SipManager } from 'react-sip-kit';
@@ -32,7 +32,7 @@ const Providers = () => {
   return (
     <StrictMode>
       {configs.map((config) => {
-        return <App key={config.key} configKey={config.key} />;
+        return <Lines key={config.key} configKey={config.key} />;
       })}
     </StrictMode>
   );
