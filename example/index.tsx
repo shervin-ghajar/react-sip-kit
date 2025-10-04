@@ -32,7 +32,7 @@ const Providers = () => {
   return (
     <StrictMode>
       {configs.map((config) => {
-        return <App key={config.key} username={config.account.username} />;
+        return <App key={config.key} configKey={config.key} />;
       })}
     </StrictMode>
   );

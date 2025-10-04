@@ -5,9 +5,9 @@ import { Line } from './Line';
 /*                                MAIN APP                                    */
 /* -------------------------------------------------------------------------- */
 
-function App({ username }: { username: string }) {
-  const { lines, status } = SipConnection.getAccountBy({ username }).watch(); // watch (lines, status) changes
-  const { dialByNumber } = SipConnection.getSessionMethodsBy({ username }); // Method to dial numbers
+function App({ configKey }: { configKey: string }) {
+  const { lines, status } = SipConnection.getAccountBy({ configKey }).watch(); // watch (lines, status) changes
+  const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey }); // Method to dial numbers
 
   // Renders all active SIP lines
   const renderLines = () => {
@@ -27,7 +27,7 @@ function App({ username }: { username: string }) {
     >
       {/* Header */}
       <h2>
-        Web Phone — {username} ({status})
+        Web Phone — {configKey} ({status})
       </h2>
 
       {/* Active calls container */}

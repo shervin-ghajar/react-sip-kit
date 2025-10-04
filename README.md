@@ -1,4 +1,3 @@
-
 # react-sip-kit
 
 A modern **React SIP.js toolkit** for building web softphones and SIP clients.  
@@ -8,14 +7,14 @@ Supports **audio/video calls**, **call recording**, **screen sharing**, and **de
 
 ## ✨ Features
 
-- 📞 **Audio & Video Calls** — automatic device detection  
-- 🎥 **Video Support** — manage local & remote streams seamlessly  
-- 🔴 **Call Recording** — audio/video recording built-in  
+- 📞 **Audio & Video Calls** — with device auto-detection  
+- 🎥 **Video Support** — render local & remote streams easily  
+- 🔴 **Call Recording** — audio/video capture  
 - 🖥️ **Screen Sharing** — during video calls  
-- 🎧 **Device Management** — select audio/video input & output devices  
-- 🔄 **Multi-account & Multi-line Support** — handle multiple SIP accounts and concurrent calls  
-- ⚡ **TypeScript-first** — type-safe, modular APIs  
-- 🛠️ **Configurable & Extensible** — tailored to your SIP setup  
+- 🎧 **Device Management** — choose input/output devices  
+- 🔄 **Multi-Account & Multi-Line Support** — concurrent calls  
+- ⚡ **TypeScript-first API** — safe and clean  
+- 🛠️ **Configurable & Extensible**
 
 ---
 
@@ -29,11 +28,9 @@ yarn add react-sip-kit
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### 1️⃣ Initialize a `SipManager`
-
-Create a single `SipManager` instance. Add accounts dynamically as needed.
+### 1️⃣ Create a SipManager Instance
 
 ```tsx
 // main.tsx
@@ -47,6 +44,7 @@ export const SipConnection = new SipManager();
 const Providers = () => {
   const configs = [
     {
+      key: 'support-01', // Optional → If omitted, defaults to account.username
       account: {
         domain: 'sip.example.com',
         username: '1010',
@@ -60,13 +58,11 @@ const Providers = () => {
 
   useEffect(() => {
     configs.forEach((config) => SipConnection.add(config));
-  }, [configs]);
+  }, []);
 
   return (
     <StrictMode>
-      {configs.map((config) => (
-        <App key={config.account.username} username={config.account.username} />
-      ))}
+      <App />
     </StrictMode>
   );
 };
@@ -76,108 +72,71 @@ createRoot(document.getElementById('root')!).render(<Providers />);
 
 ---
 
-### 2️⃣ Access SIP state & methods
+## 🔑 Resolving Accounts & Sessions
 
-Fetch **methods** and **account state** via username, lineKey, or remoteNumber:
+All lookups use one of the following keys:
+
+| Key            | Purpose                                                       | Example                                             |
+| -------------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| `configKey`    | Refers to a specific SIP account instance                     | `{ configKey: 'support-01' }`                       |
+| `lineKey`      | Refers to an **active call** / line                           | `{ lineKey: 1 }`                                    |
+| `remoteNumber` | Refers to peer phone number — must be paired with `configKey` | `{ configKey: 'support-01', remoteNumber: '1001' }` |
+
+---
+
+### 2️⃣ Access Methods (Dial, Hold, Mute, etc.)
 
 ```tsx
-// App.tsx
-import { SipConnection } from './main';
+// Using configKey
+const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey: 'support-01' });
+dialByNumber('audio', '1002');
 
-function App({ username }: { username: string }) {
-  const { dialByNumber } = SipConnection.getSessionMethodsBy({ username });
-  const { watch, status, lines } = SipConnection.getAccountBy({ username });
-
-  const account = watch();
-
-  return (
-    <>
-      <h2>Web Phone {username} — {status}</h2>
-      <button onClick={() => dialByNumber('audio', '1012')}>Call 1012</button>
-      <button onClick={() => dialByNumber('video', '1012')}>Video Call 1012</button>
-    </>
-  );
-}
-```
-
-You can also use **lineKey** or **remoteNumber** instead of username:
-
-```ts
-SipConnection.getSessionMethodsBy({ lineKey: 1 });
-SipConnection.getAccountBy({ remoteNumber: '1001' });
+// Using lineKey (after a call is active)
+SipConnection.getSessionMethodsBy({ lineKey: 1 }).hold();
 ```
 
 ---
 
-### 3️⃣ Watch session data (`useWatchSessionData`)
+### 3️⃣ Read Account State (Reactive)
 
-Fine-grained updates for a line/session:
+```tsx
+const { watch, status } = SipConnection.getAccountBy({ configKey: 'support-01' });
+const account = watch(); // contains lines, registration, media devices, etc.
+```
+
+---
+
+### 4️⃣ Track Session State (`useWatchSessionData`)
 
 ```tsx
 import { useWatchSessionData } from 'react-sip-kit';
 
-function RecordingStatus({ lineKey }: { lineKey: number }) {
-  const isRecording = useWatchSessionData({
-    key: { lineKey },
-    name: 'recordMedia.recording',
-  });
-
-  return <p>Recording: {isRecording ? 'Yes' : 'No'}</p>;
-}
-```
-
-Watch multiple fields:
-
-```tsx
-const [localMediaStatus, isRecording] = useWatchSessionData({
+const isRecording = useWatchSessionData({
   key: { lineKey: 1 },
-  name: ['localMediaStreamStatus', 'recordMedia.recording'],
+  name: 'recordMedia.recording',
+});
+
+const [mediaStatus, isMuted] = useWatchSessionData({
+  key: { configKey: 'support-01', remoteNumber: '1002' },
+  name: ['localMediaStreamStatus', 'localMediaStreamStatus.muted'],
 });
 ```
 
-Works with `remoteNumber` as well:
-
-```tsx
-const isMuted = useWatchSessionData({
-  key: { remoteNumber: '1001' },
-  name: 'localMediaStreamStatus.muted',
-});
-```
 ---
 
-### 4️⃣ Helper Resolver Methods
-
-`SipManager` provides convenient **resolver methods** for quickly looking up lines, sessions, or usernames by `lineKey` or `remoteNumber`. These help avoid manually mapping usernames or tracking lines.
+### 5️⃣ Resolver Helper Methods
 
 ```ts
-import { SipConnection } from './main';
+SipConnection.getLineBy({ lineKey: 1 });
+SipConnection.getLineBy({ configKey: 'support-01', remoteNumber: '1002' });
 
-// Get a specific line
-const line = SipConnection.getLineBy({ lineKey: 1 });
-// or by remote number
-const remoteLine = SipConnection.getLineBy({ remoteNumber: '1001' });
-
-// Get an active SIP session
-const session = SipConnection.getSessionBy({ lineKey: 1 });
-// or by remote number
-const remoteSession = SipConnection.getSessionBy({ remoteNumber: '1001' });
-
-// Get the username for a line
-const username = SipConnection.getUsernameBy({ lineKey: 1 });
-// or by remote number
-const remoteUsername = SipConnection.getUsernameBy({ remoteNumber: '1001' });
+SipConnection.getSessionBy({ lineKey: 1 });
+SipConnection.getUsernameBy({ configKey: 'support-01', remoteNumber: '1002' });
 ```
-
-**Notes:**
-* These methods are **lookup helpers only** — they do not return reactive data.
-* Combine with `getAccountBy()` or `useWatchSessionData()` for reactive state.
-* Useful when you have only a `lineKey` or `remoteNumber` but need the username or session quickly.
 
 ---
 
-### 5️⃣ Render media streams
-
-Media components are line-bound:
+### 6️⃣ Render Media Streams
 
 ```tsx
 import { VideoStream, AudioStream } from 'react-sip-kit';
@@ -190,12 +149,24 @@ import { VideoStream, AudioStream } from 'react-sip-kit';
 
 ---
 
-## ⚙️ Configuration
+## 🧠 Managing Config Keys
 
-Each SIP account supports account, media, and feature settings:
+```tsx
+import { useWatchConfigs } from 'react-sip-kit';
+
+const configs = useWatchConfigs();
+// [{ key: 'support-01', account: {...} }, ...]
+```
+
+⚠️ **Always use `useWatchConfigs()` when configs are added dynamically to ensure correct `configKey` resolution.**
+
+---
+
+## ⚙️ Configuration Schema
 
 ```ts
 {
+  key?: string; // optional → falls back to account.username
   account: {
     domain: 'your.sip.domain',
     username: 'user',
@@ -204,38 +175,41 @@ Each SIP account supports account, media, and feature settings:
     webSocketPort: '8089',
     serverPath: '/ws',
   },
-  features: { enableVideo: true },
-  media: {
-    audioInputDeviceId: 'default',
-    audioOutputDeviceId: 'default',
-    videoInputDeviceId: 'default',
+  features?: { enableVideo?: boolean },
+  media?: {
+    audioInputDeviceId?: string;
+    audioOutputDeviceId?: string;
+    videoInputDeviceId?: string;
   },
-  registration: { registerExpires: 3600 },
+  registration?: { registerExpires?: number },
 }
 ```
 
 ---
 
-## 💡 Best Practices
+## ✅ Best Practices
 
-* Use `username`, `lineKey`, or `remoteNumber` to fetch methods/state.
-* `.watch()` provides reactive account data (`lines`, `status`).
-* `useWatchSessionData` tracks **line-specific updates** (mute, hold, video, recording, etc.).
-* Render `<VideoStream>` & `<AudioStream>` only for active calls.
-* Manage mic/camera permissions upfront.
-* Add accounts dynamically with `SipConnection.add(config)`.
+| Task                   | Recommended Approach              |
+| ---------------------- | --------------------------------- |
+| Reference active call  | Use `lineKey` when available      |
+| Reference account      | Use `configKey`                   |
+| Lookup by phone number | Use `{ configKey, remoteNumber }` |
+| Track config keys      | Use `useWatchConfigs()`           |
+| Watch configs state    | `useWatchConfigs()`               |
+| Watch account state    | `getAccountBy().watch()`          |
+| Watch session props    | `useWatchSessionData()`           |
 
 ---
 
-## 🧑‍💻 Examples
+## 📂 Examples
 
 Check [`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) for:
 
-* Multi-account setups
-* Audio & video calls
-* Hold, mute, attended transfer
+* Multi-account softphone
+* Audio/video calls
+* Hold / mute / attended transfer
 * Call recording & screen sharing
-* Local & remote media rendering
+* Stream rendering
 
 ---
 
@@ -249,6 +223,6 @@ MIT
 
 **Shervin Ghajar**
 
-* GitHub: [@shervin-ghajar](https://github.com/shervin-ghajar)
-* NPM: [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
-* Repository: [react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)
+* GitHub: [https://github.com/shervin-ghajar](https://github.com/shervin-ghajar)
+* NPM: [https://www.npmjs.com/package/react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
+* Repository: [https://github.com/shervin-ghajar/react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)
