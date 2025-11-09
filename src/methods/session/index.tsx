@@ -690,8 +690,9 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    */
   function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
     const lineObj = findLineByLineKey(lineKey);
-    if (lineObj == null || lineObj.sipSession == null) return;
+    if (!lineObj?.sipSession) return;
     const session = lineObj.sipSession;
+    session.data.isHold = session.data.isHold ?? false;
     if (session.data.isHold === forcedValue) return;
     console.log('Toggle Call on hold:', lineKey);
     const toggledHold = forcedValue ?? !(session.data.isHold ?? false);
@@ -707,7 +708,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       const pc = session.sessionDescriptionHandler.peerConnection;
       // Stop all the inbound streams
       pc.getReceivers().forEach(function (RTCRtpReceiver) {
-        if (RTCRtpReceiver.track) RTCRtpReceiver.track.enabled = toggledHold;
+        if (RTCRtpReceiver.track) RTCRtpReceiver.track.enabled = !toggledHold;
       });
       // Stop all the outbound streams (especially useful for Conference Calls!!)
       pc.getSenders().forEach(function (RTCRtpSender) {
@@ -717,15 +718,15 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
           if (track.IsMixedTrack == true) {
             if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
               console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-              session.data.audioSourceTrack.enabled = toggledHold;
+              session.data.audioSourceTrack.enabled = !toggledHold;
             }
           }
           console.log('Toggle Audio Track : ' + track.label);
-          track.enabled = toggledHold;
+          track.enabled = !toggledHold;
         }
         // Stop Video
         else if (track && track.kind == 'video') {
-          track.enabled = toggledHold;
+          track.enabled = !toggledHold;
         }
       });
     }
