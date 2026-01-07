@@ -507,6 +507,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
       updateLine(lineObj);
     };
     session.initiateRemoteMediaStreams();
+    updateLine(lineObj);
   }
 
   function onTransferSessionDescriptionHandlerCreated(
