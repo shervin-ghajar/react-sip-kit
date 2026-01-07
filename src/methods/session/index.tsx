@@ -57,6 +57,8 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
 
   const { makeAudioSpdOptions, answerAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
     spdOptions({ configKey });
+
+  const teardownSessionCallback = (lineObj: LineType) => () => teardownSession(lineObj);
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
@@ -122,7 +124,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     // Session Delegates
     session.delegate = {
       onBye: function (sip) {
-        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
+        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
       },
       onMessage: function (sip) {
         onSessionReceivedMessage(lineObj, sip);
@@ -143,7 +145,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.incomingInviteRequest.delegate = {
       onCancel: function (sip) {
         console.log('onInviteCancel');
-        onInviteCancel(lineObj, sip, () => teardownSession(lineObj));
+        onInviteCancel(lineObj, sip, teardownSessionCallback(lineObj));
       },
     };
 
@@ -271,12 +273,15 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.callType = 'audio';
     session.delegate = {
       onBye: function (sip) {
-        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
+        console.log('makeAudioSession onBye');
+        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
       },
       onMessage: function (sip) {
+        console.log('makeAudioSession onMessage');
         onSessionReceivedMessage(lineObj, sip);
       },
       onInvite: function (sip) {
+        console.log('makeAudioSession onInvite');
         onSessionReinvited(lineObj, sip);
       },
       onSessionDescriptionHandler: function (sdh, provisional) {
@@ -311,7 +316,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         },
         onReject: function (sip) {
           console.log('makeAudioSession 5');
-          onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          onInviteRejected(lineObj, sip, teardownSessionCallback(lineObj));
         },
       },
     };
@@ -456,7 +461,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.earlyReject = false;
     session.delegate = {
       onBye: function (sip) {
-        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
+        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
       },
       onMessage: function (sip) {
         onSessionReceivedMessage(lineObj, sip);
@@ -488,7 +493,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
           onInviteAccepted(lineObj, true, sip);
         },
         onReject: function (sip) {
-          onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          onInviteRejected(lineObj, sip, teardownSessionCallback(lineObj));
         },
       },
     };

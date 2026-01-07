@@ -200,6 +200,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     callback?: CallbackFunction<any>,
   ) {
     // They Ended the call
+    console.log('onSessionReceivedBye', { lineObj });
     if (!lineObj?.sipSession) return;
     lineObj.sipSession.data.terminateBy = 'them';
     lineObj.sipSession.data.reasonCode = 16;
@@ -393,6 +394,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     includeVideo?: boolean,
   ) {
     if (sdh) {
+      console.log('onSessionDescriptionHandlerCreated', sdh.peerConnection);
       if (sdh.peerConnection) {
         sdh.peerConnection.ontrack = function (event) {
           onTrackAddedEvent(lineObj, includeVideo);
