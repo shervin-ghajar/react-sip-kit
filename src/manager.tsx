@@ -1,8 +1,9 @@
 import { defaultSipConfigs } from './configs';
 import { SipConfigs } from './configs/types';
 import { reconnectTransport } from './events/transport';
-import { useSipManager, useWatchSessionData } from './hooks';
+import { useSipManager } from './hooks/useSipManager';
 import { useWatchConfigs } from './hooks/useWatchConfigs';
+import { useWatchSessionData } from './hooks/useWatchSessionData';
 import { SipInitializer } from './initializer';
 import { initilizeMediaStreams } from './methods/initialization';
 import { sessionMethods } from './methods/session';

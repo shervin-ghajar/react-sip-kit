@@ -109,14 +109,12 @@ const account = watch(); // contains lines, registration, media devices, etc.
 ### 4️⃣ Track Session State (`useWatchSessionData`)
 
 ```tsx
-import { useWatchSessionData } from 'react-sip-kit';
-
-const isRecording = useWatchSessionData({
+const isRecording = SipConnection.useWatchSessionData({
   key: { lineKey: 1 },
   name: 'recordMedia.recording',
 });
 
-const [mediaStatus, isMuted] = useWatchSessionData({
+const [mediaStatus, isMuted] = SipConnection.useWatchSessionData({
   key: { configKey: 'support-01', remoteNumber: '1002' },
   name: ['localMediaStreamStatus', 'localMediaStreamStatus.muted'],
 });
@@ -173,7 +171,7 @@ const configs = SipConnection.useWatchConfigs();
 Example (Rendering a phone UI for *every* config dynamically):
 
 ```tsx
-const AccountsUI = () => {
+const App = () => {
   const configs = SipConnection.useWatchConfigs();
 
   return (
