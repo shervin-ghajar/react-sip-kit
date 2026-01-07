@@ -48,8 +48,17 @@ export class SipInitializer {
         traceSip: false,
         connectionTimeout: this.configs.registration.transportConnectionTimeout,
       },
+      sessionDescriptionHandlerFactoryOptions: {
+        peerConnectionConfiguration: {
+          bundlePolicy: 'balanced',
+        },
+        iceGatheringTimeout: 500,
+      },
       authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,
+      hackIpInContact: true,
+      contactParams: {},
+
       delegate: {
         onInvite: sessionMethods({ configKey: this.configKey }).receiveSession as any,
         onMessage: () => console.log('Received message'),
