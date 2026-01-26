@@ -20,7 +20,7 @@ export declare const sessionMethods: ({ configKey }: {
         stop: () => void;
     };
     toggleMuteSession: (lineKey: LineType["lineKey"]) => void;
-    toggleHoldSession: (lineKey: LineType["lineKey"], forcedValue?: boolean) => void;
+    toggleHoldSession: (lineKey: LineType["lineKey"], forcedValue?: boolean) => Promise<void>;
     makeTransferSession: (lineKey: LineType["lineKey"], transferNumber: LineType["lineKey"]) => void;
     cancelTransferSession: (lineKey: LineType["lineKey"], transferNumber: LineType["lineKey"]) => void;
     cancelSession: (lineKey: LineType["lineKey"]) => void;
