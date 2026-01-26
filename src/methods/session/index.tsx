@@ -14,6 +14,7 @@ import { CallType } from '../../types';
 import { utcDateNow } from '../../utils';
 import { spdOptions } from './spdOptions';
 import {
+  DialRequestDelegate,
   SendMessageSessionEnum,
   SendMessageSessionValueType,
   SPDOptionsType,
@@ -27,7 +28,6 @@ import {
   URI,
   UserAgent,
 } from 'sip.js';
-
 /* -------------------------------------------------------------------------- */
 /*                            MAIN SESSION METHODS                            */
 /* -------------------------------------------------------------------------- */
@@ -57,8 +57,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
 
   const { makeAudioSpdOptions, answerAudioSpdOptions, answerVideoSpdOptions, makeVideoSpdOptions } =
     spdOptions({ configKey });
-
-  const teardownSessionCallback = (lineObj: LineType) => () => teardownSession(lineObj);
   /* -------------------------------------------------------------------------- */
   /*                       Init-Session Call Functionality                      */
   /* -------------------------------------------------------------------------- */
@@ -124,7 +122,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     // Session Delegates
     session.delegate = {
       onBye: function (sip) {
-        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
+        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
       onMessage: function (sip) {
         onSessionReceivedMessage(lineObj, sip);
@@ -145,7 +143,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.incomingInviteRequest.delegate = {
       onCancel: function (sip) {
         console.log('onInviteCancel');
-        onInviteCancel(lineObj, sip, teardownSessionCallback(lineObj));
+        onInviteCancel(lineObj, sip, () => teardownSession(lineObj));
       },
     };
 
@@ -222,6 +220,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function makeAudioSession(
     lineObj: LineType,
     dialledNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     console.log(222, { lineObj, dialledNumber, extraHeaders });
@@ -273,15 +272,12 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.callType = 'audio';
     session.delegate = {
       onBye: function (sip) {
-        console.log('makeAudioSession onBye');
-        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
+        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
       onMessage: function (sip) {
-        console.log('makeAudioSession onMessage');
         onSessionReceivedMessage(lineObj, sip);
       },
       onInvite: function (sip) {
-        console.log('makeAudioSession onInvite');
         onSessionReinvited(lineObj, sip);
       },
       onSessionDescriptionHandler: function (sdh, provisional) {
@@ -294,29 +290,34 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         );
       },
     };
+
     const inviterOptions: InviterInviteOptions = {
       // sessionDescriptionHandlerOptions: spdOptions.sessionDescriptionHandlerOptions,
       requestDelegate: {
-        // OutgoingRequestDelegate
         onTrying: function (sip) {
-          console.log('makeAudioSession 1');
+          console.log('makeAudioSession 1', sip);
           onInviteTrying(lineObj, sip);
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
         onProgress: function (sip) {
-          console.log('makeAudioSession 2');
+          console.log('makeAudioSession 2', sip);
           onInviteProgress(lineObj, sip);
+          request?.onProgress?.(lineObj.lineKey, sip);
         },
         onRedirect: function (sip) {
-          console.log('makeAudioSession 3');
+          console.log('makeAudioSession 3', sip);
           onInviteRedirected(lineObj, sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
         onAccept: function (sip) {
-          console.log('makeAudioSession 4');
-          onInviteAccepted(lineObj, false, sip);
+          console.log('makeAudioSession 4', sip);
+          onInviteAccepted(lineObj, false);
+          request?.onAccept?.(lineObj.lineKey, sip);
         },
         onReject: function (sip) {
-          console.log('makeAudioSession 5');
-          onInviteRejected(lineObj, sip, teardownSessionCallback(lineObj));
+          console.log('makeAudioSession 5', sip);
+          onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };
@@ -324,6 +325,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       console.warn('Failed to send INVITE:', e);
     });
     // updateLine(lineObj);
+    return inviterOptions.requestDelegate as NonNullable<DialRequestDelegate>;
   }
 
   /**
@@ -404,6 +406,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function makeVideoSession(
     lineObj: LineType,
     dialledNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     if (userAgent == null) return;
@@ -461,7 +464,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.earlyReject = false;
     session.delegate = {
       onBye: function (sip) {
-        onSessionReceivedBye(lineObj, sip, teardownSessionCallback(lineObj));
+        onSessionReceivedBye(lineObj, sip, () => teardownSession(lineObj));
       },
       onMessage: function (sip) {
         onSessionReceivedMessage(lineObj, sip);
@@ -482,18 +485,23 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       requestDelegate: {
         onTrying: function (sip) {
           onInviteTrying(lineObj, sip);
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
         onProgress: function (sip) {
           onInviteProgress(lineObj, sip);
+          request?.onProgress?.(lineObj.lineKey, sip);
         },
         onRedirect: function (sip) {
           onInviteRedirected(lineObj, sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
         onAccept: function (sip) {
-          onInviteAccepted(lineObj, true, sip);
+          onInviteAccepted(lineObj, true);
+          request?.onAccept?.(lineObj.lineKey, sip);
         },
         onReject: function (sip) {
-          onInviteRejected(lineObj, sip, teardownSessionCallback(lineObj));
+          onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };
@@ -657,6 +665,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function dialByNumber(
     type: Extract<CallType, 'audio' | 'video'>,
     dialNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     const userAgent = getSipStore().userAgents?.[configKey];
@@ -675,9 +684,9 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
 
     // Start Call Invite
     if (type === 'audio') {
-      makeAudioSession(lineObj, dialNumber, extraHeaders);
+      makeAudioSession(lineObj, dialNumber, request, extraHeaders);
     } else {
-      makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
+      makeVideoSession(lineObj, dialNumber, request, extraHeaders ?? []);
     }
     addLine(lineObj);
   }
@@ -1027,6 +1036,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function attendedTransferSession(
     lineKey: LineType['lineKey'],
     transferNumber: LineType['remoteNumber'],
+    request?: DialRequestDelegate,
   ) {
     const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
@@ -1118,7 +1128,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       if (
         (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'object' &&
           Object.keys(spdOptions.sessionDescriptionHandlerOptions.constraints.video)?.length ==
-            0) ||
+          0) ||
         typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'boolean'
       )
         spdOptions.sessionDescriptionHandlerOptions.constraints.video = true;
@@ -1150,12 +1160,13 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.childsession = newSession as SipSessionType;
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
-        onTrying: function () {
+        onTrying: function (sip) {
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'trying';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
-        onProgress: function () {
+        onProgress: function (sip) {
           console.log('onProgress');
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'progress';
@@ -1169,12 +1180,14 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
             session.data.transfer[transferId].accept.disposition = 'cancel';
             session.data.transfer[transferId].accept.eventTime = utcDateNow();
           };
+          request?.onProgress?.(lineObj.lineKey, sip);
           console.log('New call session canceled');
         },
         onRedirect: function (sip) {
           console.log('Redirect received:', sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
-        onAccept: function () {
+        onAccept: function (sip) {
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'accepted';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
@@ -1198,6 +1211,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
                 session.bye().catch(function (error) {
                   console.warn('Could not BYE after blind transfer:', error);
                 });
+                request?.onAccept?.(lineObj.lineKey, sip);
 
                 teardownSession(lineObj);
               },
@@ -1209,6 +1223,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
                 session.data.transfer[transferId].accept.disposition =
                   sip.message.reasonPhrase ?? '';
                 session.data.transfer[transferId].accept.eventTime = utcDateNow();
+                request?.onReject?.(lineObj.lineKey, sip);
               },
             },
           };
@@ -1223,6 +1238,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
           console.log('New call session rejected: ', sip.message.reasonPhrase);
           session.data.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };

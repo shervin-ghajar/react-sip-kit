@@ -60,7 +60,6 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
   async function onInviteAccepted(
     lineObj: LineType,
     videoEnabled: boolean,
-    response?: IncomingResponse,
   ) {
     // Call in progress
     const session = lineObj.sipSession;
