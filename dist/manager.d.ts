@@ -51,12 +51,12 @@ export declare class SipManager {
         receiveSession: (invitation: import("./store/types").SipInvitationType) => void;
         answerAudioSession: (lineKey: LineType["lineKey"]) => void;
         answerVideoSession: (lineKey: LineType["lineKey"], enableVideo?: boolean) => void;
-        makeAudioSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
-        makeVideoSession: (lineObj: LineType, dialledNumber: string, extraHeaders?: Array<string>) => void;
+        makeAudioSession: (lineObj: LineType, dialledNumber: string, request?: import(".").DialRequestDelegate, extraHeaders?: Array<string>) => import(".").DialRequestDelegate | undefined;
+        makeVideoSession: (lineObj: LineType, dialledNumber: string, request?: import(".").DialRequestDelegate, extraHeaders?: Array<string>) => void;
         toggleLocalVideoTrack: (lineKey: LineType["lineKey"]) => Promise<void>;
         toggleShareScreen: (lineKey: LineType["lineKey"]) => Promise<void>;
         rejectSession: (lineKey: LineType["lineKey"]) => void;
-        dialByNumber: (type: Extract<import("./types").CallType, "audio" | "video">, dialNumber: string, extraHeaders?: Array<string>) => void;
+        dialByNumber: (type: Extract<import("./types").CallType, "audio" | "video">, dialNumber: string, request?: import(".").DialRequestDelegate, extraHeaders?: Array<string>) => void;
         endSession: (lineKey: LineType["lineKey"]) => void;
         recordSession: (lineKey: LineType["lineKey"]) => {
             start: () => Promise<void>;

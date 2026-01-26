@@ -7,7 +7,7 @@ export declare const sessionEvents: ({ configKey }: {
     configKey: SipConfigs["key"];
 }) => {
     onInviteCancel: (lineObj: LineType, response: IncomingRequestMessage, callback?: CallbackFunction<any>) => void;
-    onInviteAccepted: (lineObj: LineType, videoEnabled: boolean, response?: IncomingResponse) => Promise<void>;
+    onInviteAccepted: (lineObj: LineType, videoEnabled: boolean) => Promise<void>;
     onInviteTrying: (lineObj: LineType, response: IncomingResponse) => void;
     onInviteProgress: (lineObj: LineType, response: IncomingResponse) => void;
     onInviteRejected: (lineObj: LineType, response: IncomingResponse, callback?: CallbackFunction<any>) => void;

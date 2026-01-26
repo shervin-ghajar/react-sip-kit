@@ -1,4 +1,6 @@
+import { IncomingResponse } from 'sip.js/lib/core';
 import { sessionMethods } from '.';
+import { LineType } from '../../store/types';
 export declare enum SendMessageSessionEnum {
     'SOUND_TOGGLE' = "SOUND_TOGGLE",
     'VIDEO_TOGGLE' = "VIDEO_TOGGLE",
@@ -45,3 +47,11 @@ export type SPDOptionsType = Record<'sessionDescriptionHandlerOptions', SessionD
     extraHeaders: string[];
 }>;
 export type SessionMethods = ReturnType<typeof sessionMethods>;
+export type DialRequestDelegate = {
+    onAccept?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
+    onProgress?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
+    onRedirect?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
+    onReject?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
+    onTrying?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
+};
+export type DialResponse = IncomingResponse;
