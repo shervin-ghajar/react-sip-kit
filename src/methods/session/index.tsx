@@ -702,7 +702,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    * @param forcedValue force to be hold/unhold
    * @returns
    */
-  function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
+   async function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
     const lineObj = findLineByLineKey(lineKey);
     if (!lineObj?.sipSession) return;
     const session = lineObj.sipSession;
@@ -714,43 +714,15 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     sessionDescriptionHandlerOptions.hold = toggledHold;
     session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;
 
-    if (
-      session &&
-      session.sessionDescriptionHandler &&
-      session.sessionDescriptionHandler.peerConnection
-    ) {
-      const pc = session.sessionDescriptionHandler.peerConnection;
-      // Stop all the inbound streams
-      pc.getReceivers().forEach(function (RTCRtpReceiver) {
-        if (RTCRtpReceiver.track) RTCRtpReceiver.track.enabled = !toggledHold;
-      });
-      // Stop all the outbound streams (especially useful for Conference Calls!!)
-      pc.getSenders().forEach(function (RTCRtpSender) {
-        // Mute Audio
-        const track = RTCRtpSender.track as MediaStreamTrackType;
-        if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-          if (track.IsMixedTrack == true) {
-            if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-              console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-              session.data.audioSourceTrack.enabled = !toggledHold;
-            }
-          }
-          console.log('Toggle Audio Track : ' + track.label);
-          track.enabled = !toggledHold;
-        }
-        // Stop Video
-        else if (track && track.kind == 'video') {
-          track.enabled = !toggledHold;
-        }
-      });
-    }
     console.log('Call is is on hold:', lineKey);
+    // Renegotiate
+    await session.invite({
+      sessionDescriptionHandlerOptions,
+    });
 
     session.data.isHold = toggledHold;
-
     updateLine(lineObj);
   }
-
   /* ------------------------------- TOGGLE-MUTE ------------------------------ */
   /**
    * Toggle-Mute Call Session
