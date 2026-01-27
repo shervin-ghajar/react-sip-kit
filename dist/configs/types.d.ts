@@ -64,9 +64,9 @@ export interface SipPolicyConfig {
     intercomPolicy: string;
 }
 export interface SipMediaConfig {
-    audioInputDeviceId: string;
-    audioOutputDeviceId: string;
-    videoInputDeviceId: string;
+    audioInputDeviceId: string | null;
+    audioOutputDeviceId: string | null;
+    videoInputDeviceId: string | null;
     ringerOutputDeviceId: string;
     maxFrameRate: number | string;
     videoHeight: number | string;
