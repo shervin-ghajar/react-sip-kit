@@ -355,7 +355,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     }
 
     // Start SIP handling
-    const spdOptions = answerVideoSpdOptions();
+    const spdOptions = enableVideo ? answerVideoSpdOptions() : answerAudioSpdOptions()
 
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
@@ -702,7 +702,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    * @param forcedValue force to be hold/unhold
    * @returns
    */
-   async function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
+  async function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
     const lineObj = findLineByLineKey(lineKey);
     if (!lineObj?.sipSession) return;
     const session = lineObj.sipSession;
