@@ -1,5 +1,5 @@
-import { SipConfigs, SipMediaConfig } from '../../configs/types';
-import { getSipStore, useSipStore } from '../../store';
+import { SipConfigs } from '../../configs/types';
+import { getSipStore } from '../../store';
 import isEqual from 'lodash.isequal';
 
 // Detect Devices

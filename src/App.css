@@ -41,3 +41,8 @@
 .read-the-docs {
   color: #888;
 }
+
+.remote-videos > video {
+  display: flex;
+  flex: 1;
+}

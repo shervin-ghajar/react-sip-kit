@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { detectDevices } from '../../methods/initialization';
 import { getSipUsernameConfigs } from '../../store';
 

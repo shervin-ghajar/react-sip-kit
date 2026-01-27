@@ -1,4 +1,5 @@
 import { AudioStream, VideoStream } from '.';
+import './App.css';
 import { SipConnection } from './main';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
@@ -44,11 +45,11 @@ function App({ configKey }: { configKey: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByNumber('audio', '1012')}>{`Call 1012`}</button>
-        <button onClick={() => dialByNumber('audio', '1010')}>{`Call 1010`}</button>
+        <button onClick={() => dialByNumber('audio', '3212')}>{`Call 3212`}</button>
+        <button onClick={() => dialByNumber('audio', '3213')}>{`Call 3213`}</button>
 
-        <button onClick={() => dialByNumber('video', '1012')}>{`Video Call 1012`}</button>
-        <button onClick={() => dialByNumber('video', '1010')}>{`Video Call 1010`}</button>
+        <button onClick={() => dialByNumber('video', '3212')}>{`Video Call 3212`}</button>
+        <button onClick={() => dialByNumber('video', '3213')}>{`Video Call 3213`}</button>
         <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
         <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
         <button onClick={() => SipConnection.reconnect(configKey)}>{`Reconnect`}</button>
@@ -121,7 +122,8 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (localMediaStreamEnabled) {
-      SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams();
+      console.log('localMediaStreamEnabled');
+      SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams?.();
     }
   }, [callStarted, localMediaStreamEnabled, localScreenShareEnabled]);
 
@@ -129,7 +131,7 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
     if (remoteMediaStreamEnabled) {
-      SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams();
+      SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams?.();
     }
   }, [callStarted, remoteMediaStreamEnabled, remoteScreenShareEnabled]);
 
@@ -146,10 +148,15 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       {/* Video streams */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: 4, overflow: 'auto' }}>
         {localMediaStreamEnabled && (
-          <VideoStream type="local" lineKey={lineKey} width={200} height={200} />
+          <VideoStream type="local" lineKey={lineKey} style={{ width: 100, height: 100 }} />
         )}
         {remoteMediaStreamEnabled && (
-          <VideoStream type="remote" lineKey={lineKey} style={{ width: 200, height: 200 }} />
+          <VideoStream
+            type="remote"
+            lineKey={lineKey}
+            className="remote-videos"
+            style={{ width: 200, height: 200, display: 'flex' }}
+          />
         )}
       </div>
 
@@ -166,12 +173,12 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
             Video {localVideoEnabled ? 'ON' : 'OFF'}
           </button>
           <button onClick={() => toggleHoldSession(lineKey)}>{isHold ? 'UnHold' : 'Hold'}</button>
-          <button onClick={() => makeTransferSession(lineKey, '1012')}>Transfer To 1012</button>
+          <button onClick={() => makeTransferSession(lineKey, '3212')}>Transfer To 3212</button>
           <button onClick={async () => toggleShareScreen(lineKey)}>
             Share Screen {localScreenShareEnabled ? 'ON' : 'OFF'}
           </button>
-          <button onClick={() => cancelTransferSession(lineKey, '1012')}>
-            Cancel Transfer To 1010
+          <button onClick={() => cancelTransferSession(lineKey, '3212')}>
+            Cancel Transfer To 3213
           </button>
           <button
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}

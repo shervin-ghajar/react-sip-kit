@@ -57,11 +57,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     callback?.();
   }
   // // Both Incoming an outgoing INVITE
-  async function onInviteAccepted(
-    lineObj: LineType,
-    videoEnabled: boolean,
-    response?: IncomingResponse,
-  ) {
+  async function onInviteAccepted(lineObj: LineType, videoEnabled: boolean) {
     // Call in progress
     const session = lineObj.sipSession;
     console.log('onInviteAccepted', { lineObj, session });
@@ -200,6 +196,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     callback?: CallbackFunction<any>,
   ) {
     // They Ended the call
+    console.log('onSessionReceivedBye', { lineObj });
     if (!lineObj?.sipSession) return;
     lineObj.sipSession.data.terminateBy = 'them';
     lineObj.sipSession.data.reasonCode = 16;
@@ -393,6 +390,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     includeVideo?: boolean,
   ) {
     if (sdh) {
+      console.log('onSessionDescriptionHandlerCreated', sdh.peerConnection);
       if (sdh.peerConnection) {
         sdh.peerConnection.ontrack = function (event) {
           onTrackAddedEvent(lineObj, includeVideo);
@@ -507,6 +505,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
       updateLine(lineObj);
     };
     session.initiateRemoteMediaStreams();
+    updateLine(lineObj);
   }
 
   function onTransferSessionDescriptionHandlerCreated(

@@ -14,6 +14,7 @@ import { CallType } from '../../types';
 import { utcDateNow } from '../../utils';
 import { spdOptions } from './spdOptions';
 import {
+  DialRequestDelegate,
   SendMessageSessionEnum,
   SendMessageSessionValueType,
   SPDOptionsType,
@@ -220,6 +221,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function makeAudioSession(
     lineObj: LineType,
     dialledNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     console.log(222, { lineObj, dialledNumber, extraHeaders });
@@ -289,29 +291,34 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
         );
       },
     };
+
     const inviterOptions: InviterInviteOptions = {
       // sessionDescriptionHandlerOptions: spdOptions.sessionDescriptionHandlerOptions,
       requestDelegate: {
-        // OutgoingRequestDelegate
         onTrying: function (sip) {
-          console.log('makeAudioSession 1');
+          console.log('makeAudioSession 1', sip);
           onInviteTrying(lineObj, sip);
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
         onProgress: function (sip) {
-          console.log('makeAudioSession 2');
+          console.log('makeAudioSession 2', sip);
           onInviteProgress(lineObj, sip);
+          request?.onProgress?.(lineObj.lineKey, sip);
         },
         onRedirect: function (sip) {
-          console.log('makeAudioSession 3');
+          console.log('makeAudioSession 3', sip);
           onInviteRedirected(lineObj, sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
         onAccept: function (sip) {
-          console.log('makeAudioSession 4');
-          onInviteAccepted(lineObj, false, sip);
+          console.log('makeAudioSession 4', sip);
+          onInviteAccepted(lineObj, false);
+          request?.onAccept?.(lineObj.lineKey, sip);
         },
         onReject: function (sip) {
-          console.log('makeAudioSession 5');
+          console.log('makeAudioSession 5', sip);
           onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };
@@ -319,6 +326,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       console.warn('Failed to send INVITE:', e);
     });
     // updateLine(lineObj);
+    return inviterOptions.requestDelegate as NonNullable<DialRequestDelegate>;
   }
 
   /**
@@ -327,66 +335,73 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    * @returns
    */
   function answerVideoSession(lineKey: LineType['lineKey'], enableVideo?: boolean) {
-    const lineObj = findLineByLineKey(lineKey);
-    if (!lineObj || !configs) {
-      console.warn('Failed to get line (' + lineKey + ')');
-      return;
-    }
-    const session = lineObj.sipSession;
-    if (!session || session instanceof Inviter) return;
-    // Stop the ringtone
-    if (session.data.ringerObj) {
-      session.data.ringerObj.pause();
-      session.data.ringerObj.removeAttribute('src');
-      session.data.ringerObj.load();
-      session.data.ringerObj = null;
-    }
-    // Check vitals
-    if (!hasAudioDevice) {
-      alert('No audio device detected!');
-      return;
-    }
+    try {
+      const lineObj = findLineByLineKey(lineKey);
+      if (!lineObj || !configs) {
+        console.warn('Failed to get line (' + lineKey + ')');
+        return;
+      }
+      const session = lineObj.sipSession;
+      if (!session || session instanceof Inviter) return;
+      // Stop the ringtone
+      if (session.data.ringerObj) {
+        session.data.ringerObj.pause();
+        session.data.ringerObj.removeAttribute('src');
+        session.data.ringerObj.load();
+        session.data.ringerObj = null;
+      }
+      // Check vitals
+      if (!hasAudioDevice) {
+        alert('No audio device detected!');
+        return;
+      }
+      // Start SIP handling
+      console.log({ hasVideoDevice }, configs.media);
+      const spdOptions = enableVideo ? answerVideoSpdOptions() : answerAudioSpdOptions();
+      session.data.localMediaStreamStatus = {
+        screenShareEnabled: false,
+        soundEnabled: true,
+        videoEnabled: enableVideo ?? true,
+      };
+      session.data.remoteMediaStreamStatus = {
+        screenShareEnabled: false,
+        soundEnabled: true,
+        videoEnabled: true,
+      };
+      session.data.videoSourceDevice = configs.media.videoInputDeviceId;
+      session.data.audioSourceDevice = configs.media.audioInputDeviceId;
+      session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
 
-    // Start SIP handling
-    const spdOptions = answerVideoSpdOptions();
-
-    session.data.localMediaStreamStatus = {
-      screenShareEnabled: false,
-      soundEnabled: true,
-      videoEnabled: enableVideo ?? true,
-    };
-    session.data.remoteMediaStreamStatus = {
-      screenShareEnabled: false,
-      soundEnabled: true,
-      videoEnabled: true,
-    };
-    session.data.videoSourceDevice = configs.media.videoInputDeviceId;
-    session.data.audioSourceDevice = configs.media.audioInputDeviceId;
-    session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-
-    // Send Answer
-    session
-      .accept(spdOptions)
-      .then(async () => {
-        try {
-          await onInviteAccepted(lineObj, true);
-          if (session.data.localMediaStreamStatus?.videoEnabled) {
-            await sendVideoActivationWithAckRetry(session, {
-              delayMs: 2000,
-              maxRetries: 10,
-            });
-          }
-        } catch (error) {
-          console.error('AnswerVideoSession onStateChange', error);
-        }
-      })
-      .catch(function (error) {
-        console.warn('Failed to answer call', error, session);
-        session.data.reasonCode = 500;
-        session.data.reasonText = 'Client Error';
-        teardownSession(lineObj);
-      });
-    updateLine(lineObj);
+      // Send Answer
+      try {
+        session
+          .accept(spdOptions)
+          .then(async () => {
+            try {
+              await onInviteAccepted(lineObj, true);
+              if (session.data.localMediaStreamStatus?.videoEnabled) {
+                await sendVideoActivationWithAckRetry(session, {
+                  delayMs: 2000,
+                  maxRetries: 10,
+                });
+              }
+            } catch (error) {
+              console.error('AnswerVideoSession onStateChange', error);
+            }
+          })
+          .catch(function (error) {
+            console.warn('Failed to answer call', error, session);
+            session.data.reasonCode = 500;
+            session.data.reasonText = 'Client Error';
+            teardownSession(lineObj);
+          });
+        updateLine(lineObj);
+      } catch (error) {
+        console.log(123, error);
+      }
+    } catch (error) {
+      console.log(1234, error);
+    }
   }
 
   /**
@@ -399,6 +414,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function makeVideoSession(
     lineObj: LineType,
     dialledNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     if (userAgent == null) return;
@@ -477,18 +493,23 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       requestDelegate: {
         onTrying: function (sip) {
           onInviteTrying(lineObj, sip);
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
         onProgress: function (sip) {
           onInviteProgress(lineObj, sip);
+          request?.onProgress?.(lineObj.lineKey, sip);
         },
         onRedirect: function (sip) {
           onInviteRedirected(lineObj, sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
         onAccept: function (sip) {
-          onInviteAccepted(lineObj, true, sip);
+          onInviteAccepted(lineObj, true);
+          request?.onAccept?.(lineObj.lineKey, sip);
         },
         onReject: function (sip) {
           onInviteRejected(lineObj, sip, () => teardownSession(lineObj));
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };
@@ -652,6 +673,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function dialByNumber(
     type: Extract<CallType, 'audio' | 'video'>,
     dialNumber: string,
+    request?: DialRequestDelegate,
     extraHeaders?: Array<string>,
   ) {
     const userAgent = getSipStore().userAgents?.[configKey];
@@ -670,9 +692,9 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
 
     // Start Call Invite
     if (type === 'audio') {
-      makeAudioSession(lineObj, dialNumber, extraHeaders);
+      makeAudioSession(lineObj, dialNumber, request, extraHeaders);
     } else {
-      makeVideoSession(lineObj, dialNumber, extraHeaders ?? []);
+      makeVideoSession(lineObj, dialNumber, request, extraHeaders ?? []);
     }
     addLine(lineObj);
   }
@@ -688,7 +710,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    * @param forcedValue force to be hold/unhold
    * @returns
    */
-  function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
+  async function toggleHoldSession(lineKey: LineType['lineKey'], forcedValue?: boolean) {
     const lineObj = findLineByLineKey(lineKey);
     if (!lineObj?.sipSession) return;
     const session = lineObj.sipSession;
@@ -700,40 +722,13 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     sessionDescriptionHandlerOptions.hold = toggledHold;
     session.sessionDescriptionHandlerOptionsReInvite = sessionDescriptionHandlerOptions;
 
-    if (
-      session &&
-      session.sessionDescriptionHandler &&
-      session.sessionDescriptionHandler.peerConnection
-    ) {
-      const pc = session.sessionDescriptionHandler.peerConnection;
-      // Stop all the inbound streams
-      pc.getReceivers().forEach(function (RTCRtpReceiver) {
-        if (RTCRtpReceiver.track) RTCRtpReceiver.track.enabled = !toggledHold;
-      });
-      // Stop all the outbound streams (especially useful for Conference Calls!!)
-      pc.getSenders().forEach(function (RTCRtpSender) {
-        // Mute Audio
-        const track = RTCRtpSender.track as MediaStreamTrackType;
-        if (RTCRtpSender.track && RTCRtpSender.track.kind == 'audio') {
-          if (track.IsMixedTrack == true) {
-            if (session.data.audioSourceTrack && session.data.audioSourceTrack.kind == 'audio') {
-              console.log('Toggle Mixed Audio Track : ' + session.data.audioSourceTrack.label);
-              session.data.audioSourceTrack.enabled = !toggledHold;
-            }
-          }
-          console.log('Toggle Audio Track : ' + track.label);
-          track.enabled = !toggledHold;
-        }
-        // Stop Video
-        else if (track && track.kind == 'video') {
-          track.enabled = !toggledHold;
-        }
-      });
-    }
     console.log('Call is is on hold:', lineKey);
+    // Renegotiate
+    await session.invite({
+      sessionDescriptionHandlerOptions,
+    });
 
     session.data.isHold = toggledHold;
-
     updateLine(lineObj);
   }
 
@@ -1022,6 +1017,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   function attendedTransferSession(
     lineKey: LineType['lineKey'],
     transferNumber: LineType['remoteNumber'],
+    request?: DialRequestDelegate,
   ) {
     const userAgent = getSipStore().userAgents?.[configKey];
     if (!(userAgent && userAgent?.isRegistered())) {
@@ -1145,12 +1141,13 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.childsession = newSession as SipSessionType;
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
-        onTrying: function () {
+        onTrying: function (sip) {
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'trying';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
+          request?.onTrying?.(lineObj.lineKey, sip);
         },
-        onProgress: function () {
+        onProgress: function (sip) {
           console.log('onProgress');
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'progress';
@@ -1164,12 +1161,14 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
             session.data.transfer[transferId].accept.disposition = 'cancel';
             session.data.transfer[transferId].accept.eventTime = utcDateNow();
           };
+          request?.onProgress?.(lineObj.lineKey, sip);
           console.log('New call session canceled');
         },
         onRedirect: function (sip) {
           console.log('Redirect received:', sip);
+          request?.onRedirect?.(lineObj.lineKey, sip);
         },
-        onAccept: function () {
+        onAccept: function (sip) {
           if (!session.data.transfer) return;
           session.data.transfer[transferId].disposition = 'accepted';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
@@ -1193,6 +1192,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
                 session.bye().catch(function (error) {
                   console.warn('Could not BYE after blind transfer:', error);
                 });
+                request?.onAccept?.(lineObj.lineKey, sip);
 
                 teardownSession(lineObj);
               },
@@ -1204,6 +1204,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
                 session.data.transfer[transferId].accept.disposition =
                   sip.message.reasonPhrase ?? '';
                 session.data.transfer[transferId].accept.eventTime = utcDateNow();
+                request?.onReject?.(lineObj.lineKey, sip);
               },
             },
           };
@@ -1218,6 +1219,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
           console.log('New call session rejected: ', sip.message.reasonPhrase);
           session.data.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
           session.data.transfer[transferId].dispositionTime = utcDateNow();
+          request?.onReject?.(lineObj.lineKey, sip);
         },
       },
     };
