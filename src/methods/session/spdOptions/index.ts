@@ -1,5 +1,5 @@
 import { defaultSipConfigs } from '../../../configs';
-import { SipAccountConfig, SipConfigs } from '../../../configs/types';
+import { SipConfigs } from '../../../configs/types';
 import { getSipStore } from '../../../store';
 import { SPDOptionsType } from '../types';
 
@@ -54,7 +54,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
       const supportedConstraints = getSupportedConstraints();
       const currentAudioDevice = audioInputDeviceId;
       if (typeof option.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-      if (currentAudioDevice != 'default') {
+      if (currentAudioDevice && currentAudioDevice != 'default') {
         let confirmedAudioDevice = audioDeviceConfirmation(currentAudioDevice);
         if (confirmedAudioDevice) {
           option.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
@@ -111,7 +111,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
               option?.extraHeaders?.push(key + ': ' + value);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
       return option;
     },
@@ -132,7 +132,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
       // Configure Video
       const currentVideoDevice = videoInputDeviceId;
       if (typeof option.sessionDescriptionHandlerOptions.constraints.video !== 'object') return; // type checking assurance
-      if (currentVideoDevice != 'default') {
+      if (currentVideoDevice && currentVideoDevice != 'default') {
         let confirmedVideoDevice = videoDeviceConfirmation(currentVideoDevice);
         if (confirmedVideoDevice) {
           option.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
@@ -189,7 +189,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
               option.extraHeaders.push(key + ': ' + value);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       return option;

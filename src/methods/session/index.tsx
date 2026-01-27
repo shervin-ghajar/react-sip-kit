@@ -39,7 +39,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   const addLine = getSipStore().addLine;
   const updateLine = getSipStore().updateLine;
   const userAgent = getSipStore().userAgents?.[configKey];
-  const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
+  const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo; //TODO useless
 
   const {
     onInviteAccepted,
@@ -184,7 +184,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     // MediaStreamStatus
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: hasAudioDevice,
+      soundEnabled: !!configs?.media.audioInputDeviceId,
       videoEnabled: false,
     };
     session.data.remoteMediaStreamStatus = {
@@ -259,7 +259,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       // MediaStreamStatus
       localMediaStreamStatus: {
         screenShareEnabled: false,
-        soundEnabled: hasAudioDevice,
+        soundEnabled: hasAudioDevice && !!configs?.media.audioInputDeviceId,
         videoEnabled: false,
       },
       remoteMediaStreamStatus: {
@@ -359,8 +359,8 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
 
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: true,
-      videoEnabled: enableVideo ?? true,
+      soundEnabled: !!configs.media.audioInputDeviceId,
+      videoEnabled: (enableVideo && !!configs.media.videoInputDeviceId) ?? true,
     };
     session.data.remoteMediaStreamStatus = {
       screenShareEnabled: false,
@@ -447,8 +447,8 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       startTime: startTime,
       localMediaStreamStatus: {
         screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: true,
+        soundEnabled: !!configs?.media.audioInputDeviceId,
+        videoEnabled: !!configs?.media.videoInputDeviceId,
       },
       remoteMediaStreamStatus: {
         screenShareEnabled: false,

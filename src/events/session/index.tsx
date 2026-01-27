@@ -57,10 +57,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     callback?.();
   }
   // // Both Incoming an outgoing INVITE
-  async function onInviteAccepted(
-    lineObj: LineType,
-    videoEnabled: boolean,
-  ) {
+  async function onInviteAccepted(lineObj: LineType, videoEnabled: boolean) {
     // Call in progress
     const session = lineObj.sipSession;
     console.log('onInviteAccepted', { lineObj, session });
@@ -101,17 +98,19 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         } else {
           // === normal camera/audio ===
           const constraints: MediaStreamConstraints = {
-            audio: media?.audioInputDeviceId
-              ? media.audioInputDeviceId !== 'default'
-                ? { deviceId: { exact: media.audioInputDeviceId } }
-                : true
-              : false,
-            video:
-              isVideoEnabled && media?.videoInputDeviceId
+            audio:
+              media?.audioInputDeviceId === null // default disabled
+                ? true
+                : media?.audioInputDeviceId !== 'default'
+                  ? { deviceId: { exact: media?.audioInputDeviceId } }
+                  : true,
+            video: isVideoEnabled
+              ? media?.videoInputDeviceId
                 ? media.videoInputDeviceId !== 'default'
                   ? { deviceId: { exact: media.videoInputDeviceId } }
                   : true
-                : false,
+                : media?.videoInputDeviceId === null
+              : false,
           };
 
           localStream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -120,9 +119,14 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         // Replace existing audio/video tracks in PeerConnection
         localStream.getTracks().forEach((track) => {
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
+          track.enabled = !!(track.kind === 'audio'
+            ? media?.audioInputDeviceId
+            : track.kind === 'video'
+              ? media?.videoInputDeviceId
+              : true);
           if (sender) {
             sender.replaceTrack(track);
-          } else {
+          } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
             pc.addTrack(track, localStream);
           }
         });
