@@ -51,6 +51,7 @@ export class SipInitializer {
       sessionDescriptionHandlerFactoryOptions: {
         peerConnectionConfiguration: {
           bundlePolicy: 'balanced',
+          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
         },
         iceGatheringTimeout: 500,
       }, // TODO better to be configurable
