@@ -51,11 +51,10 @@ export class SipInitializer {
       sessionDescriptionHandlerFactoryOptions: {
         peerConnectionConfiguration: {
           bundlePolicy: 'balanced',
-          iceServers: [{ urls: 'stun:stun.l.google.com:19302' }],
+          ...this.configs.registration.peerConnectionConfiguration,
         },
-        iceGatheringTimeout: 500,
-      }, // TODO better to be configurable
-      authorizationUsername: this.username,
+        iceGatheringTimeout: this.configs.registration.iceGatheringTimeout,
+      },
       authorizationPassword: this.configs.account.password,
       hackIpInContact: true, // TODO better to be configurable
       contactParams: {},

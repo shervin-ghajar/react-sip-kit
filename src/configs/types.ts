@@ -49,8 +49,8 @@ export interface SipRegistrationConfig {
   wssInTransport: boolean;
   ipInContact: boolean;
   bundlePolicy: string;
-  iceStunServerJson: string;
-  iceStunCheckTimeout: number;
+  peerConnectionConfiguration: RTCConfiguration;
+  iceGatheringTimeout: number;
   subscribeToYourself: boolean;
   voiceMailSubscribe: boolean;
   voicemailDid: string;
