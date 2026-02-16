@@ -49,8 +49,8 @@ export interface SipRegistrationConfig {
   wssInTransport: boolean;
   ipInContact: boolean;
   bundlePolicy: string;
-  iceStunServerJson: string;
-  iceStunCheckTimeout: number;
+  peerConnectionConfiguration: RTCConfiguration;
+  iceGatheringTimeout: number;
   subscribeToYourself: boolean;
   voiceMailSubscribe: boolean;
   voicemailDid: string;
@@ -66,9 +66,9 @@ export interface SipPolicyConfig {
   intercomPolicy: string;
 }
 export interface SipMediaConfig {
-  audioInputDeviceId: string;
-  audioOutputDeviceId: string;
-  videoInputDeviceId: string;
+  audioInputDeviceId: string | null;
+  audioOutputDeviceId: string | null;
+  videoInputDeviceId: string | null;
   ringerOutputDeviceId: string;
   maxFrameRate: number | string;
   videoHeight: number | string;

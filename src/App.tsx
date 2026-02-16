@@ -46,7 +46,10 @@ function App({ configKey }: { configKey: string }) {
       >
         <h4>Call Action Buttons</h4>
         <button onClick={() => dialByNumber('audio', '3212')}>{`Call 3212`}</button>
+        <button onClick={() => dialByNumber('audio', '6')}>{`Call 6`}</button>
+        <button onClick={() => dialByNumber('audio', '4')}>{`Call 4`}</button>
         <button onClick={() => dialByNumber('audio', '3213')}>{`Call 3213`}</button>
+        <button onClick={() => dialByNumber('audio', '99362038188')}>{`Call 99362038188`}</button>
 
         <button onClick={() => dialByNumber('video', '3212')}>{`Video Call 3212`}</button>
         <button onClick={() => dialByNumber('video', '3213')}>{`Video Call 3213`}</button>
@@ -113,7 +116,7 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   const isMute = !localMediaStreamStatus?.soundEnabled;
   const isHold = isOnHold ?? false;
   const isRecording = recordMedia?.recording ?? false;
-
+  console.log({ localMediaStreamStatus });
   // Recorder instance
   const recorder = recordSession(lineKey);
 

@@ -51,8 +51,9 @@ export class SipInitializer {
       sessionDescriptionHandlerFactoryOptions: {
         peerConnectionConfiguration: {
           bundlePolicy: 'balanced',
+          ...this.configs.registration.peerConnectionConfiguration,
         },
-        iceGatheringTimeout: 500,
+        iceGatheringTimeout: this.configs.registration.iceGatheringTimeout,
       },
       authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,

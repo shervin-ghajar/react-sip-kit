@@ -40,7 +40,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
   const addLine = getSipStore().addLine;
   const updateLine = getSipStore().updateLine;
   const userAgent = getSipStore().userAgents?.[configKey];
-  const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo;
+  const { hasAudioDevice, hasVideoDevice } = getSipStore().devicesInfo; //TODO useless
 
   const {
     onInviteAccepted,
@@ -185,7 +185,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     // MediaStreamStatus
     session.data.localMediaStreamStatus = {
       screenShareEnabled: false,
-      soundEnabled: hasAudioDevice,
+      soundEnabled: !!configs?.media.audioInputDeviceId,
       videoEnabled: false,
     };
     session.data.remoteMediaStreamStatus = {
@@ -260,7 +260,7 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       // MediaStreamStatus
       localMediaStreamStatus: {
         screenShareEnabled: false,
-        soundEnabled: hasAudioDevice,
+        soundEnabled: hasAudioDevice && !!configs?.media.audioInputDeviceId,
         videoEnabled: false,
       },
       remoteMediaStreamStatus: {
@@ -335,73 +335,66 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
    * @returns
    */
   function answerVideoSession(lineKey: LineType['lineKey'], enableVideo?: boolean) {
-    try {
-      const lineObj = findLineByLineKey(lineKey);
-      if (!lineObj || !configs) {
-        console.warn('Failed to get line (' + lineKey + ')');
-        return;
-      }
-      const session = lineObj.sipSession;
-      if (!session || session instanceof Inviter) return;
-      // Stop the ringtone
-      if (session.data.ringerObj) {
-        session.data.ringerObj.pause();
-        session.data.ringerObj.removeAttribute('src');
-        session.data.ringerObj.load();
-        session.data.ringerObj = null;
-      }
-      // Check vitals
-      if (!hasAudioDevice) {
-        alert('No audio device detected!');
-        return;
-      }
-      // Start SIP handling
-      console.log({ hasVideoDevice }, configs.media);
-      const spdOptions = enableVideo ? answerVideoSpdOptions() : answerAudioSpdOptions();
-      session.data.localMediaStreamStatus = {
-        screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: enableVideo ?? true,
-      };
-      session.data.remoteMediaStreamStatus = {
-        screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: true,
-      };
-      session.data.videoSourceDevice = configs.media.videoInputDeviceId;
-      session.data.audioSourceDevice = configs.media.audioInputDeviceId;
-      session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
-
-      // Send Answer
-      try {
-        session
-          .accept(spdOptions)
-          .then(async () => {
-            try {
-              await onInviteAccepted(lineObj, true);
-              if (session.data.localMediaStreamStatus?.videoEnabled) {
-                await sendVideoActivationWithAckRetry(session, {
-                  delayMs: 2000,
-                  maxRetries: 10,
-                });
-              }
-            } catch (error) {
-              console.error('AnswerVideoSession onStateChange', error);
-            }
-          })
-          .catch(function (error) {
-            console.warn('Failed to answer call', error, session);
-            session.data.reasonCode = 500;
-            session.data.reasonText = 'Client Error';
-            teardownSession(lineObj);
-          });
-        updateLine(lineObj);
-      } catch (error) {
-        console.log(123, error);
-      }
-    } catch (error) {
-      console.log(1234, error);
+    const lineObj = findLineByLineKey(lineKey);
+    if (!lineObj || !configs) {
+      console.warn('Failed to get line (' + lineKey + ')');
+      return;
     }
+    const session = lineObj.sipSession;
+    if (!session || session instanceof Inviter) return;
+    // Stop the ringtone
+    if (session.data.ringerObj) {
+      session.data.ringerObj.pause();
+      session.data.ringerObj.removeAttribute('src');
+      session.data.ringerObj.load();
+      session.data.ringerObj = null;
+    }
+    // Check vitals
+    if (!hasAudioDevice) {
+      alert('No audio device detected!');
+      return;
+    }
+
+    // Start SIP handling
+    const spdOptions = enableVideo ? answerVideoSpdOptions() : answerAudioSpdOptions();
+
+    session.data.localMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: !!configs.media.audioInputDeviceId,
+      videoEnabled: (enableVideo && !!configs.media.videoInputDeviceId) ?? true,
+    };
+    session.data.remoteMediaStreamStatus = {
+      screenShareEnabled: false,
+      soundEnabled: true,
+      videoEnabled: true,
+    };
+    session.data.videoSourceDevice = configs.media.videoInputDeviceId;
+    session.data.audioSourceDevice = configs.media.audioInputDeviceId;
+    session.data.audioOutputDevice = configs.media.audioOutputDeviceId;
+
+    // Send Answer
+    session
+      .accept(spdOptions)
+      .then(async () => {
+        try {
+          await onInviteAccepted(lineObj, true);
+          if (session.data.localMediaStreamStatus?.videoEnabled) {
+            await sendVideoActivationWithAckRetry(session, {
+              delayMs: 2000,
+              maxRetries: 10,
+            });
+          }
+        } catch (error) {
+          console.error('AnswerVideoSession onStateChange', error);
+        }
+      })
+      .catch(function (error) {
+        console.warn('Failed to answer call', error, session);
+        session.data.reasonCode = 500;
+        session.data.reasonText = 'Client Error';
+        teardownSession(lineObj);
+      });
+    updateLine(lineObj);
   }
 
   /**
@@ -455,8 +448,8 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
       startTime: startTime,
       localMediaStreamStatus: {
         screenShareEnabled: false,
-        soundEnabled: true,
-        videoEnabled: true,
+        soundEnabled: !!configs?.media.audioInputDeviceId,
+        videoEnabled: !!configs?.media.videoInputDeviceId,
       },
       remoteMediaStreamStatus: {
         screenShareEnabled: false,
@@ -731,7 +724,6 @@ export const sessionMethods = ({ configKey }: { configKey: SipConfigs['key'] }) 
     session.data.isHold = toggledHold;
     updateLine(lineObj);
   }
-
   /* ------------------------------- TOGGLE-MUTE ------------------------------ */
   /**
    * Toggle-Mute Call Session

@@ -23,6 +23,22 @@ const accountConfigs = {
     webSocketPort: '8089',
     serverPath: '/ws',
   },
+  '25': {
+    domain: 'teamserver.payamgostar.com',
+    username: '25',
+    password: 'a3ed7e436b884c20a80d478950b770a2',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
+  '6': {
+    domain: 'teamserver.payamgostar.com',
+    username: '6',
+    password: '49c39db893b9475a8eb6fb1d70ff48ed',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
 } as const;
 const Providers = () => {
   const username = window.location.pathname.replace('/', '');
@@ -31,9 +47,6 @@ const Providers = () => {
   useEffect(() => {
     SipConnection.add({
       account: accountConfigs[username as keyof typeof accountConfigs],
-      media: {
-        audioInputDeviceId: '68433516f49e3de0ace8ffb524eaab36ac15e937c471fb59f14654350c8e9b02',
-      },
       registration: {
         transportReconnectionAttempts: 3,
       },

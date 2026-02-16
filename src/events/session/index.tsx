@@ -73,6 +73,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     session.data.startTime = startTime;
 
     session.data.started = true;
+
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
       pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
@@ -98,29 +99,39 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         } else {
           // === normal camera/audio ===
           const constraints: MediaStreamConstraints = {
-            audio: media?.audioInputDeviceId
-              ? media.audioInputDeviceId !== 'default'
-                ? { deviceId: { exact: media.audioInputDeviceId } }
-                : true
-              : false,
-            video:
-              isVideoEnabled && media?.videoInputDeviceId
+            audio:
+              media?.audioInputDeviceId === null // default disabled
+                ? true
+                : media?.audioInputDeviceId !== 'default'
+                  ? { deviceId: { exact: media?.audioInputDeviceId } }
+                  : true,
+            video: isVideoEnabled
+              ? media?.videoInputDeviceId
                 ? media.videoInputDeviceId !== 'default'
                   ? { deviceId: { exact: media.videoInputDeviceId } }
                   : true
-                : false,
+                : media?.videoInputDeviceId === null
+              : false,
           };
 
           localStream = await navigator.mediaDevices.getUserMedia(constraints);
         }
+        console.log({ localStream });
 
         // Replace existing audio/video tracks in PeerConnection
         localStream.getTracks().forEach((track) => {
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
+          track.enabled = !!(track.kind === 'audio'
+            ? media?.audioInputDeviceId
+            : track.kind === 'video'
+              ? media?.videoInputDeviceId
+              : true);
+          console.log(111, { track });
           if (sender) {
             sender.replaceTrack(track);
-          } else {
+          } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
             pc.addTrack(track, localStream);
+            console.log(222, { track });
           }
         });
 
@@ -408,104 +419,111 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     const session = lineObj.sipSession;
     if (!session) return;
 
-    session.initiateRemoteMediaStreams = ({
-      videoEnabled: isVideoEnabled = videoEnabled,
-      pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-        .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
-      configs = getSipUsernameConfigs(configKey),
-    } = {}) => {
-      const media = configs?.media;
+    const pc = session.sessionDescriptionHandler.peerConnection;
 
-      const remoteAudioTracks = new Map<string, MediaStream>();
-      const remoteVideoTracks = new Map<string, MediaStream>();
-      const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
-      const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
+    // TODO waites until session media stablishment
+    pc.onicegatheringstatechange = () => {
+      console.log('Gathering:', pc.iceGatheringState);
+      if (pc.iceGatheringState !== 'gathering') return;
+      session.initiateRemoteMediaStreams = ({
+        videoEnabled: isVideoEnabled = videoEnabled,
+        pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+          .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
+        configs = getSipUsernameConfigs(configKey),
+      } = {}) => {
+        const media = configs?.media;
 
-      const audioContainer = document.getElementById(audioContainerId);
-      const videoContainer = document.getElementById(videoContainerId);
+        const remoteAudioTracks = new Map<string, MediaStream>();
+        const remoteVideoTracks = new Map<string, MediaStream>();
+        const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
+        const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
 
-      console.log('initiateRemoteMediaStreams', {
-        isVideoEnabled,
-        pc,
-      });
+        const audioContainer = document.getElementById(audioContainerId);
+        const videoContainer = document.getElementById(videoContainerId);
 
-      // Gather all remote tracks
-      pc.getTransceivers().forEach((transceiver) => {
-        const track = transceiver.receiver?.track;
-        if (!track) return;
+        console.log('initiateRemoteMediaStreams', {
+          isVideoEnabled,
+          pc,
+        });
 
-        const stream = new MediaStream([track]);
+        // Gather all remote tracks
+        pc.getTransceivers().forEach((transceiver) => {
+          const track = transceiver.receiver?.track;
+          if (!track) return;
 
-        if (track.kind === 'audio') {
-          remoteAudioTracks.set(track.id, stream);
+          const stream = new MediaStream([track]);
+
+          if (track.kind === 'audio') {
+            remoteAudioTracks.set(track.id, stream);
+          }
+
+          if (isVideoEnabled && track.kind === 'video') {
+            (track as any).mid = transceiver.mid;
+            console.log(222, 'trackTest', transceiver);
+            remoteVideoTracks.set(track.id, stream);
+          }
+        });
+
+        // Inject all remote audio tracks
+        if (audioContainer) {
+          audioContainer.innerHTML = '';
+
+          remoteAudioTracks.forEach((stream, trackId) => {
+            const audio = document.createElement('audio');
+            audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
+            audio.autoplay = true;
+            audio.srcObject = stream;
+            audio.controls = false;
+
+            audio.onloadedmetadata = () => {
+              if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
+                audio
+                  .setSinkId(media?.audioOutputDeviceId)
+                  .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
+                  .catch((e) => console.warn('setSinkId error:', e));
+              }
+              audio.play().catch((err) => console.error('Audio play error:', err));
+            };
+
+            audioContainer.appendChild(audio);
+          });
+        } else {
+          console.warn(`Remote audio container not found: ${audioContainerId}`);
         }
 
-        if (isVideoEnabled && track.kind === 'video') {
-          (track as any).mid = transceiver.mid;
-          console.log(222, 'trackTest', transceiver);
-          remoteVideoTracks.set(track.id, stream);
+        // Inject all remote video tracks
+        if (videoContainer) {
+          videoContainer.innerHTML = '';
+          console.log({ remoteVideoTracks });
+          remoteVideoTracks.forEach((stream, trackId) => {
+            const video = document.createElement('video');
+            video.id = `line-${lineObj.lineKey}-video-${trackId}`;
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+
+            video.onloadedmetadata = () => {
+              if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
+                video
+                  .setSinkId(media?.videoInputDeviceId)
+                  .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
+                  .catch((e) => console.warn('setSinkId error:', e));
+              }
+              video.play().catch((err) => console.error('Video play error:', err));
+            };
+
+            videoContainer.appendChild(video);
+          });
+        } else {
+          console.warn(`Remote video container not found: ${videoContainerId}`);
         }
-      });
 
-      // Inject all remote audio tracks
-      if (audioContainer) {
-        audioContainer.innerHTML = '';
-
-        remoteAudioTracks.forEach((stream, trackId) => {
-          const audio = document.createElement('audio');
-          audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
-          audio.autoplay = true;
-          audio.srcObject = stream;
-          audio.controls = false;
-
-          audio.onloadedmetadata = () => {
-            if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
-              audio
-                .setSinkId(media?.audioOutputDeviceId)
-                .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
-                .catch((e) => console.warn('setSinkId error:', e));
-            }
-            audio.play().catch((err) => console.error('Audio play error:', err));
-          };
-
-          audioContainer.appendChild(audio);
-        });
-      } else {
-        console.warn(`Remote audio container not found: ${audioContainerId}`);
-      }
-
-      // Inject all remote video tracks
-      if (videoContainer) {
-        videoContainer.innerHTML = '';
-        console.log({ remoteVideoTracks });
-        remoteVideoTracks.forEach((stream, trackId) => {
-          const video = document.createElement('video');
-          video.id = `line-${lineObj.lineKey}-video-${trackId}`;
-          video.srcObject = stream;
-          video.autoplay = true;
-          video.playsInline = true;
-          video.muted = true;
-
-          video.onloadedmetadata = () => {
-            if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
-              video
-                .setSinkId(media?.videoInputDeviceId)
-                .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
-                .catch((e) => console.warn('setSinkId error:', e));
-            }
-            video.play().catch((err) => console.error('Video play error:', err));
-          };
-
-          videoContainer.appendChild(video);
-        });
-      } else {
-        console.warn(`Remote video container not found: ${videoContainerId}`);
-      }
-
+        updateLine(lineObj);
+      };
+      session.initiateRemoteMediaStreams();
       updateLine(lineObj);
     };
-    session.initiateRemoteMediaStreams();
-    updateLine(lineObj);
   }
 
   function onTransferSessionDescriptionHandlerCreated(
