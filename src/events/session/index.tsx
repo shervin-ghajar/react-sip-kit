@@ -75,9 +75,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     session.data.started = true;
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
-      pc = session.sessionDescriptionHandler.peerConnection ??
-          getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-            .peerConnection,
+      pc = session.sessionDescriptionHandler.peerConnection??getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+        .peerConnection,
       configs = getSipUsernameConfigs(configKey),
     } = {}) => {
       try {
@@ -85,6 +84,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         const line = getSipStore().findLineByLineKey(lineObj.lineKey);
         const screenShareEnabled =
           line?.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
+        const videoEnabled = line?.sipSession?.data.localMediaStreamStatus?.videoEnabled;
+        const soundEnabled = line?.sipSession?.data.localMediaStreamStatus?.soundEnabled;
 
         let localStream: MediaStream;
 
@@ -121,14 +122,16 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         localStream.getTracks().forEach((track) => {
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
           track.enabled = !!(track.kind === 'audio'
-            ? media?.audioInputDeviceId
+            ? (soundEnabled ?? media?.audioInputDeviceId)
             : track.kind === 'video'
-              ? media?.videoInputDeviceId
+              ? (videoEnabled ?? media?.videoInputDeviceId)
               : true);
+
           if (sender) {
             sender.replaceTrack(track);
           } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
             pc.addTrack(track, localStream);
+            console.log(222, { track });
           }
         });
 
@@ -411,7 +414,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     }
   }
 
- async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
+  async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
     // Gets remote tracks
     const session = lineObj.sipSession;
     if (!session) return;
@@ -421,8 +424,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
       session.initiateRemoteMediaStreams = ({
         videoEnabled: isVideoEnabled = videoEnabled,
         pc = session.sessionDescriptionHandler.peerConnection ??
-          getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-            .peerConnection,
+        getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+          .peerConnection,
         configs = getSipUsernameConfigs(configKey),
       } = {}) => {
         const media = configs?.media;
