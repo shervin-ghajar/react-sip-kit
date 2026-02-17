@@ -1,5 +1,5 @@
 import { SipConfigs } from '../../configs/types';
-import { sendMessageSession } from '../../methods/session';
+import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
@@ -62,17 +62,12 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     const session = lineObj.sipSession;
     console.log('onInviteAccepted', { lineObj, session });
     if (!session) return;
-    if (session.data.earlyMedia) {
-      session.data.earlyMedia.pause();
-      session.data.earlyMedia.removeAttribute('src');
-      session.data.earlyMedia.load();
-      session.data.earlyMedia = null;
-    }
 
     const startTime = utcDateNow();
     session.data.startTime = startTime;
 
     session.data.started = true;
+    // const pc = session.sessionDescriptionHandler.peerConnection;
 
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
@@ -85,6 +80,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         const line = getSipStore().findLineByLineKey(lineObj.lineKey);
         const screenShareEnabled =
           line?.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
+        const videoEnabled = line?.sipSession?.data.localMediaStreamStatus?.videoEnabled;
+        const soundEnabled = line?.sipSession?.data.localMediaStreamStatus?.soundEnabled;
 
         let localStream: MediaStream;
 
@@ -116,17 +113,16 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
           localStream = await navigator.mediaDevices.getUserMedia(constraints);
         }
-        console.log({ localStream });
 
         // Replace existing audio/video tracks in PeerConnection
         localStream.getTracks().forEach((track) => {
           const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
           track.enabled = !!(track.kind === 'audio'
-            ? media?.audioInputDeviceId
+            ? (soundEnabled ?? media?.audioInputDeviceId)
             : track.kind === 'video'
-              ? media?.videoInputDeviceId
+              ? (videoEnabled ?? media?.videoInputDeviceId)
               : true);
-          console.log(111, { track });
+
           if (sender) {
             sender.replaceTrack(track);
           } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
@@ -420,11 +416,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     if (!session) return;
 
     const pc = session.sessionDescriptionHandler.peerConnection;
-
-    // TODO waites until session media stablishment
-    pc.onicegatheringstatechange = () => {
-      console.log('Gathering:', pc.iceGatheringState);
-      if (pc.iceGatheringState !== 'gathering') return;
+    const onIceConnectionComplete = () => {
       session.initiateRemoteMediaStreams = ({
         videoEnabled: isVideoEnabled = videoEnabled,
         pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
@@ -443,9 +435,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
         console.log('initiateRemoteMediaStreams', {
           isVideoEnabled,
-          pc,
+          getTransceivers: pc.getTransceivers(),
         });
-
         // Gather all remote tracks
         pc.getTransceivers().forEach((transceiver) => {
           const track = transceiver.receiver?.track;
@@ -523,6 +514,18 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
       };
       session.initiateRemoteMediaStreams();
       updateLine(lineObj);
+    };
+
+    // waites until session media conncetion complete.
+    pc.oniceconnectionstatechange = () => {
+      switch (pc.iceConnectionState) {
+        case 'disconnected':
+          teardownSession(lineObj);
+          break;
+        case 'connected':
+          onIceConnectionComplete();
+          break;
+      }
     };
   }
 

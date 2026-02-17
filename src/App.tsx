@@ -1,6 +1,6 @@
 import { AudioStream, VideoStream } from '.';
 import './App.css';
-import { SipConnection } from './main';
+import { accountConfigs, SipConnection } from './main';
 import { LineType } from './store/types';
 import { memo, useEffect } from 'react';
 
@@ -45,14 +45,13 @@ function App({ configKey }: { configKey: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        <button onClick={() => dialByNumber('audio', '3212')}>{`Call 3212`}</button>
-        <button onClick={() => dialByNumber('audio', '6')}>{`Call 6`}</button>
-        <button onClick={() => dialByNumber('audio', '4')}>{`Call 4`}</button>
-        <button onClick={() => dialByNumber('audio', '3213')}>{`Call 3213`}</button>
+        {Object.keys(accountConfigs).map((ac) => {
+          return [
+            <button onClick={() => dialByNumber('audio', ac)}>{`Call ${ac}`}</button>,
+            <button onClick={() => dialByNumber('video', ac)}>{`Video Call ${ac}`}</button>,
+          ];
+        })}
         <button onClick={() => dialByNumber('audio', '99362038188')}>{`Call 99362038188`}</button>
-
-        <button onClick={() => dialByNumber('video', '3212')}>{`Video Call 3212`}</button>
-        <button onClick={() => dialByNumber('video', '3213')}>{`Video Call 3213`}</button>
         <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
         <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
         <button onClick={() => SipConnection.reconnect(configKey)}>{`Reconnect`}</button>
@@ -100,6 +99,8 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       'remoteNumber',
     ],
   });
+  const pc = SipConnection.getSessionBy({ lineKey })?.sessionDescriptionHandler?.peerConnection;
+  console.log('getSenders', pc?.getSenders?.());
 
   // Media state
   const localVideoEnabled = localMediaStreamStatus?.videoEnabled ?? false;

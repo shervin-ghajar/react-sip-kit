@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client';
 /* -------------------------------------------------------------------------- */
 export const SipConnection = new SipManager();
 /* -------------------------------------------------------------------------- */
-const accountConfigs = {
+export const accountConfigs = {
   '3212': {
     domain: '192.168.2.27',
     username: '3212',
