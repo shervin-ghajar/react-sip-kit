@@ -1,5 +1,5 @@
 import { SipConfigs } from '../../configs/types';
-import { sendMessageSession } from '../../methods/session';
+import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
 import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
@@ -75,8 +75,9 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     session.data.started = true;
     session.initiateLocalMediaStreams = async ({
       videoEnabled: isVideoEnabled = videoEnabled,
-      pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-        .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
+      pc = session.sessionDescriptionHandler.peerConnection ??
+          getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+            .peerConnection,
       configs = getSipUsernameConfigs(configKey),
     } = {}) => {
       try {
@@ -410,216 +411,125 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     }
   }
 
-  async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
+ async function onTrackAddedEvent(lineObj: LineType, videoEnabled?: boolean) {
     // Gets remote tracks
     const session = lineObj.sipSession;
     if (!session) return;
+
     const pc = session.sessionDescriptionHandler.peerConnection;
+    const onIceConnectionComplete = () => {
+      session.initiateRemoteMediaStreams = ({
+        videoEnabled: isVideoEnabled = videoEnabled,
+        pc = session.sessionDescriptionHandler.peerConnection ??
+          getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
+            .peerConnection,
+        configs = getSipUsernameConfigs(configKey),
+      } = {}) => {
+        const media = configs?.media;
 
-    // TODO waites until session media gathering complete. caller iceGatheringState is allways complete
-      if (pc.iceGatheringState !== 'complete') {
-      pc.onicegatheringstatechange = () => {
-        if (pc.iceGatheringState !== 'complete') return;
-        session.initiateRemoteMediaStreams = ({
-          videoEnabled: isVideoEnabled = videoEnabled,
-          pc = session.sessionDescriptionHandler.peerConnection ??
-            getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-              .peerConnection,
-          configs = getSipUsernameConfigs(configKey),
-        } = {}) => {
-          const media = configs?.media;
+        const remoteAudioTracks = new Map<string, MediaStream>();
+        const remoteVideoTracks = new Map<string, MediaStream>();
+        const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
+        const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
 
-          const remoteAudioTracks = new Map<string, MediaStream>();
-          const remoteVideoTracks = new Map<string, MediaStream>();
-          const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
-          const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
+        const audioContainer = document.getElementById(audioContainerId);
+        const videoContainer = document.getElementById(videoContainerId);
 
-          const audioContainer = document.getElementById(audioContainerId);
-          const videoContainer = document.getElementById(videoContainerId);
+        console.log('initiateRemoteMediaStreams', {
+          isVideoEnabled,
+          pc,
+        });
 
-          console.log('initiateRemoteMediaStreams', {
-            isVideoEnabled,
-            pc,
-          });
+        // Gather all remote tracks
+        pc.getTransceivers().forEach((transceiver) => {
+          const track = transceiver.receiver?.track;
+          if (!track) return;
 
-          // Gather all remote tracks
-          pc.getTransceivers().forEach((transceiver) => {
-            const track = transceiver.receiver?.track;
-            if (!track) return;
+          const stream = new MediaStream([track]);
 
-            const stream = new MediaStream([track]);
-
-            if (track.kind === 'audio') {
-              remoteAudioTracks.set(track.id, stream);
-            }
-
-            if (isVideoEnabled && track.kind === 'video') {
-              (track as any).mid = transceiver.mid;
-              console.log(222, 'trackTest', transceiver);
-              remoteVideoTracks.set(track.id, stream);
-            }
-          });
-
-          // Inject all remote audio tracks
-          if (audioContainer) {
-            audioContainer.innerHTML = '';
-
-            remoteAudioTracks.forEach((stream, trackId) => {
-              const audio = document.createElement('audio');
-              audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
-              audio.autoplay = true;
-              audio.srcObject = stream;
-              audio.controls = false;
-
-              audio.onloadedmetadata = () => {
-                if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
-                  audio
-                    .setSinkId(media?.audioOutputDeviceId)
-                    .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
-                    .catch((e) => console.warn('setSinkId error:', e));
-                }
-                audio.play().catch((err) => console.error('Audio play error:', err));
-              };
-
-              audioContainer.appendChild(audio);
-            });
-          } else {
-            console.warn(`Remote audio container not found: ${audioContainerId}`);
+          if (track.kind === 'audio') {
+            remoteAudioTracks.set(track.id, stream);
           }
 
-          // Inject all remote video tracks
-          if (videoContainer) {
-            videoContainer.innerHTML = '';
-            console.log({ remoteVideoTracks });
-            remoteVideoTracks.forEach((stream, trackId) => {
-              const video = document.createElement('video');
-              video.id = `line-${lineObj.lineKey}-video-${trackId}`;
-              video.srcObject = stream;
-              video.autoplay = true;
-              video.playsInline = true;
-              video.muted = true;
-
-              video.onloadedmetadata = () => {
-                if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
-                  video
-                    .setSinkId(media?.videoInputDeviceId)
-                    .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
-                    .catch((e) => console.warn('setSinkId error:', e));
-                }
-                video.play().catch((err) => console.error('Video play error:', err));
-              };
-
-              videoContainer.appendChild(video);
-            });
-          } else {
-            console.warn(`Remote video container not found: ${videoContainerId}`);
+          if (isVideoEnabled && track.kind === 'video') {
+            (track as any).mid = transceiver.mid;
+            console.log(222, 'trackTest', transceiver);
+            remoteVideoTracks.set(track.id, stream);
           }
+        });
 
-          updateLine(lineObj);
-        };
-        session.initiateRemoteMediaStreams();
+        // Inject all remote audio tracks
+        if (audioContainer) {
+          audioContainer.innerHTML = '';
+
+          remoteAudioTracks.forEach((stream, trackId) => {
+            const audio = document.createElement('audio');
+            audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
+            audio.autoplay = true;
+            audio.srcObject = stream;
+            audio.controls = false;
+
+            audio.onloadedmetadata = () => {
+              if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
+                audio
+                  .setSinkId(media?.audioOutputDeviceId)
+                  .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
+                  .catch((e) => console.warn('setSinkId error:', e));
+              }
+              audio.play().catch((err) => console.error('Audio play error:', err));
+            };
+
+            audioContainer.appendChild(audio);
+          });
+        } else {
+          console.warn(`Remote audio container not found: ${audioContainerId}`);
+        }
+
+        // Inject all remote video tracks
+        if (videoContainer) {
+          videoContainer.innerHTML = '';
+          console.log({ remoteVideoTracks });
+          remoteVideoTracks.forEach((stream, trackId) => {
+            const video = document.createElement('video');
+            video.id = `line-${lineObj.lineKey}-video-${trackId}`;
+            video.srcObject = stream;
+            video.autoplay = true;
+            video.playsInline = true;
+            video.muted = true;
+
+            video.onloadedmetadata = () => {
+              if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
+                video
+                  .setSinkId(media?.videoInputDeviceId)
+                  .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
+                  .catch((e) => console.warn('setSinkId error:', e));
+              }
+              video.play().catch((err) => console.error('Video play error:', err));
+            };
+
+            videoContainer.appendChild(video);
+          });
+        } else {
+          console.warn(`Remote video container not found: ${videoContainerId}`);
+        }
+
         updateLine(lineObj);
       };
-      return;
-    }
-    session.initiateRemoteMediaStreams = ({
-      videoEnabled: isVideoEnabled = videoEnabled,
-      pc = session.sessionDescriptionHandler.peerConnection ??
-        getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-          .peerConnection,
-      configs = getSipUsernameConfigs(configKey),
-    } = {}) => {
-      const media = configs?.media;
-
-      const remoteAudioTracks = new Map<string, MediaStream>();
-      const remoteVideoTracks = new Map<string, MediaStream>();
-      const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
-      const videoContainerId = `line-${lineObj.lineKey}-remoteVideos`;
-
-      const audioContainer = document.getElementById(audioContainerId);
-      const videoContainer = document.getElementById(videoContainerId);
-
-      console.log('initiateRemoteMediaStreams', {
-        isVideoEnabled,
-        pc,
-      });
-
-      // Gather all remote tracks
-      pc.getTransceivers().forEach((transceiver) => {
-        const track = transceiver.receiver?.track;
-        if (!track) return;
-
-        const stream = new MediaStream([track]);
-
-        if (track.kind === 'audio') {
-          remoteAudioTracks.set(track.id, stream);
-        }
-
-        if (isVideoEnabled && track.kind === 'video') {
-          (track as any).mid = transceiver.mid;
-          console.log(222, 'trackTest', transceiver);
-          remoteVideoTracks.set(track.id, stream);
-        }
-      });
-
-      // Inject all remote audio tracks
-      if (audioContainer) {
-        audioContainer.innerHTML = '';
-
-        remoteAudioTracks.forEach((stream, trackId) => {
-          const audio = document.createElement('audio');
-          audio.id = `line-${lineObj.lineKey}-audio-${trackId}`;
-          audio.autoplay = true;
-          audio.srcObject = stream;
-          audio.controls = false;
-
-          audio.onloadedmetadata = () => {
-            if (typeof audio.sinkId !== 'undefined' && media?.audioOutputDeviceId) {
-              audio
-                .setSinkId(media?.audioOutputDeviceId)
-                .then(() => console.log('sinkId set:', media?.audioOutputDeviceId))
-                .catch((e) => console.warn('setSinkId error:', e));
-            }
-            audio.play().catch((err) => console.error('Audio play error:', err));
-          };
-
-          audioContainer.appendChild(audio);
-        });
-      } else {
-        console.warn(`Remote audio container not found: ${audioContainerId}`);
-      }
-
-      // Inject all remote video tracks
-      if (videoContainer) {
-        videoContainer.innerHTML = '';
-        remoteVideoTracks.forEach((stream, trackId) => {
-          const video = document.createElement('video');
-          video.id = `line-${lineObj.lineKey}-video-${trackId}`;
-          video.srcObject = stream;
-          video.autoplay = true;
-          video.playsInline = true;
-          video.muted = true;
-
-          video.onloadedmetadata = () => {
-            if (typeof video.sinkId !== 'undefined' && media?.videoInputDeviceId) {
-              video
-                .setSinkId(media?.videoInputDeviceId)
-                .then(() => console.log('sinkId set:', media?.videoInputDeviceId))
-                .catch((e) => console.warn('setSinkId error:', e));
-            }
-            video.play().catch((err) => console.error('Video play error:', err));
-          };
-
-          videoContainer.appendChild(video);
-        });
-      } else {
-        console.warn(`Remote video container not found: ${videoContainerId}`);
-      }
-
+      session.initiateRemoteMediaStreams();
       updateLine(lineObj);
     };
-    session.initiateRemoteMediaStreams();
-    updateLine(lineObj);
+
+    pc.oniceconnectionstatechange = () => {
+      console.log(1113, pc.iceConnectionState);
+      switch (pc.iceConnectionState) {
+        case 'disconnected':
+          teardownSession(lineObj);
+          break;
+        case 'connected':
+          onIceConnectionComplete();
+          break;
+      }
+    };
   }
 
   function onTransferSessionDescriptionHandlerCreated(
