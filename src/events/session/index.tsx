@@ -2,7 +2,12 @@ import { SipConfigs } from '../../configs/types';
 import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
-import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
+import {
+  LineType,
+  SipSessionDataType,
+  SipSessionDescriptionHandler,
+  SipSessionType,
+} from '../../store/types';
 import { CallbackFunction } from '../../types';
 import { utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
@@ -59,98 +64,171 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
   // // Both Incoming an outgoing INVITE
   async function onInviteAccepted(lineObj: LineType, videoEnabled: boolean) {
     // Call in progress
-    const session = lineObj.sipSession;
-    console.log('onInviteAccepted', { lineObj, session });
-    if (!session) return;
+    const defaultSession = lineObj.sipSession;
+    console.log('onInviteAccepted', { lineObj, session: defaultSession });
+    if (!defaultSession) return;
 
     const startTime = utcDateNow();
-    session.data.startTime = startTime;
+    defaultSession.data.startTime = startTime;
 
-    session.data.started = true;
-    // const pc = session.sessionDescriptionHandler.peerConnection;
+    defaultSession.data.started = true;
+    // const pc = defaultSession.sessionDescriptionHandler.peerConnection;
 
-    session.initiateLocalMediaStreams = async ({
+    defaultSession.initiateLocalMediaStreams = async function ({
       videoEnabled: isVideoEnabled = videoEnabled,
-      pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-        .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
       configs = getSipUsernameConfigs(configKey),
-    } = {}) => {
-      try {
-        const media = configs?.media;
-        const line = getSipStore().findLineByLineKey(lineObj.lineKey);
-        const screenShareEnabled =
-          line?.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
-        const videoEnabled = line?.sipSession?.data.localMediaStreamStatus?.videoEnabled;
-        const soundEnabled = line?.sipSession?.data.localMediaStreamStatus?.soundEnabled;
+      type = undefined,
+      stopStream = true,
+    } = {}) {
+      const session = this;
+      const pc = session.sessionDescriptionHandler.peerConnection;
+      if (!session) return;
 
-        let localStream: MediaStream;
+      if (!pc) return;
 
-        if (screenShareEnabled) {
-          // === screen share already in place, preserve it ===
-          localStream = new MediaStream();
-          pc.getSenders().forEach(function (sender) {
-            if (sender.track && sender.track.kind === 'video') {
-              localStream.addTrack(sender.track);
-            }
-          });
-        } else {
-          // === normal camera/audio ===
-          const constraints: MediaStreamConstraints = {
-            audio:
-              media?.audioInputDeviceId === null // default disabled
+      const { localMediaStreamStatus, videoSourceTrack, audioSourceTrack, screenSourceTrack } =
+        session.data;
+      if (!localMediaStreamStatus) return;
+
+      const media = configs?.media;
+
+      // ===============================
+      // Determine desired states
+      // ===============================
+      const soundEnabled = localMediaStreamStatus.soundEnabled ?? true;
+      const videoEnabled = localMediaStreamStatus.videoEnabled ?? isVideoEnabled;
+      const useScreen = !!localMediaStreamStatus.screenShareEnabled;
+
+      let newAudioTrack: SipSessionDataType['audioSourceTrack'] = audioSourceTrack;
+      let newVideoTrack: SipSessionDataType['audioSourceTrack'] = useScreen
+        ? screenSourceTrack
+        : videoSourceTrack;
+
+      console.log('initiateLocalMediaStreams 1', { stopStream });
+
+      const initiateLocalAudioStream = async function () {
+        console.log('initiateLocalMediaStreams 2');
+        // ===============================
+        // AUDIO
+        // ===============================
+        if (!newAudioTrack || newAudioTrack.readyState === 'ended') {
+          try {
+            const audioConstraints: MediaStreamConstraints['audio'] =
+              media?.audioInputDeviceId === null
                 ? true
-                : media?.audioInputDeviceId !== 'default'
-                  ? { deviceId: { exact: media?.audioInputDeviceId } }
-                  : true,
-            video: isVideoEnabled
-              ? media?.videoInputDeviceId
-                ? media.videoInputDeviceId !== 'default'
-                  ? { deviceId: { exact: media.videoInputDeviceId } }
-                  : true
-                : media?.videoInputDeviceId === null
-              : false,
-          };
+                : media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+                  ? { deviceId: { exact: media.audioInputDeviceId } }
+                  : true;
+            console.log('initiateLocalMediaStreams 3');
 
-          localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        }
-
-        // Replace existing audio/video tracks in PeerConnection
-        localStream.getTracks().forEach((track) => {
-          const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
-          track.enabled = !!(track.kind === 'audio'
-            ? (soundEnabled ?? media?.audioInputDeviceId)
-            : track.kind === 'video'
-              ? (videoEnabled ?? media?.videoInputDeviceId)
-              : true);
-
-          if (sender) {
-            sender.replaceTrack(track);
-          } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
-            pc.addTrack(track, localStream);
-            console.log(222, { track });
-          }
-        });
-
-        // Update local <video> preview
-        if (isVideoEnabled) {
-          const localVideo = document.getElementById(
-            `line-${lineObj.lineKey}-localVideo`,
-          ) as HTMLVideoElement;
-
-          if (localVideo) {
-            localVideo.srcObject = new MediaStream(localStream.getVideoTracks());
-            await localVideo.play().catch(() => {
-              console.warn('Autoplay prevented for local video element');
+            let audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: audioConstraints,
+              video: false,
             });
+
+            newAudioTrack = audioStream.getAudioTracks()[0];
+            session.data.audioSourceTrack = newAudioTrack;
+          } catch (err) {
+            console.error('Failed to get audio track', err);
           }
         }
 
-        updateLine(lineObj);
-      } catch (err) {
-        console.error('initiateLocalMediaStreams failed:', err);
+        if (newAudioTrack) {
+          console.log('initiateLocalMediaStreams 4');
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+
+          // Apply your previous logic for enabling
+          newAudioTrack.enabled = !!(soundEnabled ?? media?.audioInputDeviceId);
+          if (sender) sender.replaceTrack(newAudioTrack);
+          else pc.addTrack(newAudioTrack);
+          stopStream && sender?.track?.stop();
+        }
+
+        // ===============================
+        // Update session flags
+        // ===============================
+        localMediaStreamStatus.soundEnabled = !!soundEnabled;
+      };
+
+      const initiateLocalVideoStream = async function () {
+        // ===============================
+        // VIDEO
+        // ===============================
+        console.log('initiateLocalMediaStreams 5', { videoEnabled }, media?.videoInputDeviceId);
+
+        console.log({ videoEnabled });
+        if (!newVideoTrack || newVideoTrack.readyState === 'ended') {
+          if (!useScreen && (videoEnabled || media?.videoInputDeviceId === null)) {
+            try {
+              const videoConstraints: MediaStreamConstraints['video'] =
+                media?.videoInputDeviceId === null && isVideoEnabled
+                  ? true
+                  : media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
+                    ? { deviceId: { exact: media.videoInputDeviceId } }
+                    : isVideoEnabled;
+              console.log({ videoConstraints });
+              console.log('initiateLocalMediaStreams 6');
+
+              let cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraints,
+              });
+              newVideoTrack = cameraStream.getVideoTracks()[0];
+              session.data.videoSourceTrack = newVideoTrack;
+            } catch (err) {
+              console.error('Failed to get camera track', err);
+              newVideoTrack = undefined;
+            }
+          }
+        }
+
+        if (newVideoTrack) {
+          if (newVideoTrack.readyState === 'live') {
+            console.log('initiateLocalMediaStreams 7', { newVideoTrack, stopStream });
+
+            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+            // Enable logic: screen OR videoEnabled OR deviceId is null
+            newVideoTrack.enabled = !!((useScreen || videoEnabled) ?? media?.videoInputDeviceId);
+
+            if (sender) sender.replaceTrack(newVideoTrack);
+            else pc.addTrack(newVideoTrack);
+            stopStream && newVideoTrack.enabled && sender?.track?.stop();
+          }
+        }
+
+        // ===============================
+        // Local preview
+        // ===============================
+        const localVideoEl = document.getElementById(
+          `line-${lineObj.lineKey}-localVideo`,
+        ) as HTMLVideoElement;
+        if (localVideoEl) {
+          if (newVideoTrack) {
+            localVideoEl.srcObject = new MediaStream([newVideoTrack]);
+            localVideoEl.autoplay = true;
+            localVideoEl.muted = true;
+            localVideoEl.playsInline = true;
+            await localVideoEl
+              .play()
+              .catch(() => console.warn('Autoplay prevented for local video element'));
+          } else {
+            localVideoEl.srcObject = null;
+          }
+        }
+        // ===============================
+        // Update session flags
+        // ===============================
+        localMediaStreamStatus.videoEnabled = !!videoEnabled;
+      };
+      if (type) {
+        type === 'audio' && (await initiateLocalAudioStream());
+        type === 'video' && (await initiateLocalVideoStream());
+      } else {
+        await initiateLocalAudioStream();
+        await initiateLocalVideoStream();
       }
+      updateLine({ ...lineObj, sipSession: session });
     };
-    session.initiateLocalMediaStreams();
+    defaultSession.initiateLocalMediaStreams();
     updateLine(lineObj);
   }
 
@@ -380,6 +458,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
             break;
         }
         response.accept();
+        lineObj.sipSession?.initiateRemoteMediaStreams?.();
       } else {
         console.warn('Unknown message type');
         response.reject();
@@ -416,15 +495,14 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     if (!session) return;
 
     const pc = session.sessionDescriptionHandler.peerConnection;
-    const onIceConnectionComplete = () => {
-      session.initiateRemoteMediaStreams = ({
-        videoEnabled: isVideoEnabled = videoEnabled,
-        pc = getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-          .peerConnection ?? session.sessionDescriptionHandler.peerConnection,
-        configs = getSipUsernameConfigs(configKey),
-      } = {}) => {
-        const media = configs?.media;
 
+    const onIceConnectionComplete = () => {
+      session.initiateRemoteMediaStreams = function ({
+        videoEnabled: isVideoEnabled = videoEnabled,
+        configs = getSipUsernameConfigs(configKey),
+      } = {}) {
+        const media = configs?.media;
+        const pc = this.sessionDescriptionHandler.peerConnection;
         const remoteAudioTracks = new Map<string, MediaStream>();
         const remoteVideoTracks = new Map<string, MediaStream>();
         const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;

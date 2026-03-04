@@ -74,8 +74,9 @@ export interface SipInvitationType
 
 export interface InitiateMediaStreamsParams {
   videoEnabled?: boolean;
-  pc?: RTCPeerConnection;
   configs?: SipConfigs;
+  type?: 'audio' | 'video';
+  stopStream?: boolean;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
@@ -129,8 +130,9 @@ export interface SipSessionDataType {
   remoteMediaStreamStatus: MediaStremStatus;
   videoAckReceived: boolean;
   transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: MediaStreamTrack | null;
-  videoSourceTrack: MediaStreamTrack | null;
+  audioSourceTrack: MediaStreamTrack | undefined | null;
+  videoSourceTrack: MediaStreamTrack | undefined | null;
+  screenSourceTrack: MediaStreamTrack | undefined | null;
   earlyMedia: any; //TODO
   ringerObj: { [key: string]: any } | null;
   confBridgeChannels: Array<any>; //TODO

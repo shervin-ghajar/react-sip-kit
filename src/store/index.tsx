@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../configs/types';
+import { SipConfigs } from '../configs/types';
 import { SipUserAgent } from '../types';
 import { generateUUID } from '../utils';
 import { LineType, SipStoreStateType } from './types';

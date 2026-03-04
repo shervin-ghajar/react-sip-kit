@@ -4,3 +4,4 @@ export * from './deepMerge';
 export * from './utcDateNow';
 export * from './getMediaDevices';
 export * from './generateUUID';
+export * from './interval';
