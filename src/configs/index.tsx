@@ -64,7 +64,7 @@ export const defaultRegistrationConfig: SipRegistrationConfig = {
   hackIpInContact: true,
   contactParams: {},
   delegate: {},
-  iceGatheringTimeout: 500,
+  iceGatheringTimeout: 5000,
   subscribeToYourself: false,
   voiceMailSubscribe: false,
   voicemailDid: '',

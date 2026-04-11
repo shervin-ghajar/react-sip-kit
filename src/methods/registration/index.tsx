@@ -1,4 +1,4 @@
-import { SipAccountConfig, SipConfigs } from '../../configs/types';
+import { SipConfigs } from '../../configs/types';
 import { onRegisterFailed } from '../../events/registration';
 import { getSipStore, getSipStoreUserAgent, setSipStore } from '../../store';
 

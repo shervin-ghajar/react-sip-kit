@@ -1,19 +1,56 @@
 import { AudioStream, VideoStream } from '.';
 import './App.css';
-import { accountConfigs, SipConnection } from './main';
+import { SipConnection } from './main';
 import { LineType } from './store/types';
-import { memo, useEffect } from 'react';
+import { memo, useEffect, useState } from 'react';
 
+/* -------------------------------------------------------------------------- */
+export const accountConfigs = {
+  '25': {
+    domain: 'teamserver.payamgostar.com',
+    username: '25',
+    password: 'a3ed7e436b884c20a80d478950b770a2',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
+  '6': {
+    domain: 'teamserver.payamgostar.com',
+    username: '6',
+    password: '49c39db893b9475a8eb6fb1d70ff48ed',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
+  '4': {
+    domain: 'teamserver.payamgostar.com',
+    username: '4',
+    password: '0c739d7d704a43bfad9a4671913256d0',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
+  '37': {
+    domain: 'teamserver.payamgostar.com',
+    username: '37',
+    password: '0e2c26569ab64c01b6fe8e2386574652',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+  },
+} as const;
+/* -------------------------------------------------------------------------- */
 function App({ configKey }: { configKey: string }) {
   const { dialByNumber } = SipConnection.getSessionMethodsBy({ configKey }); // all session methods like dial, answer, toggle video, toggle share-screen and so on
   const { lines, status } = SipConnection.getAccountBy({ configKey }).watch(); // watches lines and status if they change
+  const [number, setNumber] = useState<string>();
   const renderLines = () => {
     return lines.map((line) => <SipLine key={line.lineKey} lineKey={line.lineKey} />);
   };
   return (
     <div
       style={{
-        width: '100%',
+        width: '50%',
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
@@ -22,7 +59,7 @@ function App({ configKey }: { configKey: string }) {
       }}
     >
       <h2>
-        Web Phone {configKey} {status}
+        Web Phone {configKey} {status} {`(${SipConnection.isMaster ? 'Master' : 'Follower'})`}
       </h2>
       <div
         style={{
@@ -45,20 +82,117 @@ function App({ configKey }: { configKey: string }) {
         }}
       >
         <h4>Call Action Buttons</h4>
-        {Object.keys(accountConfigs).map((ac) => {
-          return [
-            <button onClick={() => dialByNumber('audio', ac)}>{`Call ${ac}`}</button>,
-            <button onClick={() => dialByNumber('video', ac)}>{`Video Call ${ac}`}</button>,
-          ];
-        })}
-        <button onClick={() => dialByNumber('audio', '99362038188')}>{`Call 99362038188`}</button>
-        <button onClick={() => dialByNumber('audio', '700')}>{`Audio Conference Room-700`}</button>
-        <button onClick={() => dialByNumber('video', '700')}>{`Video Conference Room-700`}</button>
-        <button onClick={() => SipConnection.reconnect(configKey)}>{`Reconnect`}</button>
+
+        <div style={{ display: 'flex', gap: 4 }}>
+          <input type="number" value={number} onChange={(e) => setNumber(String(e.target.value))} />
+          <button onClick={() => number && dialByNumber('audio', number)}>{`Call`}</button>
+          <button onClick={() => number && dialByNumber('video', number)}>{`Video Call`}</button>
+        </div>
+        <button onClick={() => SipConnection.reconnectTransport(configKey)}>{`Reconnect`}</button>
+        <button onClick={() => SipConnection.refreshRegistration(configKey)}>{`ReRegister`}</button>
       </div>
     </div>
   );
 }
+
+export const ConfigForm = () => {
+  const [fields, setFields] = useState({
+    domain: 'teamserver.payamgostar.com',
+    username: '',
+    password: '',
+    wssServer: 'teamserver.payamgostar.com',
+    webSocketPort: '8089',
+    serverPath: '/ws',
+    iceTransportPolicy: 'all',
+    iceCandidatePoolSize: 10,
+    iceGatheringTimeout: 5000,
+  });
+
+  const handleregister = () => {
+    if (
+      fields.domain &&
+      fields.password &&
+      fields.serverPath &&
+      fields.username &&
+      fields.webSocketPort &&
+      fields.wssServer
+    ) {
+      const { iceCandidatePoolSize, iceGatheringTimeout, iceTransportPolicy, ...rest } = fields;
+      SipConnection.add({
+        account: rest,
+        media: {},
+        registration: {
+          transportReconnectionAttempts: 5,
+          peerConnectionConfiguration: {
+            iceServers: [
+              {
+                urls: ['stun:stun.1st.co.com:3478'],
+              },
+              {
+                urls: [
+                  'turn:stun.1st.co.com:3478?transport=udp',
+                  'turn:stun.1st.co.com:3478?transport=tcp',
+                  'turns:stun.1st.co.com:5349',
+                ],
+                username: 'alovoip',
+                credential: '123',
+              },
+            ],
+            iceTransportPolicy: iceTransportPolicy as any,
+            iceCandidatePoolSize: iceCandidatePoolSize,
+            rtcpMuxPolicy: 'require',
+          },
+          iceGatheringTimeout: iceGatheringTimeout,
+        },
+      });
+    }
+  };
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 4,
+        height: '100%',
+        justifyContent: 'space-between',
+      }}
+    >
+      <div style={{ display: 'flex', gap: 4 }}>
+        Register:
+        {Object.keys(accountConfigs).map((acc) => (
+          <button
+            key={acc}
+            onClick={() => {
+              const key = acc as keyof typeof accountConfigs;
+              setFields((prev) => ({ ...prev, ...accountConfigs[key] }));
+            }}
+          >
+            {acc}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {Object.keys(fields).map((field) => {
+          return (
+            <div
+              key={field}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'start' }}
+            >
+              <label>{field}</label>
+              <input
+                value={(fields as any)[field]}
+                onChange={(e) => {
+                  setFields((prev) => ({ ...prev, [field]: e.target.value }));
+                }}
+              />
+            </div>
+          );
+        })}
+        <button onClick={handleregister}>Register</button>
+      </div>
+    </div>
+  );
+};
 /* -------------------------------------------------------------------------- */
 export default App;
 
@@ -86,7 +220,7 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     localMediaStreamStatus,
     remoteMediaStreamStatus,
     remoteNumber,
-  ] = SipConnection.useWatchSessionData({
+  ] = SipConnection.useWatchLineData({
     key: { lineKey },
     name: [
       'callType',
@@ -125,19 +259,16 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
-    if (localMediaStreamEnabled) {
-      console.log('localMediaStreamEnabled');
-      SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams?.();
-    }
-  }, [callStarted, localMediaStreamEnabled, localScreenShareEnabled]);
+    SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams?.({
+      type: 'video',
+    });
+  }, [callStarted]);
 
   useEffect(() => {
     if (!callStarted) return;
     // Lazy-initiate streams when needed
-    if (remoteMediaStreamEnabled) {
-      SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams?.();
-    }
-  }, [callStarted, remoteMediaStreamEnabled, remoteScreenShareEnabled]);
+    SipConnection.getSessionBy({ lineKey })?.initiateRemoteMediaStreams?.();
+  }, [callStarted]);
 
   /* ------------------------------- UI Render ------------------------------- */
   return (
@@ -188,6 +319,16 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
           >
             {isRecording ? 'Recording...' : 'Record'}
+          </button>
+          <button
+            onClick={() => {
+              SipConnection.getSessionBy({ lineKey })?.initiateLocalMediaStreams?.({
+                type: 'video',
+                stopStream: false,
+              });
+            }}
+          >
+            {'Initiate Media'}
           </button>
         </div>
       ) : (

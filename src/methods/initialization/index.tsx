@@ -40,13 +40,13 @@ export const initilizeMediaStreams = (configs: SipConfigs) => {
     const configKey = configs.key;
     const lines = getSipStore().lines[configKey] ?? {};
     Object.values(lines).forEach((line) => {
-      if (line.sipSession?.data.started) {
+      if (line?.data.started) {
         line.sipSession?.initiateLocalMediaStreams({
-          videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
+          videoEnabled: line.data.localMediaStreamStatus?.videoEnabled,
           configs,
         });
         line.sipSession?.initiateRemoteMediaStreams({
-          videoEnabled: line.sipSession.data.localMediaStreamStatus?.videoEnabled,
+          videoEnabled: line.data.localMediaStreamStatus?.videoEnabled,
           configs,
         });
       }

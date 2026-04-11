@@ -7,14 +7,14 @@ Supports **audio/video calls**, **recording**, **screen sharing**, and **device 
 
 ## ✨ Features
 
-* 📞 **Audio & Video Calls** — with automatic device detection
-* 🎥 **Video Support** — manage local & remote streams seamlessly
-* 🔴 **Call Recording** — audio and video recording out of the box
-* 🖥️ **Screen Sharing** — during video calls
-* 🎧 **Device Management** — select audio/video input & output devices
-* 🔄 **Multi-account & Multi-line Support** — handle multiple SIP accounts and concurrent calls
-* ⚡ **TypeScript-first** — fast, modular, type-safe APIs
-* 🛠️ **Configurable & Extensible** — tailor to your SIP setup
+- 📞 **Audio & Video Calls** — with automatic device detection
+- 🎥 **Video Support** — manage local & remote streams seamlessly
+- 🔴 **Call Recording** — audio and video recording out of the box
+- 🖥️ **Screen Sharing** — during video calls
+- 🎧 **Device Management** — select audio/video input & output devices
+- 🔄 **Multi-account & Multi-line Support** — handle multiple SIP accounts and concurrent calls
+- ⚡ **TypeScript-first** — fast, modular, type-safe APIs
+- 🛠️ **Configurable & Extensible** — tailor to your SIP setup
 
 ---
 
@@ -105,15 +105,15 @@ function App({ username }: { username: string }) {
 
 ---
 
-### 3. Watch line/session data with `useWatchSessionData`
+### 3. Watch line/session data with `useWatchLineData`
 
 For fine-grained updates, subscribe to session fields:
 
 ```tsx
-import { useWatchSessionData } from 'react-sip-kit';
+import { useWatchLineData } from 'react-sip-kit';
 
 function RecordingStatus({ lineKey }: { lineKey: number }) {
-  const isRecording = useWatchSessionData({
+  const isRecording = useWatchLineData({
     lineKey,
     name: 'recordMedia.recording',
   });
@@ -125,7 +125,7 @@ function RecordingStatus({ lineKey }: { lineKey: number }) {
 You can also watch multiple fields:
 
 ```tsx
-const [localMediaStreamStatus, isRecording] = useWatchSessionData({
+const [localMediaStreamStatus, isRecording] = useWatchLineData({
   lineKey: 1,
   name: ['localMediaStreamStatus', 'recordMedia.recording'],
 });
@@ -176,12 +176,12 @@ Each account supports SIP and media options:
 
 ## 💡 Best Practices
 
-* Always pass the `username` when calling `SipConnection.methods(username)` or `SipConnection.get(username)`.
-* Use `.watch()` for reactive state (`lines`, `status`).
-* Use `useWatchSessionData` for **line-specific** updates (mute, hold, video state, recording, etc.).
-* Render `<VideoStream>` and `<AudioStream>` **only for active calls**.
-* Manage device permissions (mic/camera) upfront.
-* If adding accounts dynamically, call `SipConnection.add(config)` for each.
+- Always pass the `username` when calling `SipConnection.methods(username)` or `SipConnection.get(username)`.
+- Use `.watch()` for reactive state (`lines`, `status`).
+- Use `useWatchLineData` for **line-specific** updates (mute, hold, video state, recording, etc.).
+- Render `<VideoStream>` and `<AudioStream>` **only for active calls**.
+- Manage device permissions (mic/camera) upfront.
+- If adding accounts dynamically, call `SipConnection.add(config)` for each.
 
 ---
 
@@ -189,11 +189,11 @@ Each account supports SIP and media options:
 
 See the [`/example`](https://github.com/shervin-ghajar/react-sip-kit/tree/main/example) folder for:
 
-* Multiple SIP accounts in one UI
-* Audio & video calls
-* Hold, mute, attended transfer
-* Call recording & screen sharing
-* Local & remote media rendering
+- Multiple SIP accounts in one UI
+- Audio & video calls
+- Hold, mute, attended transfer
+- Call recording & screen sharing
+- Local & remote media rendering
 
 ---
 
@@ -207,6 +207,6 @@ MIT License
 
 **Shervin Ghajar**
 
-* GitHub: [@shervin-ghajar](https://github.com/shervin-ghajar)
-* NPM: [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
-* Repository: [react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)
+- GitHub: [@shervin-ghajar](https://github.com/shervin-ghajar)
+- NPM: [react-sip-kit](https://www.npmjs.com/package/react-sip-kit)
+- Repository: [react-sip-kit](https://github.com/shervin-ghajar/react-sip-kit)

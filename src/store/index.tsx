@@ -7,9 +7,10 @@ import { create } from 'zustand';
 /* -------------------------------------------------------------------------- */
 // Create sip store
 export const useSipStore = create<SipStoreStateType>((set, get) => ({
-  configs: null,
-  statuses: null,
-  userAgents: undefined,
+  broadcastEnabled: false,
+  configs: {},
+  statuses: {},
+  userAgents: {},
   devicesInfo: {
     hasVideoDevice: false,
     hasAudioDevice: false,
@@ -73,9 +74,9 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
 
   removeLine: (lineKey: LineType['lineKey']) => {
     const configKey = get().getConfigKeyByLineKey(lineKey);
-    const lineObj = get().findLineByLineKey(lineKey);
+    const lineObj = get().getLineByLineKey(lineKey);
     if (!configKey) return null;
-    const remoteNumber = lineObj?.sipSession?.data.remoteNumber ?? '';
+    const remoteNumber = lineObj?.data.remoteNumber ?? '';
     set((state) => {
       if (!state.lines?.[configKey]?.[lineKey]) return state; // nothing to remove
       const { [lineKey]: _, ...rest } = state.lines[configKey];
@@ -137,7 +138,15 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  findLineByLineKey: (lineKey) => {
+  removeAllLines: () => {
+    set((state) => {
+      return {
+        ...state,
+        lines: {},
+      };
+    });
+  },
+  getLineByLineKey: (lineKey) => {
     const configKey = get().getConfigKeyByLineKey(lineKey);
     if (!configKey) return null;
     return get().lines?.[configKey]?.[lineKey] ?? null;
@@ -146,6 +155,11 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
     const configKey = get().getConfigKeyByLineKey(lineKey);
     if (!configKey) return null;
     return get().lines?.[configKey]?.[lineKey]?.sipSession ?? null;
+  },
+  getLineDataByLineKey: (lineKey) => {
+    const configKey = get().getConfigKeyByLineKey(lineKey);
+    if (!configKey) return null;
+    return get().lines?.[configKey]?.[lineKey]?.data ?? null;
   },
   getConfigKeyByLineKey: (lineKey) => {
     return get().configKeysByLineKey[lineKey] ?? null;
@@ -165,12 +179,18 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       ] ?? null;
     return lineKey;
   },
-  getLineBy: ({ configKey, remoteNumber }) => {
-    const lineKey =
-      get().lineKeyByRemoteNumber_ConfigKey[
-        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
-      ] ?? null;
-    return get().findLineByLineKey(lineKey);
+  getLineBy: (keys) => {
+    let lineKey = '';
+    if ('lineKey' in keys) {
+      lineKey = keys.lineKey;
+    } else {
+      const { configKey, remoteNumber } = keys;
+      lineKey =
+        get().lineKeyByRemoteNumber_ConfigKey[
+          get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+        ] ?? null;
+    }
+    return get().getLineByLineKey(lineKey);
   },
   remoteNumberConfigKeyResolver: ({ configKey, remoteNumber }) => {
     return `${remoteNumber}:${configKey}`;
@@ -183,7 +203,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
  * Set sip store for none functional components
  */
 export const setSipStore = (state: Partial<SipStoreStateType>) => {
-  useSipStore.setState((prev) => ({ ...prev, ...state }));
+  useSipStore.getState().setSipStore(state);
 };
 /**
  *
