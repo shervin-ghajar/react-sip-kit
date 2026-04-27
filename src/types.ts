@@ -1,32 +1,17 @@
-import { SipConfigs } from './configs/types';
+import { RtcConfig } from './configs/types';
+import { HybridEngineInitializer } from './engines/hybrid/initializer';
+import { HybridInstance } from './engines/hybrid/types';
+import { JanusEngineInitializer } from './engines/janus/initializer';
+import { JanusInstance } from './engines/janus/types';
+import { SipEngineInitializer } from './engines/sip/initializer';
+import { SipUserAgent } from './engines/sip/types';
 import { reconnectTransport } from './events/transport';
-import { SipInitializer } from './initializer';
-import { LineType, SipLineDataType, SipSessionType, SipStoreStateType } from './store/types';
-import { Registerer, Subscriber, UserAgent } from 'sip.js';
+import { LineDataType, LineType, RtcStoreStateType } from './store/types';
 
-export interface SipUserAgent extends UserAgent {
-  isReRegister: boolean;
-  isRegistered: () => boolean;
-  registerer: Registerer;
-  sessions: {
-    [id: string]: SipSessionType;
-  };
-  _sessions: {
-    [id: string]: SipSessionType;
-  };
-  registrationCompleted: boolean;
-  registering: boolean;
-  transport: UserAgent['transport'] & {
-    reconnectionAttempts: number;
-    attemptingReconnection: boolean;
-  };
-  BlfSubs: any[];
-  lastVoicemailCount: number;
-  selfSub: Subscriber | null;
-  voicemailSub: Subscriber | null;
-}
 
-export type SipManagerConfig = {
+export type EngineInstance = SipUserAgent | JanusInstance | HybridInstance;
+
+export type RtcManagerConfig = {
   /**
    * Unique identifier for the SIP account instance.
    *
@@ -34,22 +19,22 @@ export type SipManagerConfig = {
    * - Useful when the same username can exist across multiple domains.
    * - All internal maps and store entries use this key.
    */
-  key?: SipConfigs['key'];
+  key?: RtcConfig['key'];
 
   /**
    * Core SIP account information (username, password, domain, etc.)
    */
-  account: SipConfigs['account'];
+  account: RtcConfig['account'];
 } & {
   /**
    * Optional overrides for other parts of the config.
-   * Each key corresponds to a subset of SipConfigs.
+   * Each key corresponds to a subset of RtcConfig.
    */
-  [P in Exclude<keyof SipConfigs, 'account'>]?: Partial<SipConfigs[P]>;
+  [P in Exclude<keyof RtcConfig, 'account'>]?: Partial<RtcConfig[P]>;
 };
 
-export interface SipManagerProps {
-  configs: SipManagerConfig[];
+export interface RtcManagerProps {
+  configs: RtcManagerConfig[];
 }
 export interface SipContextTransportType {
   reconnectTransport: typeof reconnectTransport;
@@ -60,6 +45,7 @@ export type CallbackFunction<T = any> = (value?: T) => void;
 export type CallType =
   | 'audio'
   | 'video'
+  | "room"
   | 'conferenceAudio'
   | 'conferenceVideo'
   | 'transferAudio'
@@ -68,9 +54,9 @@ export type CallType =
 /**
  * Wrapper for a SIP account + its active UserAgent instance.
  */
-export interface SipManagerInstance {
-  config: SipManagerConfig;
-  instance: SipInitializer;
+export interface RtcManagerInstance {
+  config: RtcManagerConfig;
+  instance: SipEngineInitializer | JanusEngineInitializer | HybridEngineInitializer;
 }
 
 /**
@@ -79,7 +65,7 @@ export interface SipManagerInstance {
  * - `lineKey` → active line identifier
  */
 export type GetAccountKey =
-  | { configKey: SipManagerConfig['key']; lineKey?: never }
+  | { configKey: RtcManagerConfig['key']; lineKey?: never }
   | { lineKey: LineType['lineKey']; configKey?: never };
 
 /**
@@ -88,7 +74,7 @@ export type GetAccountKey =
  * - `lineKey` → active line identifier
  */
 export type GetMethodsKey =
-  | { configKey: SipManagerConfig['key']; lineKey?: never }
+  | { configKey: RtcManagerConfig['key']; lineKey?: never }
   | { lineKey: LineType['lineKey']; configKey?: never };
 
 /**
@@ -99,17 +85,20 @@ export type GetMethodsKey =
 export type LineLookup =
   | { lineKey: LineType['lineKey']; remoteNumber?: never; configKey?: never }
   | {
-      configKey: SipConfigs['key'];
-      remoteNumber: SipLineDataType['remoteNumber'];
-      lineKey?: never;
-    };
+    configKey: RtcConfig['key'];
+    remoteNumber: LineDataType['remoteNumber'];
+    lineKey?: never;
+  };
 
-export type SipBroadcastMessage =
+export type RtcBroadcastMessage =
   | { type: 'MASTER_CHECK'; tabId: string }
   | { type: 'MASTER_PRESENT'; tabId: string }
   | { type: 'MASTER_CLOSED'; tabId: string }
   | { type: 'FOLLOWER_CLOSED'; tabId: string }
   | { type: 'MASTER_HEARTBEAT'; tabId: string }
-  | { type: 'SYNC'; tabIds: string[]; payload: Partial<SipStoreStateType> }
+  | { type: 'SYNC'; tabIds: string[]; payload: Partial<RtcStoreStateType> }
   | { type: 'COMMAND'; method: string; args: any[] }
   | { type: 'SESSION_COMMAND'; method: string; configKey: string; args: any[] };
+
+
+export type RtcEngineStatus = 'disconnected' | 'connecting' | 'connected';

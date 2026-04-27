@@ -1,8 +1,8 @@
-import { SipConfigs } from '../../configs/types';
-import { detectDevices } from '../../methods/initialization';
-import { getSipUsernameConfigs } from '../../store';
+import { RtcConfig } from '../../configs/types';
+import { detectDevices } from '../../general-methods/initialization';
+import { getRtcUsernameConfigs } from '../../store';
 
-export const getMediaDevices = async (configKey: SipConfigs['key']) => {
+export const getMediaDevices = async (configKey: RtcConfig['key']) => {
   return detectDevices().then((deviceInfos) => {
     let hasAudioDevice = false;
     let audioInputDevices: MediaDeviceInfo[] = [];
@@ -19,7 +19,7 @@ export const getMediaDevices = async (configKey: SipConfigs['key']) => {
           hasSpeakerDevice = true;
           speakerDevices.push(deviceInfos[i]);
         } else if (deviceInfos[i].kind === 'videoinput') {
-          const enableVideo = getSipUsernameConfigs(configKey)?.features?.enableVideo;
+          const enableVideo = getRtcUsernameConfigs(configKey)?.features?.enableVideo;
           if (enableVideo) {
             hasVideoDevice = true;
             videoInputDevices.push(deviceInfos[i]);

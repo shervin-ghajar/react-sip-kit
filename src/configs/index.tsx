@@ -1,7 +1,7 @@
 import {
   SipAccountConfig,
   SipAdvancedConfig,
-  SipConfigs,
+  RtcConfig,
   SipFeaturesConfig,
   SipMediaConfig,
   SipPolicyConfig,
@@ -90,11 +90,11 @@ export const defaultAdvancedConfig: SipAdvancedConfig = {
   didLength: 4,
   maxDidLength: 8,
   singleInstance: true,
-  chatEngine: 'default',
 };
 
 // Unified default config
-export const defaultSipConfigs: SipConfigs = {
+export const defaultRtcConfig: RtcConfig = {
+  engine: "sip",
   key: defaultAccountConfig.username,
   account: defaultAccountConfig,
   features: defaultFeaturesConfig,

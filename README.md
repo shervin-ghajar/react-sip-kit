@@ -30,18 +30,18 @@ yarn add react-sip-kit
 
 ## 🚀 Basic Usage
 
-### 1. Initialize a global `SipManager`
+### 1. Initialize a global `RtcManager`
 
-Instead of wrapping your app with a provider, you now create a single `SipManager` instance and add accounts dynamically.
+Instead of wrapping your app with a provider, you now create a single `RtcManager` instance and add accounts dynamically.
 
 ```tsx
 // main.ts
 import App from './App';
-import { SipManager } from 'react-sip-kit';
+import { RtcManager } from 'react-sip-kit';
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 ------------------------------------------------------------
-export const SipConnection = new SipManager(); // Initilizing SipManager
+export const RtcConnection = new RtcManager(); // Initilizing RtcManager
 ------------------------------------------------------------
 const Providers = () => {
   const configs = [{
@@ -59,7 +59,7 @@ const Providers = () => {
   useEffect(() => {
     // Add new configs dynamically
     configs.forEach((config) => {
-      SipConnection.add(config);
+      RtcConnection.add(config);
     });
   }, [configs]);
 
@@ -84,11 +84,11 @@ You can fetch **methods** and **watch state** like this:
 
 ```tsx
 // App.tsx
-import { SipConnection } from './main';
+import { RtcConnection } from './main';
 
 function App({ username }: { username: string }) {
-  const { dialByNumber } = SipConnection.methods(username);
-  const { watch } = SipConnection.get(username);
+  const { dialByNumber } = RtcConnection.methods(username);
+  const { watch } = RtcConnection.get(username);
   const { lines, status } = watch();
 
   return (
@@ -113,10 +113,7 @@ For fine-grained updates, subscribe to session fields:
 import { useWatchLineData } from 'react-sip-kit';
 
 function RecordingStatus({ lineKey }: { lineKey: number }) {
-  const isRecording = useWatchLineData({
-    lineKey,
-    name: 'recordMedia.recording',
-  });
+  const isRecording = useWatchLineData({ lineKey, name: 'recordMedia.recording' });
 
   return <p>Recording: {isRecording ? 'Yes' : 'No'}</p>;
 }
@@ -176,12 +173,12 @@ Each account supports SIP and media options:
 
 ## 💡 Best Practices
 
-- Always pass the `username` when calling `SipConnection.methods(username)` or `SipConnection.get(username)`.
+- Always pass the `username` when calling `RtcConnection.methods(username)` or `RtcConnection.get(username)`.
 - Use `.watch()` for reactive state (`lines`, `status`).
 - Use `useWatchLineData` for **line-specific** updates (mute, hold, video state, recording, etc.).
 - Render `<VideoStream>` and `<AudioStream>` **only for active calls**.
 - Manage device permissions (mic/camera) upfront.
-- If adding accounts dynamically, call `SipConnection.add(config)` for each.
+- If adding accounts dynamically, call `RtcConnection.add(config)` for each.
 
 ---
 

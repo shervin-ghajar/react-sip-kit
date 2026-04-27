@@ -1,22 +1,20 @@
-import { SipAccountConfig, SipConfigs } from '../configs/types';
+import { SipAccountConfig, RtcConfig } from '../configs/types';
 import { LineType } from '../store/types';
+import { generateUUID } from '../utils';
 
-export function createLine(
-  configKey: SipConfigs['key'],
+export function createLine<T extends LineType>(
+  configKey: RtcConfig['key'],
   username: SipAccountConfig['username'],
-  lineKey: LineType['lineKey'],
   remoteNumber: string,
-): LineType {
+): T {
   return {
     configKey,
-    lineKey,
+    lineKey: generateUUID(),
     remoteNumber,
     username,
-    sipSession: null,
-    localSoundMeter: null,
-    remoteSoundMeter: null,
+    session: null,
     data: {
-      configKey: '' as SipConfigs['key'],
+      configKey: '' as RtcConfig['key'],
       lineKey: '' as LineType['lineKey'],
       callDirection: 'outbound',
       callType: 'audio',
@@ -33,6 +31,7 @@ export function createLine(
       hold: [],
       isHold: false,
       videoChannelNames: [],
+
       localMediaStreamStatus: {
         screenShareEnabled: false,
         soundEnabled: true,
@@ -48,16 +47,12 @@ export function createLine(
       audioSourceTrack: null,
       videoSourceTrack: null,
       screenSourceTrack: null,
-      videoSourceDevice: null,
-      audioSourceDevice: null,
-      audioOutputDevice: null,
+      videoInputDeviceId: null,
+      audioInputDeviceId: null,
+      audioOutputDeviceId: null,
       confBridgeChannels: [],
       confBridgeEvents: [],
-      recordMedia: {
-        recording: false,
-        startTime: null,
-        recorder: null,
-      },
+      recordMedia: { recording: false, startTime: null, recorder: null },
     },
-  };
+  } as any;
 }

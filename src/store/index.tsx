@@ -1,16 +1,15 @@
-import { SipConfigs } from '../configs/types';
-import { SipUserAgent } from '../types';
-import { generateUUID } from '../utils';
-import { LineType, SipStoreStateType } from './types';
+import { RtcConfig } from '../configs/types';
+import { EngineInstance } from '../types';
+import { LineType, RtcStoreStateType } from './types';
 import { create } from 'zustand';
 
 /* -------------------------------------------------------------------------- */
-// Create sip store
-export const useSipStore = create<SipStoreStateType>((set, get) => ({
+// Create rtc store
+export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
   broadcastEnabled: false,
   configs: {},
   statuses: {},
-  userAgents: {},
+  engines: {},
   devicesInfo: {
     hasVideoDevice: false,
     hasAudioDevice: false,
@@ -22,13 +21,14 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   lines: {},
   configKeysByLineKey: {},
   lineKeyByRemoteNumber_ConfigKey: {},
-  setSipStore: (newState: Partial<SipStoreStateType>) =>
+  setRtcStore: (newState: Partial<RtcStoreStateType>) =>
     set((state) => ({ ...state, ...newState })),
-  setConfig: (configKey: SipConfigs['key'], config: SipConfigs) => {
+  setConfig: (configKey: RtcConfig['key'], config: RtcConfig) => {
     set((state) => ({ ...state, configs: { ...state.configs, [configKey]: config } }));
   },
-  setUserAgent: (configKey: SipConfigs['key'], userAgent: SipUserAgent) => {
-    set((state) => ({ ...state, userAgents: { ...state.userAgents, [configKey]: userAgent } }));
+  setEngine: (configKey: RtcConfig['key'], engine: EngineInstance) => {
+    console.log("setEngine", { configKey, engine })
+    set((state) => ({ ...state, engines: { ...state.engines, [configKey]: engine } }));
   },
   addLine: (newLine: LineType) => {
     const configKey = newLine.configKey;
@@ -102,19 +102,19 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  remove: (configKey: SipConfigs['key']) => {
+  remove: (configKey: RtcConfig['key']) => {
     if (!configKey) return null;
     set((state) => {
       if (!state.lines?.[configKey]) return state; // nothing to remove
       const { [configKey]: _, ...restLines } = state.lines;
       const { [configKey]: __, ...restConfigs } = state.configs as NonNullable<
-        SipStoreStateType['configs']
+        RtcStoreStateType['configs']
       >;
-      const { [configKey]: ___, ...restUserAgents } = state.userAgents as NonNullable<
-        SipStoreStateType['userAgents']
+      const { [configKey]: ___, ...restEngines } = state.engines as NonNullable<
+        RtcStoreStateType['engines']
       >;
       const { [configKey]: ____, ...restStatuses } = state.statuses as NonNullable<
-        SipStoreStateType['statuses']
+        RtcStoreStateType['statuses']
       >;
       return {
         ...state,
@@ -122,7 +122,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
           ...restLines,
         },
         configs: { ...restConfigs },
-        userAgents: { ...restUserAgents },
+        engines: { ...restEngines },
         statuses: { ...restStatuses },
       };
     });
@@ -133,7 +133,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
         ...state,
         lines: {},
         configs: {},
-        userAgents: {},
+        engines: {},
         statuses: {},
       };
     });
@@ -146,15 +146,15 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       };
     });
   },
-  getLineByLineKey: (lineKey) => {
+  getLineByLineKey: <T extends LineType>(lineKey: string) => {
     const configKey = get().getConfigKeyByLineKey(lineKey);
     if (!configKey) return null;
-    return get().lines?.[configKey]?.[lineKey] ?? null;
+    return (get().lines?.[configKey]?.[lineKey] as T) ?? null;
   },
   getSessionByLineKey: (lineKey) => {
     const configKey = get().getConfigKeyByLineKey(lineKey);
     if (!configKey) return null;
-    return get().lines?.[configKey]?.[lineKey]?.sipSession ?? null;
+    return get().lines?.[configKey]?.[lineKey]?.session ?? null;
   },
   getLineDataByLineKey: (lineKey) => {
     const configKey = get().getConfigKeyByLineKey(lineKey);
@@ -167,7 +167,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   getConfigKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
     const lineKey =
       get().lineKeyByRemoteNumber_ConfigKey[
-        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+      get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
       ] ?? null;
     if (!lineKey) return null;
     return get().getConfigKeyByLineKey(lineKey);
@@ -175,7 +175,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   getLineKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
     const lineKey =
       get().lineKeyByRemoteNumber_ConfigKey[
-        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+      get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
       ] ?? null;
     return lineKey;
   },
@@ -187,7 +187,7 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
       const { configKey, remoteNumber } = keys;
       lineKey =
         get().lineKeyByRemoteNumber_ConfigKey[
-          get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
         ] ?? null;
     }
     return get().getLineByLineKey(lineKey);
@@ -195,42 +195,41 @@ export const useSipStore = create<SipStoreStateType>((set, get) => ({
   remoteNumberConfigKeyResolver: ({ configKey, remoteNumber }) => {
     return `${remoteNumber}:${configKey}`;
   },
-  getNewLineKey: () => generateUUID(),
 }));
 /* -------------------------------------------------------------------------- */
 /**
  *
- * Set sip store for none functional components
+ * Set rtc store for none functional components
  */
-export const setSipStore = (state: Partial<SipStoreStateType>) => {
-  useSipStore.getState().setSipStore(state);
+export const setRtcStore = (state: Partial<RtcStoreStateType>) => {
+  useRtcStore.getState().setRtcStore(state);
 };
 /**
  *
- * Get sip store for none functional components
+ * Get rtc store for none functional components
  */
-export const getSipStore = (): SipStoreStateType => {
-  return useSipStore.getState();
+export const getRtcStore = (): RtcStoreStateType => {
+  return useRtcStore.getState();
 };
 /**
  *
- * Get sip store userAgent for none functional components
+ * Get rtc store engineInstance for none functional components
  */
-export const getSipStoreUserAgent = (configKey: SipConfigs['key']): SipUserAgent | null => {
-  return useSipStore.getState()?.userAgents?.[configKey] ?? null;
+export const getEngineInstance = (configKey: RtcConfig['key']): EngineInstance | null => {
+  return useRtcStore.getState()?.engines?.[configKey] ?? null;
 };
 /**
  *
- * Get sip store configs for none functional components
+ * Get rtc store configs for none functional components
  */
-export const getSipUsernameConfigs = (configKey: SipConfigs['key']): SipConfigs | null => {
-  return (useSipStore?.getState()?.configs as Record<string, SipConfigs>)?.[configKey] ?? null;
+export const getRtcUsernameConfigs = (configKey: RtcConfig['key']): RtcConfig | null => {
+  return (useRtcStore?.getState()?.configs as Record<string, RtcConfig>)?.[configKey] ?? null;
 };
 /**
  *
- * Init sip store for none functional components
+ * Init rtc store for none functional components
  */
-export const initSipStore = (): void => {
-  const initStore = useSipStore.getInitialState();
-  setSipStore(initStore);
+export const initRtcStore = (): void => {
+  const initStore = useRtcStore.getInitialState();
+  setRtcStore(initStore);
 };

@@ -14,11 +14,10 @@
     "dayjs": "^1.11.13",
     "lodash.isequal": "^4.5.0",
     "sip.js": "0.21.2",
+    "webrtc-adapter": "^9.0.5",
     "zustand": "^5.0.1"
   },
   "devDependencies": {
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
     "@eslint/js": "9.13.0",
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/lodash.isequal": "^4.5.8",
@@ -34,6 +33,8 @@
     "eslint-plugin-react-refresh": "0.4.14",
     "globals": "15.11.0",
     "prettier": "^3.3.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "~5.6.2",
     "typescript-eslint": "8.11.0",
     "vite": "5.4.10"
