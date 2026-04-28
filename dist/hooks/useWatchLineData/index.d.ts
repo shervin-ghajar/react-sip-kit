@@ -1,5 +1,5 @@
 import { SipConfigs } from '../../configs/types';
-import { LineType, SipSessionDataType } from '../../store/types';
+import { LineType, SipLineDataType } from '../../store/types';
 type Primitive = string | number | boolean | symbol | null | undefined;
 type Path<T> = {
     [K in keyof T & string]: T[K] extends Primitive | Array<any> ? K : K | `${K}.${Path<T[K]>}`;
@@ -20,68 +20,68 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}` ? K e
  * @param {string | string[]} [params.name] - Optional dot-path string (e.g., 'localMediaStreamStatus.videoEnabled')
  *                                            or array of dot-paths to select specific data from the session.
  *
- * @returns {SipSessionDataType | any | any[]}
+ * @returns {SipLineDataType | any | any[]}
  * Returns the full session data if `name` is undefined,
  * a single property if `name` is a string,
  * or an array of properties if `name` is an array.
  *
  * @example
  * // Watch full session data by lineKey
- * const sessionData = useWatchSessionData({ key: { lineKey: 1 } });
+ * const sessionData = useWatchLineData({ key: { lineKey: 1 } });
  *
  * // Watch a specific property by lineKey
- * const videoEnabled = useWatchSessionData({ key: { lineKey: 1 }, name: 'localMediaStreamStatus.videoEnabled' });
+ * const videoEnabled = useWatchLineData({ key: { lineKey: 1 }, name: 'localMediaStreamStatus.videoEnabled' });
  *
  * // Watch full session data by remoteNumber
- * const sessionData = useWatchSessionData({ key: { remoteNumber: '1001' } });
+ * const sessionData = useWatchLineData({ key: { remoteNumber: '1001' } });
  *
  * // Watch multiple properties by remoteNumber
- * const [videoEnabled, audioEnabled] = useWatchSessionData({
+ * const [videoEnabled, audioEnabled] = useWatchLineData({
  *   key: { remoteNumber: '1001' },
  *   name: ['localMediaStreamStatus.videoEnabled', 'localMediaStreamStatus.audioEnabled']
  * });
  */
-export declare function useWatchSessionData(props: {
+export declare function useWatchLineData(props: {
     key: {
         lineKey: LineType['lineKey'];
     };
     name?: undefined;
-}): SipSessionDataType;
-export declare function useWatchSessionData(props: {
+}): SipLineDataType;
+export declare function useWatchLineData(props: {
     key: {
-        remoteNumber: SipSessionDataType['remoteNumber'];
+        remoteNumber: SipLineDataType['remoteNumber'];
         configKey: SipConfigs['key'];
     };
     name?: undefined;
-}): SipSessionDataType;
-export declare function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
+}): SipLineDataType;
+export declare function useWatchLineData<P extends Path<SipLineDataType>>(props: {
     key: {
         lineKey: LineType['lineKey'];
     };
     name: P;
-}): PathValue<SipSessionDataType, P>;
-export declare function useWatchSessionData<P extends Path<SipSessionDataType>>(props: {
+}): PathValue<SipLineDataType, P>;
+export declare function useWatchLineData<P extends Path<SipLineDataType>>(props: {
     key: {
-        remoteNumber: SipSessionDataType['remoteNumber'];
+        remoteNumber: SipLineDataType['remoteNumber'];
         configKey: SipConfigs['key'];
     };
     name: P;
-}): PathValue<SipSessionDataType, P>;
-export declare function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
+}): PathValue<SipLineDataType, P>;
+export declare function useWatchLineData<const P extends readonly Path<SipLineDataType>[]>(props: {
     key: {
         lineKey: LineType['lineKey'];
     };
     name: P;
 }): {
-    [K in keyof P]: PathValue<SipSessionDataType, P[K] & string>;
+    [K in keyof P]: PathValue<SipLineDataType, P[K] & string>;
 };
-export declare function useWatchSessionData<const P extends readonly Path<SipSessionDataType>[]>(props: {
+export declare function useWatchLineData<const P extends readonly Path<SipLineDataType>[]>(props: {
     key: {
-        remoteNumber: SipSessionDataType['remoteNumber'];
+        remoteNumber: SipLineDataType['remoteNumber'];
         configKey: SipConfigs['key'];
     };
     name: P;
 }): {
-    [K in keyof P]: PathValue<SipSessionDataType, P[K] & string>;
+    [K in keyof P]: PathValue<SipLineDataType, P[K] & string>;
 };
 export {};

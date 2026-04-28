@@ -1,6 +1,6 @@
-import { IncomingResponse } from 'sip.js/lib/core';
 import { sessionMethods } from '.';
 import { LineType } from '../../store/types';
+import { IncomingResponse } from 'sip.js/lib/core';
 export declare enum SendMessageSessionEnum {
     'SOUND_TOGGLE' = "SOUND_TOGGLE",
     'VIDEO_TOGGLE' = "VIDEO_TOGGLE",

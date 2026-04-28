@@ -2,7 +2,12 @@ import { SipConfigs } from '../../configs/types';
 import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { getSipStore, getSipUsernameConfigs } from '../../store';
-import { LineType, SipSessionDescriptionHandler, SipSessionType } from '../../store/types';
+import {
+  LineType,
+  SipLineDataType,
+  SipSessionDescriptionHandler,
+  SipSessionType,
+} from '../../store/types';
 import { CallbackFunction } from '../../types';
 import { utcDateNow } from '../../utils';
 import { SipMediaStream } from './types';
@@ -40,13 +45,13 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     }
     const session = lineObj.sipSession;
     if (!session) return;
-    session.data.terminateBy = 'them';
-    session.data.reasonCode = temp_cause;
+    lineObj.data.terminateBy = 'them';
+    lineObj.data.reasonCode = temp_cause;
     if (temp_cause === 0) {
-      session.data.reasonText = 'Call Cancelled';
+      lineObj.data.reasonText = 'Call Cancelled';
       console.log('Call canceled by remote party before answer!');
     } else {
-      session.data.reasonText = 'Call completed elsewhere';
+      lineObj.data.reasonText = 'Call completed elsewhere';
       console.log('Call completed elsewhere before answer');
     }
 
@@ -59,102 +64,200 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
   // // Both Incoming an outgoing INVITE
   async function onInviteAccepted(lineObj: LineType, videoEnabled: boolean) {
     // Call in progress
-    const session = lineObj.sipSession;
-    console.log('onInviteAccepted', { lineObj, session });
-    if (!session) return;
-    if (session.data.earlyMedia) {
-      session.data.earlyMedia.pause();
-      session.data.earlyMedia.removeAttribute('src');
-      session.data.earlyMedia.load();
-      session.data.earlyMedia = null;
-    }
+    const defaultSession = lineObj.sipSession;
+    console.log('onInviteAccepted', { lineObj, session: defaultSession });
+    if (!defaultSession) return;
+
+    const defaultPC = defaultSession.sessionDescriptionHandler.peerConnection;
+
+    defaultSession.initiateLocalMediaStreams = async function ({
+      videoEnabled: isVideoEnabled = videoEnabled,
+      configs = getSipUsernameConfigs(configKey),
+      type = undefined,
+      stopStream = true,
+    } = {}) {
+      const session = this;
+      const lineData = getSipStore().getLineDataByLineKey(lineObj?.lineKey!) ?? lineObj.data;
+      const pc = session.sessionDescriptionHandler.peerConnection;
+      if (!session || !lineData) return;
+
+      if (!pc) return;
+
+      const { localMediaStreamStatus, videoSourceTrack, audioSourceTrack, screenSourceTrack } =
+        lineData;
+      if (!localMediaStreamStatus) return;
+
+      const media = configs?.media;
+
+      // ===============================
+      // Determine desired states
+      // ===============================
+      const soundEnabled = localMediaStreamStatus.soundEnabled ?? true;
+      const videoEnabled = localMediaStreamStatus.videoEnabled ?? isVideoEnabled;
+      const useScreen = !!localMediaStreamStatus.screenShareEnabled;
+
+      let newAudioTrack: SipLineDataType['audioSourceTrack'] = audioSourceTrack;
+      let newVideoTrack: SipLineDataType['audioSourceTrack'] = useScreen
+        ? screenSourceTrack
+        : videoSourceTrack;
+
+      console.log('initiateLocalMediaStreams 1', { stopStream });
+
+      const initiateLocalAudioStream = async function () {
+        console.log('initiateLocalMediaStreams 2');
+        // ===============================
+        // AUDIO
+        // ===============================
+        if (!newAudioTrack || newAudioTrack.readyState === 'ended') {
+          try {
+            const audioConstraints: MediaStreamConstraints['audio'] =
+              media?.audioInputDeviceId === null
+                ? true
+                : media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+                  ? { deviceId: { exact: media.audioInputDeviceId } }
+                  : true;
+            console.log('initiateLocalMediaStreams 3');
+
+            let audioStream = await navigator.mediaDevices.getUserMedia({
+              audio: audioConstraints,
+              video: false,
+            });
+
+            newAudioTrack = audioStream.getAudioTracks()[0];
+            lineData.audioSourceTrack = newAudioTrack;
+          } catch (err) {
+            console.error('Failed to get audio track', err);
+          }
+        }
+
+        if (newAudioTrack) {
+          console.log('initiateLocalMediaStreams 4');
+          const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+
+          // Apply your previous logic for enabling
+          newAudioTrack.enabled = !!(soundEnabled ?? media?.audioInputDeviceId);
+          if (sender) sender.replaceTrack(newAudioTrack);
+          else pc.addTrack(newAudioTrack);
+          stopStream && sender?.track?.stop();
+        }
+
+        // ===============================
+        // Update session flags
+        // ===============================
+        localMediaStreamStatus.soundEnabled = !!soundEnabled;
+      };
+
+      const initiateLocalVideoStream = async function () {
+        // ===============================
+        // VIDEO
+        // ===============================
+        console.log('initiateLocalMediaStreams 5', { videoEnabled }, media?.videoInputDeviceId);
+
+        console.log({ videoEnabled });
+        if (!newVideoTrack || newVideoTrack.readyState === 'ended') {
+          if (!useScreen && (videoEnabled || media?.videoInputDeviceId === null)) {
+            try {
+              const videoConstraints: MediaStreamConstraints['video'] =
+                media?.videoInputDeviceId === null && isVideoEnabled
+                  ? true
+                  : media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
+                    ? { deviceId: { exact: media.videoInputDeviceId } }
+                    : isVideoEnabled;
+              console.log({ videoConstraints });
+              console.log('initiateLocalMediaStreams 6');
+
+              let cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: videoConstraints,
+              });
+              newVideoTrack = cameraStream.getVideoTracks()[0];
+              lineData.videoSourceTrack = newVideoTrack;
+            } catch (err) {
+              console.error('Failed to get camera track', err);
+              newVideoTrack = undefined;
+            }
+          }
+        }
+
+        if (newVideoTrack) {
+          if (newVideoTrack.readyState === 'live') {
+            console.log('initiateLocalMediaStreams 7', { newVideoTrack, stopStream });
+
+            const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
+            // Enable logic: screen OR videoEnabled OR deviceId is null
+            newVideoTrack.enabled = !!((useScreen || videoEnabled) ?? media?.videoInputDeviceId);
+
+            if (sender) sender.replaceTrack(newVideoTrack);
+            else pc.addTrack(newVideoTrack);
+            stopStream && newVideoTrack.enabled && sender?.track?.stop();
+          }
+        }
+
+        // ===============================
+        // Local preview
+        // ===============================
+        const localVideoEl = document.getElementById(
+          `line-${lineObj.lineKey}-localVideo`,
+        ) as HTMLVideoElement;
+        if (localVideoEl) {
+          if (newVideoTrack) {
+            localVideoEl.srcObject = new MediaStream([newVideoTrack]);
+            localVideoEl.autoplay = true;
+            localVideoEl.muted = true;
+            localVideoEl.playsInline = true;
+            await localVideoEl
+              .play()
+              .catch(() => console.warn('Autoplay prevented for local video element'));
+          } else {
+            localVideoEl.srcObject = null;
+          }
+        }
+        // ===============================
+        // Update session flags
+        // ===============================
+        localMediaStreamStatus.videoEnabled = !!videoEnabled;
+      };
+      if (type) {
+        type === 'audio' && (await initiateLocalAudioStream());
+        type === 'video' && (await initiateLocalVideoStream());
+      } else {
+        await initiateLocalAudioStream();
+        await initiateLocalVideoStream();
+      }
+      updateLine({ ...lineObj, data: lineData, sipSession: session });
+    };
+    // ------------------------------------------------
+    // Wait for ICE before starting media
+    // ------------------------------------------------
+    const waitForIce = () =>
+      new Promise<void>((resolve) => {
+        const isIceReady = () =>
+          defaultPC.iceConnectionState === 'connected' ||
+          defaultPC.iceConnectionState === 'completed';
+
+        if (isIceReady()) {
+          resolve();
+          return;
+        }
+
+        const handler = () => {
+          if (isIceReady()) {
+            defaultPC.removeEventListener('iceconnectionstatechange', handler);
+            resolve();
+          }
+        };
+
+        defaultPC.addEventListener('iceconnectionstatechange', handler);
+      });
+
+    await waitForIce();
 
     const startTime = utcDateNow();
-    session.data.startTime = startTime;
 
-    session.data.started = true;
-    session.initiateLocalMediaStreams = async ({
-      videoEnabled: isVideoEnabled = videoEnabled,
-      pc = session.sessionDescriptionHandler.peerConnection??getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-        .peerConnection,
-      configs = getSipUsernameConfigs(configKey),
-    } = {}) => {
-      try {
-        const media = configs?.media;
-        const line = getSipStore().findLineByLineKey(lineObj.lineKey);
-        const screenShareEnabled =
-          line?.sipSession?.data.localMediaStreamStatus?.screenShareEnabled;
-        const videoEnabled = line?.sipSession?.data.localMediaStreamStatus?.videoEnabled;
-        const soundEnabled = line?.sipSession?.data.localMediaStreamStatus?.soundEnabled;
+    lineObj.data.startTime = startTime;
+    lineObj.data.started = true;
 
-        let localStream: MediaStream;
+    await defaultSession.initiateLocalMediaStreams();
 
-        if (screenShareEnabled) {
-          // === screen share already in place, preserve it ===
-          localStream = new MediaStream();
-          pc.getSenders().forEach(function (sender) {
-            if (sender.track && sender.track.kind === 'video') {
-              localStream.addTrack(sender.track);
-            }
-          });
-        } else {
-          // === normal camera/audio ===
-          const constraints: MediaStreamConstraints = {
-            audio:
-              media?.audioInputDeviceId === null // default disabled
-                ? true
-                : media?.audioInputDeviceId !== 'default'
-                  ? { deviceId: { exact: media?.audioInputDeviceId } }
-                  : true,
-            video: isVideoEnabled
-              ? media?.videoInputDeviceId
-                ? media.videoInputDeviceId !== 'default'
-                  ? { deviceId: { exact: media.videoInputDeviceId } }
-                  : true
-                : media?.videoInputDeviceId === null
-              : false,
-          };
-
-          localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        }
-
-        // Replace existing audio/video tracks in PeerConnection
-        localStream.getTracks().forEach((track) => {
-          const sender = pc.getSenders().find((s) => s.track && s.track.kind === track.kind);
-          track.enabled = !!(track.kind === 'audio'
-            ? (soundEnabled ?? media?.audioInputDeviceId)
-            : track.kind === 'video'
-              ? (videoEnabled ?? media?.videoInputDeviceId)
-              : true);
-
-          if (sender) {
-            sender.replaceTrack(track);
-          } else if (media?.audioInputDeviceId || media?.videoInputDeviceId) {
-            pc.addTrack(track, localStream);
-            console.log(222, { track });
-          }
-        });
-
-        // Update local <video> preview
-        if (isVideoEnabled) {
-          const localVideo = document.getElementById(
-            `line-${lineObj.lineKey}-localVideo`,
-          ) as HTMLVideoElement;
-
-          if (localVideo) {
-            localVideo.srcObject = new MediaStream(localStream.getVideoTracks());
-            await localVideo.play().catch(() => {
-              console.warn('Autoplay prevented for local video element');
-            });
-          }
-        }
-
-        updateLine(lineObj);
-      } catch (err) {
-        console.error('initiateLocalMediaStreams failed:', err);
-      }
-    };
-    session.initiateLocalMediaStreams();
     updateLine(lineObj);
   }
 
@@ -187,11 +290,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     callback?: CallbackFunction<any>,
   ) {
     console.log('INVITE Rejected:', response.message.reasonPhrase);
-    const session = lineObj.sipSession;
-    if (!session) return;
-    session.data.terminateBy = 'them';
-    session.data.reasonCode = response.message.statusCode;
-    session.data.reasonText = response.message.reasonPhrase;
+    const lineData = lineObj.data;
+    if (!lineData) return;
+    lineData.terminateBy = 'them';
+    lineData.reasonCode = response.message.statusCode ?? 0;
+    lineData.reasonText = response.message.reasonPhrase ?? '';
 
     callback?.();
   }
@@ -208,10 +311,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
   ) {
     // They Ended the call
     console.log('onSessionReceivedBye', { lineObj });
-    if (!lineObj?.sipSession) return;
-    lineObj.sipSession.data.terminateBy = 'them';
-    lineObj.sipSession.data.reasonCode = 16;
-    lineObj.sipSession.data.reasonText = 'Normal Call clearing';
+    const lineData = lineObj.data;
+    if (!lineData) return;
+    lineData.terminateBy = 'them';
+    lineData.reasonCode = 16;
+    lineData.reasonText = 'Normal Call clearing';
 
     response.accept(); // Send OK
 
@@ -222,10 +326,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     // This may be used to include video streams
     const sdp = response.body;
     const session = lineObj.sipSession;
-    if (!session) return;
+    const lineData = lineObj.data;
+    if (!lineData) return;
     // All the possible streams will get
     // Note, this will probably happen after the streams are added
-    session.data.videoChannelNames = [];
+    lineData.videoChannelNames = [];
     const videoSections = sdp.split('m=video');
     if (videoSections.length >= 1) {
       for (let m = 0; m < videoSections.length; m++) {
@@ -242,10 +347,10 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
               mid = lines[i].replace('a=mid:', '');
             }
           }
-          session.data.videoChannelNames.push({ mid: mid, channel: channel });
+          lineData.videoChannelNames.push({ mid: mid, channel: channel });
         }
       }
-      console.log('videoChannelNames:', session.data.videoChannelNames);
+      console.log('videoChannelNames:', lineData.videoChannelNames);
     }
   }
   function onSessionReceivedMessage(lineObj: LineType, response: Message) {
@@ -270,8 +375,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         const session = lineObj.sipSession;
         if (!session) return;
         if (!session.data) return;
-        if (!session.data.confBridgeChannels) session.data.confBridgeChannels = [];
-        if (!session.data.confBridgeEvents) session.data.confBridgeEvents = [];
+        if (!lineObj.data?.confBridgeChannels) lineObj.data.confBridgeChannels = [];
+        if (!lineObj.data?.confBridgeEvents) lineObj.data.confBridgeEvents = [];
 
         if (msgJson.type == 'ConfbridgeStart') {
           console.log('ConfbridgeStart!');
@@ -282,8 +387,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           console.log('Created at:', msgJson.bridge.creationtime);
           console.log('Video Mode:', msgJson.bridge.video_mode);
 
-          session.data.confBridgeChannels = msgJson.channels; // Write over this
-          session.data.confBridgeChannels.forEach(function (chan) {
+          lineObj.data.confBridgeChannels = msgJson.channels; // Write over this
+          lineObj.data.confBridgeChannels.forEach(function (chan) {
             // The mute and unmute status doesn't appear to be a realtime state, only what the
             // startmuted= setting of the default profile is.
             console.log(
@@ -297,12 +402,12 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
         } else if (msgJson.type == 'ConfbridgeJoin') {
           msgJson.channels.forEach(function (chan) {
             let found = false;
-            session.data.confBridgeChannels?.forEach(function (existingChan) {
+            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
               if (existingChan.id == chan.id) found = true;
             });
             if (!found) {
-              session.data.confBridgeChannels?.push(chan);
-              session.data.confBridgeEvents?.push({
+              lineObj.data.confBridgeChannels?.push(chan);
+              lineObj.data.confBridgeEvents?.push({
                 event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
                 eventTime: utcDateNow(),
               });
@@ -311,11 +416,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           });
         } else if (msgJson.type == 'ConfbridgeLeave') {
           msgJson.channels.forEach(function (chan) {
-            session.data.confBridgeChannels?.forEach(function (existingChan, i) {
+            lineObj.data.confBridgeChannels?.forEach(function (existingChan, i) {
               if (existingChan.id == chan.id) {
-                session.data.confBridgeChannels?.splice(i, 1);
+                lineObj.data.confBridgeChannels?.splice(i, 1);
                 console.log(chan.caller.name, 'Left the conference');
-                session.data.confBridgeEvents?.push({
+                lineObj.data.confBridgeEvents?.push({
                   event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
                   eventTime: utcDateNow(),
                 });
@@ -329,7 +434,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           }
         } else if (msgJson.type == 'ConfbridgeMute') {
           msgJson.channels.forEach(function (chan) {
-            session.data.confBridgeChannels?.forEach(function (existingChan) {
+            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
               if (existingChan.id == chan.id) {
                 console.log(existingChan.caller.name, 'is now muted');
                 existingChan.muted = true;
@@ -339,7 +444,7 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           //   RedrawStage(lineObj.LineKey, false); TODO #SH
         } else if (msgJson.type === 'ConfbridgeUnmute') {
           msgJson.channels.forEach(function (chan) {
-            session.data.confBridgeChannels?.forEach(function (existingChan) {
+            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
               if (existingChan.id == chan.id) {
                 console.log(existingChan.caller.name, 'is now unmuted');
                 existingChan.muted = false;
@@ -357,33 +462,34 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
         response.accept();
       } else if (messageType.indexOf('text/plain') > -1) {
-        if (!lineObj?.sipSession?.data.remoteMediaStreamStatus) return;
+        if (!lineObj?.data.remoteMediaStreamStatus) return;
         const body = JSON.parse(response.request.body);
         switch (body.type as SendMessageSessionEnum) {
           case SendMessageSessionEnum.SOUND_TOGGLE:
-            lineObj.sipSession.data.remoteMediaStreamStatus.soundEnabled = (
+            lineObj.data.remoteMediaStreamStatus.soundEnabled = (
               body as SendMessageRequestBody<SendMessageSessionEnum.SOUND_TOGGLE>
             ).value;
             break;
           case SendMessageSessionEnum.VIDEO_TOGGLE:
-            lineObj.sipSession.data.remoteMediaStreamStatus.videoEnabled = (
+            lineObj.data.remoteMediaStreamStatus.videoEnabled = (
               body as SendMessageRequestBody<SendMessageSessionEnum.VIDEO_TOGGLE>
             ).value;
             sendMessageSession(lineObj.sipSession, SendMessageSessionEnum.VIDEO_TOGGLE_ACK, '');
             break;
           case SendMessageSessionEnum.SCREEN_SHARE_TOGGLE:
-            lineObj.sipSession.data.remoteMediaStreamStatus.screenShareEnabled = (
+            lineObj.data.remoteMediaStreamStatus.screenShareEnabled = (
               body as SendMessageRequestBody<SendMessageSessionEnum.SCREEN_SHARE_TOGGLE>
             ).value;
             break;
           case SendMessageSessionEnum.VIDEO_TOGGLE_ACK:
-            lineObj.sipSession.data.videoAckReceived = true;
+            lineObj.data.videoAckReceived = true;
             break;
           default:
             response.reject();
             break;
         }
         response.accept();
+        lineObj.sipSession?.initiateRemoteMediaStreams?.();
       } else {
         console.warn('Unknown message type');
         response.reject();
@@ -402,8 +508,9 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
   ) {
     if (sdh) {
       console.log('onSessionDescriptionHandlerCreated', sdh.peerConnection);
-      if (sdh.peerConnection) {
-        sdh.peerConnection.ontrack = function (event) {
+      const pc = sdh.peerConnection;
+      if (pc) {
+        pc.ontrack = function (event) {
           onTrackAddedEvent(lineObj, includeVideo);
         };
       } else {
@@ -420,16 +527,14 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
     if (!session) return;
 
     const pc = session.sessionDescriptionHandler.peerConnection;
-    const onIceConnectionComplete = () => {
-      session.initiateRemoteMediaStreams = ({
-        videoEnabled: isVideoEnabled = videoEnabled,
-        pc = session.sessionDescriptionHandler.peerConnection ??
-        getSipStore().getSessionByLineKey(lineObj.lineKey)?.sessionDescriptionHandler
-          .peerConnection,
-        configs = getSipUsernameConfigs(configKey),
-      } = {}) => {
-        const media = configs?.media;
 
+    const onIceConnectionComplete = () => {
+      session.initiateRemoteMediaStreams = function ({
+        videoEnabled: isVideoEnabled = videoEnabled,
+        configs = getSipUsernameConfigs(configKey),
+      } = {}) {
+        const media = configs?.media;
+        const pc = this.sessionDescriptionHandler.peerConnection;
         const remoteAudioTracks = new Map<string, MediaStream>();
         const remoteVideoTracks = new Map<string, MediaStream>();
         const audioContainerId = `line-${lineObj.lineKey}-remoteAudios`;
@@ -440,9 +545,8 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
 
         console.log('initiateRemoteMediaStreams', {
           isVideoEnabled,
-          pc,
+          getTransceivers: pc.getTransceivers(),
         });
-
         // Gather all remote tracks
         pc.getTransceivers().forEach((transceiver) => {
           const track = transceiver.receiver?.track;
@@ -522,14 +626,19 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
       updateLine(lineObj);
     };
 
+    // waites until session media conncetion complete.
     pc.oniceconnectionstatechange = () => {
-      console.log(1113, pc.iceConnectionState);
+      console.log('ICE state:', pc.iceConnectionState, pc.iceGatheringState);
+
       switch (pc.iceConnectionState) {
-        case 'disconnected':
-          teardownSession(lineObj);
-          break;
         case 'connected':
+        case 'completed':
           onIceConnectionComplete();
+          break;
+
+        case 'disconnected':
+        case 'failed':
+          teardownSession(lineObj);
           break;
       }
     };
@@ -569,11 +678,11 @@ export const sessionEvents = ({ configKey }: { configKey: SipConfigs['key'] }) =
           remoteAudio.setAttribute('id', `line-${lineObj.lineKey}-transfer-remoteAudio`);
           remoteAudio.srcObject = remoteAudioStream;
           remoteAudio.onloadedmetadata = function () {
-            if (typeof remoteAudio.sinkId !== 'undefined' && session?.data?.audioOutputDevice) {
+            if (typeof remoteAudio.sinkId !== 'undefined' && lineObj?.data?.audioOutputDevice) {
               remoteAudio
-                .setSinkId(session.data.audioOutputDevice)
+                .setSinkId(lineObj.data.audioOutputDevice)
                 .then(function () {
-                  console.log('sinkId applied: ' + session.data.audioOutputDevice);
+                  console.log('sinkId applied: ' + lineObj.data.audioOutputDevice);
                 })
                 .catch(function (e) {
                   console.warn('Error using setSinkId: ', e);

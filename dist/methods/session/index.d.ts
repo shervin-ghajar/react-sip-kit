@@ -1,6 +1,6 @@
 import { SipConfigs } from '../../configs/types';
 import { LineType, SipInvitationType } from '../../store/types';
-import { CallType } from '../../types';
+import { CallbackFunction, CallType } from '../../types';
 import { DialRequestDelegate, SendMessageSessionEnum, SendMessageSessionValueType } from './types';
 export declare const sessionMethods: ({ configKey }: {
     configKey: SipConfigs["key"];
@@ -31,12 +31,12 @@ export declare const sessionMethods: ({ configKey }: {
  * @param lineObj
  * @returns
  */
-export declare function teardownSession(lineObj: LineType): void;
+export declare function teardownSession(lineObj: LineType, callback?: CallbackFunction): void;
 export declare function sendMessageSession<T extends SendMessageSessionEnum>(session: LineType['sipSession'], type: T, value: SendMessageSessionValueType[T]): Promise<void>;
 /**
  * Sends VIDEO_TOGGLE and retries until VIDEO_TOGGLE_ACK is received.
  */
-export declare function sendVideoActivationWithAckRetry(session: LineType['sipSession'], options?: {
+export declare function sendVideoActivationWithAckRetry(lineKey: LineType['lineKey'], session: LineType['sipSession'], options?: {
     maxRetries?: number;
     delayMs?: number;
-}): Promise<void>;
+}, value?: boolean): Promise<void>;
