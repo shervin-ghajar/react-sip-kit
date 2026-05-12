@@ -1,19 +1,17 @@
-import { Bye, Message } from 'sip.js';
-import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 import { getRtcStore } from '../../../../store';
-import {
-  LineDataType,
-} from '../../../../store/types';
+import { LineDataType } from '../../../../store/types';
 import { CallbackFunction } from '../../../../types';
 import { utcDateNow } from '../../../../utils';
 import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
 import { SipLineType, SipSessionDescriptionHandler, SipSessionType } from '../../types';
 import { SipMediaStream } from './types';
+import { Bye, Message } from 'sip.js';
+import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
 export const sessionEvents = () => {
   const updateLine = getRtcStore().updateLine;
-  const getLineByLineKey = getRtcStore().getLineByLineKey
+  const getLineByLineKey = getRtcStore().getLineByLineKey;
   function onInviteCancel(
     lineObj: SipLineType,
     response: IncomingRequestMessage,
@@ -72,9 +70,9 @@ export const sessionEvents = () => {
 
     if (!pc) return;
 
-    const videoSourceTrack = lineData.localMediaStreamData.video.track
-    const audioSourceTrack = lineData.localMediaStreamData.audio.track
-    const screenSourceTrack = lineData.localMediaStreamData.screen.track
+    const videoSourceTrack = lineData.localMediaStreamData.video.track;
+    const audioSourceTrack = lineData.localMediaStreamData.audio.track;
+    const screenSourceTrack = lineData.localMediaStreamData.screen.track;
 
     // ===============================
     // Determine desired states
@@ -107,9 +105,8 @@ export const sessionEvents = () => {
           video: false,
         });
 
-        newAudioTrack = audioStream.getAudioTracks()[0]
+        newAudioTrack = audioStream.getAudioTracks()[0];
         lineData.localMediaStreamData.audio.track = newAudioTrack;
-
       } catch (err) {
         console.error('Failed to get audio track', err);
       }
@@ -122,10 +119,9 @@ export const sessionEvents = () => {
       // Apply your previous logic for enabling
       newAudioTrack.enabled = !!(soundEnabled ?? lineObj.data?.audioInputDeviceId);
       if (sender) {
-        sender.track?.stop()
-        sender.replaceTrack(newAudioTrack)
-      }
-      else pc.addTrack(newAudioTrack);
+        sender.track?.stop();
+        sender.replaceTrack(newAudioTrack);
+      } else pc.addTrack(newAudioTrack);
     }
 
     // ===============================
@@ -155,7 +151,7 @@ export const sessionEvents = () => {
             video: videoConstraints,
           });
 
-          newVideoTrack = cameraStream.getVideoTracks()[0]
+          newVideoTrack = cameraStream.getVideoTracks()[0];
           lineData.localMediaStreamData.video.track = newVideoTrack;
         } catch (err) {
           console.error('Failed to get camera track', err);
@@ -173,10 +169,9 @@ export const sessionEvents = () => {
         newVideoTrack.enabled = !!((useScreen || videoEnabled) ?? lineObj.data?.videoInputDeviceId);
 
         if (sender) {
-          sender.track?.stop()
-          sender.replaceTrack(newVideoTrack)
-        }
-        else pc.addTrack(newVideoTrack);
+          sender.track?.stop();
+          sender.replaceTrack(newVideoTrack);
+        } else pc.addTrack(newVideoTrack);
       }
     }
 
@@ -187,7 +182,6 @@ export const sessionEvents = () => {
     // ------------------------------------------------
     // Wait for ICE before starting media
     // ------------------------------------------------
-
 
     await waitForIceConnected(pc);
 
@@ -201,24 +195,20 @@ export const sessionEvents = () => {
 
   function waitForIceConnected(pc: RTCPeerConnection) {
     return new Promise<void>((resolve) => {
-      const ready =
-        pc.iceConnectionState === "connected" ||
-        pc.iceConnectionState === "completed";
+      const ready = pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed';
 
       if (ready) return resolve();
 
       const handler = () => {
-        const ok =
-          pc.iceConnectionState === "connected" ||
-          pc.iceConnectionState === "completed";
+        const ok = pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed';
 
         if (ok) {
-          pc.removeEventListener("iceconnectionstatechange", handler);
+          pc.removeEventListener('iceconnectionstatechange', handler);
           resolve();
         }
       };
 
-      pc.addEventListener("iceconnectionstatechange", handler);
+      pc.addEventListener('iceconnectionstatechange', handler);
     });
   }
 
@@ -423,10 +413,10 @@ export const sessionEvents = () => {
 
         response.accept();
       } else if (messageType.indexOf('text/plain') > -1) {
-        const remoteMediaStreamData = lineObj?.data.remoteMediaStreamData
+        const remoteMediaStreamData = lineObj?.data.remoteMediaStreamData;
         if (!remoteMediaStreamData) return;
         const body = JSON.parse(response.request.body);
-        console.log({ body })
+        console.log({ body });
         switch (body.type as SendMessageSessionEnum) {
           case SendMessageSessionEnum.SOUND_TOGGLE:
             remoteMediaStreamData.audio.enabled = (
@@ -491,7 +481,7 @@ export const sessionEvents = () => {
     const pc = session.sessionDescriptionHandler.peerConnection;
 
     const onIceConnectionComplete = () => {
-      const currentLine = getLineByLineKey(lineObj.lineKey) as SipLineType
+      const currentLine = getLineByLineKey(lineObj.lineKey) as SipLineType;
       // Gather all remote tracks
       pc.getTransceivers().forEach((transceiver) => {
         const track = transceiver.receiver?.track;
@@ -501,14 +491,14 @@ export const sessionEvents = () => {
         if (track.kind === 'audio') {
           currentLine.data.remoteMediaStreamData.audio = {
             track,
-            enabled: videoEnabled ?? track.enabled,
-          }
+            enabled: track.enabled,
+          };
         }
         if (track.kind === 'video') {
           currentLine.data.remoteMediaStreamData.video = {
             track,
             enabled: videoEnabled ?? track.enabled,
-          }
+          };
         }
       });
       updateLine(currentLine);
