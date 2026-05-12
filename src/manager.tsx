@@ -1,9 +1,8 @@
-import isEqual from 'lodash.isequal';
 import { defaultRtcConfig } from './configs';
 import { RtcConfig } from './configs/types';
-import { HybridEngineInitializer } from './engines/hybrid/initializer';
-import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
-import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
+// import { HybridEngineInitializer } from './engines/hybrid/initializer';
+// import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
+// import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
 import { JanusEngineInitializer } from './engines/janus/initializer';
 import { refreshRegistration as janusReconnect } from './engines/janus/methods/registration';
 import { sessionMethods as janusSessionMethods } from './engines/janus/methods/session';
@@ -21,10 +20,13 @@ import {
   GetAccountKey,
   GetMethodsKey,
   LineLookup,
-  RtcBroadcastMessage, RtcEngineStatus, RtcManagerConfig,
-  RtcManagerInstance
+  RtcBroadcastMessage,
+  RtcEngineStatus,
+  RtcManagerConfig,
+  RtcManagerInstance,
 } from './types';
 import { deepMerge, generateUUID, serializeLines } from './utils';
+import isEqual from 'lodash.isequal';
 
 /* -------------------------------------------------------------------------- */
 /*  RTC Manager - Central orchestrator for multiple RTC accounts               */
@@ -43,7 +45,7 @@ export class RtcManager {
   private channel = new BroadcastChannel('react-sip-kit');
 
   // uniquely identifies this browser tab
-  private tabId = generateUUID()
+  private tabId = generateUUID();
 
   // list of all tabs currently participating
   private subscribedTabIds = new Set<string>([this.tabId]);
@@ -248,21 +250,21 @@ export class RtcManager {
   // ------------------------------------------------------------
   private handleSessionCommand(msg: Extract<RtcBroadcastMessage, { type: 'SESSION_COMMAND' }>) {
     const { method, configKey, args } = msg;
-    this.instances.get(configKey)?.config.engine
-    let session = null
+    this.instances.get(configKey)?.config.engine;
+    let session = null;
     switch (this.instances.get(configKey)?.config.engine) {
-      case "hybrid":
-        session = this.getHybridSessionMethodsBy({ configKey });
+      case 'hybrid':
+        // session = this.getHybridSessionMethodsBy({ configKey });
         break;
-      case "janus":
+      case 'janus':
         session = this.getJanusSessionMethodsBy({ configKey });
         break;
-      case "sip":
+      case 'sip':
         session = this.getSipSessionMethodsBy({ configKey });
         break;
       default:
         session = this.getSipSessionMethodsBy({ configKey });
-        break
+        break;
     }
 
     if (session && (session as any)[method]) {
@@ -375,7 +377,7 @@ export class RtcManager {
     }
 
     let instance = null;
-    console.log(111, { mergedConfig })
+    console.log(111, { mergedConfig });
     switch (mergedConfig.engine) {
       case 'sip':
         instance = new SipEngineInitializer(mergedConfig, configKey);
@@ -383,9 +385,9 @@ export class RtcManager {
       case 'janus':
         instance = new JanusEngineInitializer(mergedConfig, configKey);
         break;
-      case 'hybrid':
-        instance = new HybridEngineInitializer(mergedConfig, configKey);
-        break;
+      // case 'hybrid':
+      //   instance = new HybridEngineInitializer(mergedConfig, configKey);
+      //   break;
       default:
         throw new Error('RTC-Kit engine must be defined!');
     }
@@ -451,32 +453,32 @@ export class RtcManager {
       },
     });
   }
-  public getHybridSessionMethodsBy(key: GetMethodsKey) {
-    const store = getRtcStore();
-    let configKey: string = '';
+  // public getHybridSessionMethodsBy(key: GetMethodsKey) {
+  //   const store = getRtcStore();
+  //   let configKey: string = '';
 
-    if ('configKey' in key && key.configKey) {
-      configKey = key.configKey;
-    } else if ('lineKey' in key && key.lineKey) {
-      configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    }
+  //   if ('configKey' in key && key.configKey) {
+  //     configKey = key.configKey;
+  //   } else if ('lineKey' in key && key.lineKey) {
+  //     configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
+  //   }
 
-    const methods = hybridSessionMethods({ configKey });
-    if (this.isMasterManager) return methods;
+  //   const methods = hybridSessionMethods({ configKey });
+  //   if (this.isMasterManager) return methods;
 
-    return new Proxy(methods, {
-      get: (_, prop: string) => {
-        return (...args: any[]) => {
-          this.channel.postMessage({
-            type: 'SESSION_COMMAND',
-            method: prop,
-            configKey,
-            args,
-          });
-        };
-      },
-    });
-  }
+  //   return new Proxy(methods, {
+  //     get: (_, prop: string) => {
+  //       return (...args: any[]) => {
+  //         this.channel.postMessage({
+  //           type: 'SESSION_COMMAND',
+  //           method: prop,
+  //           configKey,
+  //           args,
+  //         });
+  //       };
+  //     },
+  //   });
+  // }
 
   /**
    * Get RTC account state.
@@ -531,10 +533,10 @@ export class RtcManager {
         sipReconnect(configKey);
         break;
       case 'janus':
-        janusReconnect(configKey)
+        janusReconnect(configKey);
         break;
       case 'hybrid':
-        hybridReconnect(configKey)
+        // hybridReconnect(configKey);
         break;
     }
   }
@@ -596,7 +598,7 @@ export class RtcManager {
 
     if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
       const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
-      return lineKey ? store.getSessionByLineKey(lineKey) as T : null;
+      return lineKey ? (store.getSessionByLineKey(lineKey) as T) : null;
     }
 
     return null;

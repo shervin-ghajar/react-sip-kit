@@ -1,6 +1,6 @@
 import { RtcConfig } from './configs/types';
-import { HybridEngineInitializer } from './engines/hybrid/initializer';
-import { HybridInstance } from './engines/hybrid/types';
+// import { HybridEngineInitializer } from './engines/hybrid/initializer';
+// import { HybridInstance } from './engines/hybrid/types';
 import { JanusEngineInitializer } from './engines/janus/initializer';
 import { JanusInstance } from './engines/janus/types';
 import { reconnectTransport } from './engines/sip/events/transport';
@@ -8,8 +8,8 @@ import { SipEngineInitializer } from './engines/sip/initializer';
 import { SipUserAgent } from './engines/sip/types';
 import { LineDataType, LineType, RtcStoreStateType } from './store/types';
 
-
-export type EngineInstance = SipUserAgent | JanusInstance | HybridInstance;
+export type EngineInstance = SipUserAgent | JanusInstance;
+// | HybridInstance;
 
 export type RtcManagerConfig = {
   /**
@@ -45,7 +45,7 @@ export type CallbackFunction<T = any> = (value?: T) => void;
 export type CallType =
   | 'audio'
   | 'video'
-  | "room"
+  | 'room'
   | 'conferenceAudio'
   | 'conferenceVideo'
   | 'transferAudio'
@@ -56,7 +56,8 @@ export type CallType =
  */
 export interface RtcManagerInstance {
   config: RtcManagerConfig;
-  instance: SipEngineInitializer | JanusEngineInitializer | HybridEngineInitializer;
+  instance: SipEngineInitializer | JanusEngineInitializer;
+  // | HybridEngineInitializer;
 }
 
 /**
@@ -85,10 +86,10 @@ export type GetMethodsKey =
 export type LineLookup =
   | { lineKey: LineType['lineKey']; remoteNumber?: never; configKey?: never }
   | {
-    configKey: RtcConfig['key'];
-    remoteNumber: LineDataType['remoteNumber'];
-    lineKey?: never;
-  };
+      configKey: RtcConfig['key'];
+      remoteNumber: LineDataType['remoteNumber'];
+      lineKey?: never;
+    };
 
 export type RtcBroadcastMessage =
   | { type: 'MASTER_CHECK'; tabId: string }
@@ -99,6 +100,5 @@ export type RtcBroadcastMessage =
   | { type: 'SYNC'; tabIds: string[]; payload: Partial<RtcStoreStateType> }
   | { type: 'COMMAND'; method: string; args: any[] }
   | { type: 'SESSION_COMMAND'; method: string; configKey: string; args: any[] };
-
 
 export type RtcEngineStatus = 'disconnected' | 'connecting' | 'connected';

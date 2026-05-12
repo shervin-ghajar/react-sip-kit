@@ -1,7 +1,7 @@
 {
   "name": "react-sip-kit",
   "private": false,
-  "version": "0.9.1",
+  "version": "0.10.0-beta",
   "type": "module",
   "author": {
     "name": "Shervin Ghajar",
@@ -58,6 +58,7 @@
     "dayjs": "1.11.13",
     "sip.js": "0.21.2",
     "zustand": "5.0.1",
+    "webrtc-adapter": "9.0.5",
     "lodash.isequal": "4.5.0"
   },
   "devDependencies": {
