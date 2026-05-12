@@ -1,8 +1,7 @@
 import { UserAgentDelegate } from 'sip.js';
 
-export interface SipConfigs {
+export interface BaseRtcConfig {
   key: string;
-  account: SipAccountConfig;
   features: SipFeaturesConfig;
   media: SipMediaConfig;
   policy: SipPolicyConfig;
@@ -12,21 +11,25 @@ export interface SipConfigs {
   advanced: SipAdvancedConfig;
 }
 
-export interface SipXmppConfig {
-  server: string;
-  websocketPort: string;
-  websocketPath: string;
-  domain: string;
-  profileUser: string;
-  realm: string;
-  realmSeparator: string;
-  chatGroupService: string;
+export interface SipConfig extends BaseRtcConfig {
+  engine: 'sip';
+  account: SipAccountConfig;
 }
+export interface JanusConfig extends BaseRtcConfig {
+  engine: 'janus';
+  account: JanusAccountConfig;
+}
+export interface HybridConfig extends BaseRtcConfig {
+  engine: 'hybrid';
+  account: HybridAccountConfig;
+}
+
+export type RtcConfig = SipConfig | JanusConfig | HybridConfig;
+
 export interface SipAdvancedConfig {
   didLength: number;
   maxDidLength: number;
   singleInstance: boolean;
-  chatEngine: string;
 }
 export interface SipRecordingConfig {
   videoResampleSize: string;
@@ -50,14 +53,10 @@ export interface SipRegistrationConfig {
   registerContactParams: string;
   wssInTransport: boolean;
   ipInContact: boolean;
-  bundlePolicy: string;
+  bundlePolicy: RTCBundlePolicy;
   peerConnectionConfiguration: RTCConfiguration;
   hackIpInContact?: string | boolean | undefined;
-  contactParams?:
-    | {
-        [name: string]: string;
-      }
-    | undefined;
+  contactParams?: { [name: string]: string } | undefined;
   delegate?: UserAgentDelegate;
   iceGatheringTimeout: number;
   subscribeToYourself: boolean;
@@ -102,3 +101,8 @@ export interface SipAccountConfig {
   webSocketPort: string | number;
   serverPath: string;
 }
+export interface JanusAccountConfig {
+  username: string;
+  janusServer: string;
+}
+export type HybridAccountConfig = SipAccountConfig & JanusAccountConfig;

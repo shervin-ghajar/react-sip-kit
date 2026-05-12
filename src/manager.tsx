@@ -1,37 +1,43 @@
-import { defaultSipConfigs } from './configs';
-import { SipConfigs } from './configs/types';
-import { reconnectTransport } from './events/transport';
-import { useSipManager, useWatchLineData } from './hooks';
+import isEqual from 'lodash.isequal';
+import { defaultRtcConfig } from './configs';
+import { RtcConfig } from './configs/types';
+import { HybridEngineInitializer } from './engines/hybrid/initializer';
+import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
+import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
+import { JanusEngineInitializer } from './engines/janus/initializer';
+import { refreshRegistration as janusReconnect } from './engines/janus/methods/registration';
+import { sessionMethods as janusSessionMethods } from './engines/janus/methods/session';
+import { JanusSessionType } from './engines/janus/types';
+import { reconnectTransport } from './engines/sip/events/transport';
+import { SipEngineInitializer } from './engines/sip/initializer';
+import { refreshRegistration as sipReconnect } from './engines/sip/methods/registration';
+import { sessionMethods as sipSessionMethods } from './engines/sip/methods/session';
+import { SipSessionType } from './engines/sip/types';
+import { useRtcManager, useWatchLineData } from './hooks';
 import { useWatchConfigs } from './hooks/useWatchConfigs';
-import { SipInitializer } from './initializer';
-import { initilizeMediaStreams } from './methods/initialization';
-import { refreshRegistration } from './methods/registration';
-import { sessionMethods } from './methods/session';
-import { getSipStore, setSipStore, useSipStore } from './store';
-import { LineType, SipUserAgentStatus } from './store/types';
+import { getRtcStore, setRtcStore, useRtcStore } from './store';
+import { LineType } from './store/types';
 import {
   GetAccountKey,
   GetMethodsKey,
   LineLookup,
-  SipBroadcastMessage,
-  SipManagerConfig,
-  SipManagerInstance,
+  RtcBroadcastMessage, RtcEngineStatus, RtcManagerConfig,
+  RtcManagerInstance
 } from './types';
 import { deepMerge, generateUUID, serializeLines } from './utils';
-import isEqual from 'lodash.isequal';
 
 /* -------------------------------------------------------------------------- */
-/*  SIP Manager - Central orchestrator for multiple SIP accounts               */
+/*  RTC Manager - Central orchestrator for multiple RTC accounts               */
 /* -------------------------------------------------------------------------- */
 
-export class SipManager {
+export class RtcManager {
   /**
-   * Active SIP instances keyed by `configKey`.
+   * Active RTC instances keyed by `configKey`.
    *
    * `configKey` defaults to `config.account.username` if not explicitly provided.
    * Ensures multiple accounts (e.g., same username on different domains) can coexist.
    */
-  private instances = new Map<string, SipManagerInstance>();
+  private instances = new Map<string, RtcManagerInstance>();
 
   // cross‑tab communication
   private channel = new BroadcastChannel('react-sip-kit');
@@ -57,7 +63,7 @@ export class SipManager {
     if (this.broadcastEnabled) {
       this.initBroadcast();
       this.startHeartbeatMonitor();
-      setSipStore({ broadcastEnabled: this.broadcastEnabled }); // update store broadcastEnabled flag
+      setRtcStore({ broadcastEnabled: this.broadcastEnabled }); // update store broadcastEnabled flag
     } else {
       this.isMasterManager = !this.broadcastEnabled; // if broadcastEnabled is false all managers are master
     }
@@ -85,7 +91,7 @@ export class SipManager {
     }, 200);
 
     this.channel.onmessage = (event) => {
-      const msg = event.data as SipBroadcastMessage;
+      const msg = event.data as RtcBroadcastMessage;
       console.log({ msg }, [...this.subscribedTabIds]);
       switch (msg.type) {
         // ------------------------------------------------------
@@ -127,7 +133,7 @@ export class SipManager {
         // ------------------------------------------------------
         case 'SYNC':
           if (!this.isMasterManager) {
-            setSipStore(msg.payload);
+            setRtcStore(msg.payload);
             this.subscribedTabIds = new Set(msg.tabIds);
           }
           break;
@@ -229,10 +235,10 @@ export class SipManager {
     this.broadcastStoreSubscription();
 
     // reset lines because master must rebuild them
-    getSipStore().removeAllLines();
+    getRtcStore().removeAllLines();
 
     // reinitialize configs so the new master can handle sessions
-    Object.values(getSipStore().configs ?? {}).forEach((config) => {
+    Object.values(getRtcStore().configs ?? {}).forEach((config) => {
       this.add(config);
     });
   }
@@ -240,9 +246,24 @@ export class SipManager {
   // ------------------------------------------------------------
   //  Session Command Handling
   // ------------------------------------------------------------
-  private handleSessionCommand(msg: Extract<SipBroadcastMessage, { type: 'SESSION_COMMAND' }>) {
+  private handleSessionCommand(msg: Extract<RtcBroadcastMessage, { type: 'SESSION_COMMAND' }>) {
     const { method, configKey, args } = msg;
-    const session = this.getSessionMethodsBy({ configKey });
+    this.instances.get(configKey)?.config.engine
+    let session = null
+    switch (this.instances.get(configKey)?.config.engine) {
+      case "hybrid":
+        session = this.getHybridSessionMethodsBy({ configKey });
+        break;
+      case "janus":
+        session = this.getJanusSessionMethodsBy({ configKey });
+        break;
+      case "sip":
+        session = this.getSipSessionMethodsBy({ configKey });
+        break;
+      default:
+        session = this.getSipSessionMethodsBy({ configKey });
+        break
+    }
 
     if (session && (session as any)[method]) {
       console.log('handleSessionCommand', { method, configKey, args });
@@ -253,7 +274,7 @@ export class SipManager {
   // ------------------------------------------------------------
   //  Command Handling
   // ------------------------------------------------------------
-  private handleCommand(msg: Extract<SipBroadcastMessage, { type: 'COMMAND' }>) {
+  private handleCommand(msg: Extract<RtcBroadcastMessage, { type: 'COMMAND' }>) {
     const { method, args } = msg;
 
     if ((this as any)[method]) {
@@ -267,7 +288,7 @@ export class SipManager {
   // ------------------------------------------------------------
 
   private broadcastStoreSubscription() {
-    useSipStore.subscribe(() => {
+    useRtcStore.subscribe(() => {
       this.broadcastStore();
     });
   }
@@ -275,7 +296,7 @@ export class SipManager {
   private broadcastStore() {
     if (!this.isMasterManager) return;
 
-    const store = getSipStore();
+    const store = getRtcStore();
 
     this.channel.postMessage({
       type: 'SYNC',
@@ -303,35 +324,35 @@ export class SipManager {
   public useWatchConfigs = useWatchConfigs;
 
   /**
-   * Update the configuration for an existing SIP instance.
+   * Update the configuration for an existing RTC instance.
    *
    * - Replaces stored config in memory and global store.
-   * - Does **not** automatically reconnect or restart the UserAgent.
+   * - Does **not** automatically reconnect or restart the Engine.
    *
-   * Use `initilizeMediaStreams` or `reconnect()` if runtime behavior must change.
+   * Use `reconnect()` if runtime behavior must change.
    *
-   * @param configKey - Unique identifier of the SIP instance
-   * @param config - Updated SIP configuration
+   * @param configKey - Unique identifier of the RTC instance
+   * @param config - Updated RTC configuration
    */
-  private updateConfig(configKey: string, config: SipManagerConfig) {
-    const { instance } = this.instances.get(configKey) as SipManagerInstance;
+  private updateConfig(configKey: string, config: RtcManagerConfig) {
+    const { instance } = this.instances.get(configKey) as RtcManagerInstance;
 
     this.instances.set(configKey, { config, instance });
-    getSipStore().setConfig(configKey, config as SipConfigs);
+    getRtcStore().setConfig(configKey, config as RtcConfig);
   }
 
   /**
-   * Add or update a SIP account.
+   * Add or update a RTC account.
    *
    * - If identical config exists → ignored.
    * - If same `configKey` but config changed → updates config + re-initializes media streams.
-   * - Otherwise → creates and initializes a new UserAgent instance.
+   * - Otherwise → creates and initializes a new Engine instance.
    *
-   * @param config - SIP account configuration (must contain account info, optional `key`)
+   * @param config - RTC account configuration (must contain account info, optional `key`)
    */
-  public async add(config: SipManagerConfig): Promise<void> {
+  public async add(config: RtcManagerConfig): Promise<void> {
     const configKey = config?.key ?? config?.account?.username;
-    const mergedConfig = deepMerge(defaultSipConfigs, { ...config, key: configKey } as SipConfigs);
+    const mergedConfig = deepMerge(defaultRtcConfig, { ...config, key: configKey } as RtcConfig);
 
     if (!this.isMasterManager) {
       return;
@@ -340,12 +361,11 @@ export class SipManager {
       this.instances.has(configKey) &&
       isEqual(this.instances.get(configKey)?.config, mergedConfig)
     ) {
-      console.warn(`⚠️ SIP instance for ${configKey} already exists.`);
+      console.warn(`⚠️ RTC instance for ${configKey} already exists.`);
       return;
     }
 
     if (this.instances.has(configKey)) {
-      initilizeMediaStreams(mergedConfig as SipConfigs);
       this.updateConfig(configKey, mergedConfig);
       queueMicrotask(() => {
         this.reconnectTransport(configKey);
@@ -354,19 +374,33 @@ export class SipManager {
       return;
     }
 
-    const instance = new SipInitializer(mergedConfig, configKey);
+    let instance = null;
+    console.log(111, { mergedConfig })
+    switch (mergedConfig.engine) {
+      case 'sip':
+        instance = new SipEngineInitializer(mergedConfig, configKey);
+        break;
+      case 'janus':
+        instance = new JanusEngineInitializer(mergedConfig, configKey);
+        break;
+      case 'hybrid':
+        instance = new HybridEngineInitializer(mergedConfig, configKey);
+        break;
+      default:
+        throw new Error('RTC-Kit engine must be defined!');
+    }
     await instance.init();
-
+    getRtcStore().setConfig(configKey, mergedConfig);
     this.instances.set(configKey, { config: mergedConfig, instance });
   }
 
   /**
    * Get high-level session methods (answer, dial, hold, transfer, etc.).
    *
-   * Resolves the SIP instance by `configKey`, `lineKey`, or `remoteNumber`.
+   * Resolves the RTC instance by `configKey`, `lineKey`, or `remoteNumber`.
    */
-  public getSessionMethodsBy(key: GetMethodsKey) {
-    const store = getSipStore();
+  public getSipSessionMethodsBy(key: GetMethodsKey) {
+    const store = getRtcStore();
     let configKey: string = '';
 
     if ('configKey' in key && key.configKey) {
@@ -375,7 +409,59 @@ export class SipManager {
       configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
     }
 
-    const methods = sessionMethods({ configKey });
+    const methods = sipSessionMethods({ configKey });
+    if (this.isMasterManager) return methods;
+
+    return new Proxy(methods, {
+      get: (_, prop: string) => {
+        return (...args: any[]) => {
+          this.channel.postMessage({
+            type: 'SESSION_COMMAND',
+            method: prop,
+            configKey,
+            args,
+          });
+        };
+      },
+    });
+  }
+  public getJanusSessionMethodsBy(key: GetMethodsKey) {
+    const store = getRtcStore();
+    let configKey: string = '';
+
+    if ('configKey' in key && key.configKey) {
+      configKey = key.configKey;
+    } else if ('lineKey' in key && key.lineKey) {
+      configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
+    }
+
+    const methods = janusSessionMethods({ configKey });
+    if (this.isMasterManager) return methods;
+
+    return new Proxy(methods, {
+      get: (_, prop: string) => {
+        return (...args: any[]) => {
+          this.channel.postMessage({
+            type: 'SESSION_COMMAND',
+            method: prop,
+            configKey,
+            args,
+          });
+        };
+      },
+    });
+  }
+  public getHybridSessionMethodsBy(key: GetMethodsKey) {
+    const store = getRtcStore();
+    let configKey: string = '';
+
+    if ('configKey' in key && key.configKey) {
+      configKey = key.configKey;
+    } else if ('lineKey' in key && key.lineKey) {
+      configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
+    }
+
+    const methods = hybridSessionMethods({ configKey });
     if (this.isMasterManager) return methods;
 
     return new Proxy(methods, {
@@ -393,13 +479,13 @@ export class SipManager {
   }
 
   /**
-   * Get SIP account state.
+   * Get RTC account state.
    *
    * Resolves account by `configKey`, `lineKey`, or `remoteNumber`.
    * Returns reactive account information and watcher hook.
    */
   public getAccountBy(key: GetAccountKey) {
-    const store = getSipStore();
+    const store = getRtcStore();
     let configKey: string = '';
 
     if ('configKey' in key && key.configKey) {
@@ -409,9 +495,9 @@ export class SipManager {
     }
 
     return {
-      status: (store.statuses?.[configKey] ?? 'disconnected') as SipUserAgentStatus,
+      status: (store.statuses?.[configKey] ?? 'disconnected') as RtcEngineStatus,
       lines: Object.values(store.lines[configKey] ?? []),
-      watch: useSipManager({ configKey }),
+      watch: useRtcManager({ configKey }),
     };
   }
 
@@ -420,7 +506,7 @@ export class SipManager {
     return this.instances.has(configKey);
   }
 
-  /** Force reconnect transport for an existing SIP instance. */
+  /** Force reconnect transport for an existing RTC instance. */
   public reconnectTransport(configKey: string): void {
     if (!this.isMasterManager)
       return this.channel.postMessage({
@@ -432,7 +518,7 @@ export class SipManager {
     reconnectTransport(configKey, undefined, true);
   }
 
-  /** Force refresh registration for an existing SIP UserAgent. */
+  /** Force refresh registration for an existing RTC Engine. */
   public refreshRegistration(configKey: string): void {
     if (!this.isMasterManager)
       return this.channel.postMessage({
@@ -440,11 +526,21 @@ export class SipManager {
         method: 'refreshRegistration',
         args: [configKey],
       });
-    refreshRegistration(configKey);
+    switch (this.instances.get(configKey)?.config.engine) {
+      case 'sip':
+        sipReconnect(configKey);
+        break;
+      case 'janus':
+        janusReconnect(configKey)
+        break;
+      case 'hybrid':
+        hybridReconnect(configKey)
+        break;
+    }
   }
 
   /**
-   * Stop and remove a SIP instance.
+   * Stop and remove a RTC instance.
    * Cleans up associated data from the global store.
    */
   public async stop(configKey: string) {
@@ -452,14 +548,14 @@ export class SipManager {
     if (instance) {
       await instance.stop();
       this.instances.delete(configKey);
-      getSipStore().remove(configKey);
+      getRtcStore().remove(configKey);
     }
   }
 
-  /** Stop and clear all SIP instances (e.g., on logout). */
+  /** Stop and clear all RTC instances (e.g., on logout). */
   public async stopAll() {
     await this.stopAllInstances();
-    getSipStore().removeAll();
+    getRtcStore().removeAll();
   }
 
   private async stopAllInstances() {
@@ -475,7 +571,7 @@ export class SipManager {
 
   /** Lookup a line by `lineKey` or `remoteNumber`. */
   public getLineBy(key: LineLookup): LineType | null {
-    const store = getSipStore();
+    const store = getRtcStore();
 
     if ('lineKey' in key && key?.lineKey) {
       return store.getLineByLineKey(key.lineKey);
@@ -490,16 +586,17 @@ export class SipManager {
   }
 
   /** Lookup a session by `lineKey` or `remoteNumber`. */
-  public getSessionBy(key: LineLookup) {
-    const store = getSipStore();
+  // TODO HybridSessionType missed
+  public getSessionBy<T extends SipSessionType | JanusSessionType>(key: LineLookup): T | null {
+    const store = getRtcStore();
 
     if ('lineKey' in key && key?.lineKey) {
-      return store.getSessionByLineKey(key.lineKey);
+      return store.getSessionByLineKey(key.lineKey) as T;
     }
 
     if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
       const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
-      return lineKey ? store.getSessionByLineKey(lineKey) : null;
+      return lineKey ? store.getSessionByLineKey(lineKey) as T : null;
     }
 
     return null;
@@ -507,7 +604,7 @@ export class SipManager {
 
   /** Resolve the `configKey` for a given `lineKey` or `remoteNumber`. */
   public getConfigKeyBy(key: LineLookup): string | null {
-    const store = getSipStore();
+    const store = getRtcStore();
     if ('lineKey' in key && key?.lineKey) {
       return store.getConfigKeyByLineKey(key.lineKey);
     }

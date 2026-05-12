@@ -1,7 +1,7 @@
-import { useSipStore } from '../../store';
+import { useRtcStore } from '../../store';
 import { useDeep } from '../useDeep';
 
 export const useWatchConfigs = () => {
-  const configs = useSipStore(useDeep((state) => Object.values(state.configs ?? {})));
+  const configs = useRtcStore(useDeep((state) => Object.values(state.configs ?? {})));
   return configs;
 };

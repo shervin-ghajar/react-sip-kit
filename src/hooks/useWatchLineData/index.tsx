@@ -1,6 +1,6 @@
-import { SipConfigs } from '../../configs/types';
-import { getSipStore, useSipStore } from '../../store';
-import { LineType, SipLineDataType } from '../../store/types';
+import { RtcConfig } from '../../configs/types';
+import { getRtcStore, useRtcStore } from '../../store';
+import { LineType, LineDataType } from '../../store/types';
 import { useDeep } from '../useDeep';
 
 /* -------------------------------------------------------------------------- */
@@ -23,7 +23,7 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
     : never;
 
 /** Runtime helper to walk down a dot-path. */
-function getByPath<T extends SipLineDataType, P extends Path<T>>(
+function getByPath<T extends LineDataType, P extends Path<T>>(
   obj: T,
   path: P,
 ): PathValue<T, P> | undefined {
@@ -32,7 +32,7 @@ function getByPath<T extends SipLineDataType, P extends Path<T>>(
 
 type UseWatchSessionKey =
   | { lineKey: LineType['lineKey'] }
-  | { remoteNumber: SipLineDataType['remoteNumber']; configKey: SipConfigs['key'] };
+  | { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
 
 /* -------------------------------------------------------------------------- */
 /*  Overloads                                                                 */
@@ -51,7 +51,7 @@ type UseWatchSessionKey =
  * @param {string | string[]} [params.name] - Optional dot-path string (e.g., 'localMediaStreamStatus.videoEnabled')
  *                                            or array of dot-paths to select specific data from the session.
  *
- * @returns {SipLineDataType | any | any[]}
+ * @returns {LineDataType | any | any[]}
  * Returns the full session data if `name` is undefined,
  * a single property if `name` is a string,
  * or an array of properties if `name` is an array.
@@ -75,33 +75,33 @@ type UseWatchSessionKey =
 export function useWatchLineData(props: {
   key: { lineKey: LineType['lineKey'] };
   name?: undefined;
-}): SipLineDataType;
+}): LineDataType;
 export function useWatchLineData(props: {
-  key: { remoteNumber: SipLineDataType['remoteNumber']; configKey: SipConfigs['key'] };
+  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
   name?: undefined;
-}): SipLineDataType;
+}): LineDataType;
 
 // String typed name
-export function useWatchLineData<P extends Path<SipLineDataType>>(props: {
+export function useWatchLineData<P extends Path<LineDataType>>(props: {
   key: { lineKey: LineType['lineKey'] };
   name: P;
-}): PathValue<SipLineDataType, P>;
-export function useWatchLineData<P extends Path<SipLineDataType>>(props: {
-  key: { remoteNumber: SipLineDataType['remoteNumber']; configKey: SipConfigs['key'] };
+}): PathValue<LineDataType, P>;
+export function useWatchLineData<P extends Path<LineDataType>>(props: {
+  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
 
   name: P;
-}): PathValue<SipLineDataType, P>;
+}): PathValue<LineDataType, P>;
 
 // Array typed name
-export function useWatchLineData<const P extends readonly Path<SipLineDataType>[]>(props: {
+export function useWatchLineData<const P extends readonly Path<LineDataType>[]>(props: {
   key: { lineKey: LineType['lineKey'] };
   name: P;
-}): { [K in keyof P]: PathValue<SipLineDataType, P[K] & string> };
+}): { [K in keyof P]: PathValue<LineDataType, P[K] & string> };
 
-export function useWatchLineData<const P extends readonly Path<SipLineDataType>[]>(props: {
-  key: { remoteNumber: SipLineDataType['remoteNumber']; configKey: SipConfigs['key'] };
+export function useWatchLineData<const P extends readonly Path<LineDataType>[]>(props: {
+  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
   name: P;
-}): { [K in keyof P]: PathValue<SipLineDataType, P[K] & string> };
+}): { [K in keyof P]: PathValue<LineDataType, P[K] & string> };
 
 /* -------------------------------------------------------------------------- */
 /*  Implementation                                                            */
@@ -114,7 +114,7 @@ export function useWatchLineData({
   key: UseWatchSessionKey;
   name?: string | readonly string[];
 }) {
-  const store = getSipStore();
+  const store = getRtcStore();
 
   // Resolve the lineKey internally
   const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key);
@@ -123,11 +123,11 @@ export function useWatchLineData({
 
   const configKey = store.getConfigKeyByLineKey(lineKey);
 
-  return useSipStore(
+  return useRtcStore(
     useDeep((state) => {
       try {
         const line = configKey ? state.lines?.[configKey]?.[lineKey] : null;
-        const data = line?.data as SipLineDataType;
+        const data = line?.data as LineDataType;
 
         if (!data) return undefined;
 

@@ -1,4 +1,3 @@
-export * from './useSipManager';
+export * from './useRtcManager';
 export * from './useWatchLineData';
-export * from './useDeep';
 export * from './useWatchConfigs';

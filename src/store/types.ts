@@ -1,121 +1,83 @@
-import { SipAccountConfig, SipConfigs } from '../configs/types';
-import { CallbackFunction, CallType, SipUserAgent } from '../types';
-import {
-  Invitation,
-  Inviter,
-  Session,
-  SessionDescriptionHandler,
-  SessionDescriptionHandlerOptions,
-} from 'sip.js';
-import { IncomingInviteRequest } from 'sip.js/lib/core';
+import { RtcConfig, SipAccountConfig } from '../configs/types';
+import { HybridLineDataType, HybridLineType } from '../engines/hybrid/types';
+import { JanusLineDataType, JanusLineType } from '../engines/janus/types';
+import { SipLineDataType, SipLineType } from '../engines/sip/types';
+import { CallbackFunction, CallType, EngineInstance, RtcEngineStatus, } from '../types';
 
 /* -------------------------------------------------------------------------- */
-export interface SipStoreStateType {
+export interface RtcStoreStateType {
   broadcastEnabled: boolean;
-  configs: Record<SipConfigs['key'], SipConfigs>;
-  statuses: Record<SipConfigs['key'], SipUserAgentStatus>;
-  userAgents?: Record<SipConfigs['key'], SipUserAgent>;
-  lines: Record<SipConfigs['key'], Record<LineType['lineKey'], LineType>>;
-  configKeysByLineKey: Record<LineType['lineKey'], SipConfigs['key']>;
-  lineKeyByRemoteNumber_ConfigKey: Record<SipLineDataType['remoteNumber'], LineType['lineKey']>;
-  devicesInfo: DevicesInfoType;
+  configs: Record<RtcConfig['key'], RtcConfig>;
+  statuses: Record<RtcConfig['key'], RtcEngineStatus>;
+  engines?: Record<RtcConfig['key'], EngineInstance>;
+  lines: Record<RtcConfig['key'], Record<LineType['lineKey'], LineType>>;
+  configKeysByLineKey: Record<LineType['lineKey'], RtcConfig['key']>;
+  lineKeyByRemoteNumber_ConfigKey: Record<LineDataType['remoteNumber'], LineType['lineKey']>;
   // Setter
-  setSipStore: (state: Partial<SipStoreStateType>) => void;
-  setConfig: (key: SipConfigs['key'], userAgent: SipConfigs) => void;
-  setUserAgent: (key: SipConfigs['key'], userAgent: SipUserAgent) => void;
+  setRtcStore: (state: Partial<RtcStoreStateType>) => void;
+  setConfig: (key: RtcConfig['key'], engine: RtcConfig) => void;
+  setEngine: (key: RtcConfig['key'], engine: EngineInstance) => void;
   addLine: (line: LineType) => void;
   updateLine: (line: LineType, callback?: CallbackFunction) => void;
   removeLine: (lineKey: LineType['lineKey']) => void;
-  remove: (key: SipConfigs['key']) => void;
+  remove: (key: RtcConfig['key']) => void;
   removeAll: () => void;
   removeAllLines: () => void;
   // Getter
-  getLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
-  getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['sipSession'] | null;
+  getLineByLineKey: <T extends LineType>(lineKey: LineType['lineKey']) => T | null;
+  getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['session'] | null;
   getLineDataByLineKey: (lineKey: LineType['lineKey']) => LineType['data'] | null;
-  getConfigKeyByLineKey: (lineKey: LineType['lineKey']) => SipConfigs['key'] | null;
+  getConfigKeyByLineKey: (lineKey: LineType['lineKey']) => RtcConfig['key'] | null;
   getConfigKeyByRemoteNumber_ConfigKey: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipLineDataType['remoteNumber'];
-    configKey: SipConfigs['key'];
-  }) => SipConfigs['key'] | null;
+    remoteNumber: LineDataType['remoteNumber'];
+    configKey: RtcConfig['key'];
+  }) => RtcConfig['key'] | null;
   getLineKeyByRemoteNumber_ConfigKey: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipLineDataType['remoteNumber'];
-    configKey: SipConfigs['key'];
+    remoteNumber: LineDataType['remoteNumber'];
+    configKey: RtcConfig['key'];
   }) => LineType['lineKey'] | null;
   getLineBy: (
     keys:
       | { lineKey: string }
       | {
-          remoteNumber: SipLineDataType['remoteNumber'];
-          configKey: SipConfigs['key'];
-        },
+        remoteNumber: LineDataType['remoteNumber'];
+        configKey: RtcConfig['key'];
+      },
   ) => LineType | null;
   remoteNumberConfigKeyResolver: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipLineDataType['remoteNumber'];
-    configKey: SipConfigs['key'];
+    remoteNumber: LineDataType['remoteNumber'];
+    configKey: RtcConfig['key'];
   }) => `${typeof remoteNumber}:${typeof configKey}`;
-  getNewLineKey: () => LineType['lineKey'];
 }
 
-export interface SipInvitationType extends Omit<
-  Invitation,
-  'incomingInviteRequest' | 'sessionDescriptionHandler'
-> {
-  // data: Partial<SipLineDataType>;
-  incomingInviteRequest: IncomingInviteRequest;
-  sessionDescriptionHandler: SipSessionDescriptionHandler;
-  sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  initiateLocalMediaStreams: (params?: InitiateMediaStreamsParams) => void;
-  initiateRemoteMediaStreams: (params?: InitiateMediaStreamsParams) => void;
-}
+
 
 export interface InitiateMediaStreamsParams {
   videoEnabled?: boolean;
-  configs?: SipConfigs;
+  configs?: RtcConfig;
   type?: 'audio' | 'video';
   stopStream?: boolean;
 }
 
-export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
-  hold: boolean;
-}
-export interface SipInviterType extends Inviter {
-  // data: Partial<SipLineDataType>;
-  sessionDescriptionHandler: SipSessionDescriptionHandler;
-  sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
-  initiateLocalMediaStreams: (params?: InitiateMediaStreamsParams) => void;
-  initiateRemoteMediaStreams: (params?: InitiateMediaStreamsParams) => void;
-}
 
-export interface SipSessionDescriptionHandler extends SessionDescriptionHandler {
-  peerConnection: RTCPeerConnection;
-  peerConnectionDelegate: any;
-}
+
+
 /* -------------------------------------------------------------------------- */
-export interface LineType {
-  lineKey: string;
-  remoteNumber: string;
-  configKey: SipConfigs['key'];
-  sipSession: SipInvitationType | SipInviterType | null;
-  username: string;
-  data: SipLineDataType;
-  localSoundMeter: any;
-  remoteSoundMeter: any;
-}
+export type LineType = SipLineType | JanusLineType | HybridLineType;
 
-export interface SipSessionType extends Session {}
 
-export interface SipLineDataType {
-  configKey: SipConfigs['key'];
+export type LineDataType = SipLineDataType | JanusLineDataType | HybridLineDataType
+export interface BaseLineDataType {
+  configKey: RtcConfig['key'];
   lineKey: LineType['lineKey'];
   callDirection: 'inbound' | 'outbound';
   callType: CallType;
@@ -126,22 +88,17 @@ export interface SipLineDataType {
   reasonCode: number;
   reasonText: string;
   teardownComplete: boolean;
-  childsession: SipSessionType | null;
   startTime: string;
   started: boolean;
   hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
   isHold: boolean;
   videoChannelNames: Array<Record<'mid' | 'channel', string>>;
-  localMediaStreamStatus: MediaStremStatus;
-  remoteMediaStreamStatus: MediaStremStatus;
+  localMediaStreamData: MediaStreamData;
+  remoteMediaStreamData: MediaStreamData;
   videoAckReceived: boolean;
-  transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: MediaStreamTrack | null | undefined;
-  videoSourceTrack: MediaStreamTrack | null | undefined;
-  screenSourceTrack: MediaStreamTrack | null | undefined;
-  videoSourceDevice: string | null | undefined;
-  audioSourceDevice: string | null | undefined;
-  audioOutputDevice: string | null | undefined;
+  videoInputDeviceId: string | null | undefined;
+  audioInputDeviceId: string | null | undefined;
+  audioOutputDeviceId: string | null | undefined;
   confBridgeChannels: Array<any>; //TODO
   confBridgeEvents: Array<any>;
   recordMedia: {
@@ -151,33 +108,14 @@ export interface SipLineDataType {
   };
 }
 
-export interface SipSessionTransferType {
-  type: 'Attended' | 'Blind';
-  to: LineType['remoteNumber'];
-  transferTime: string;
-  disposition: string;
-  dispositionTime: string;
-  accept: {
-    complete: boolean | null;
-    eventTime: string | null;
-    disposition: string;
-  };
-  onCancle?: Function;
-}
 /* -------------------------------------------------------------------------- */
-interface DevicesInfoType {
-  hasVideoDevice: boolean;
-  hasAudioDevice: boolean;
-  hasSpeakerDevice: boolean;
-  audioInputDevices: any[];
-  videoInputDevices: any[];
-  speakerDevices: any[];
-}
+export type MediaStreamData = Record<"audio" | "video" | "screen", {
+  track: MediaStreamTrack | null | undefined;
+  enabled: boolean
+}>
 
-interface MediaStremStatus {
-  soundEnabled: boolean;
-  videoEnabled: boolean;
-  screenShareEnabled: boolean;
-}
-
-export type SipUserAgentStatus = 'disconnected' | 'connecting' | 'connected';
+export type RemoteMediaStreamData = {
+  audio: Map<string, { track: MediaStreamTrack; enabled: boolean }>;
+  video: Map<string, { track: MediaStreamTrack; enabled: boolean }>;
+  screen?: Map<string, { track: MediaStreamTrack; enabled: boolean }>;
+};
