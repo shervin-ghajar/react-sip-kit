@@ -12,7 +12,7 @@ export function makeSerializable<T>(value: T, seen = new WeakMap()): any {
 
   // Only recurse into plain objects
   if (Object.getPrototypeOf(value) !== Object.prototype) {
-    return `__${Object.prototype.toString.call(value)}__`;
+    return undefined;
   }
 
   const out: any = {};
