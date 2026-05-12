@@ -111,7 +111,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
               option?.extraHeaders?.push(key + ': ' + value);
             }
           }
-        } catch (e) { }
+        } catch (e) {}
       }
       return option;
     },
@@ -189,7 +189,7 @@ export const spdOptions = ({ configKey }: { configKey: SipConfigs['key'] }) => {
               option.extraHeaders.push(key + ': ' + value);
             }
           }
-        } catch (e) { }
+        } catch (e) {}
       }
 
       return option;

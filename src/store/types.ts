@@ -11,12 +11,13 @@ import { IncomingInviteRequest } from 'sip.js/lib/core';
 
 /* -------------------------------------------------------------------------- */
 export interface SipStoreStateType {
-  configs: Record<SipConfigs['key'], SipConfigs> | null;
-  statuses: Record<SipConfigs['key'], SipUserAgentStatus> | null;
+  broadcastEnabled: boolean;
+  configs: Record<SipConfigs['key'], SipConfigs>;
+  statuses: Record<SipConfigs['key'], SipUserAgentStatus>;
   userAgents?: Record<SipConfigs['key'], SipUserAgent>;
   lines: Record<SipConfigs['key'], Record<LineType['lineKey'], LineType>>;
   configKeysByLineKey: Record<LineType['lineKey'], SipConfigs['key']>;
-  lineKeyByRemoteNumber_ConfigKey: Record<SipSessionDataType['remoteNumber'], LineType['lineKey']>;
+  lineKeyByRemoteNumber_ConfigKey: Record<SipLineDataType['remoteNumber'], LineType['lineKey']>;
   devicesInfo: DevicesInfoType;
   // Setter
   setSipStore: (state: Partial<SipStoreStateType>) => void;
@@ -27,44 +28,49 @@ export interface SipStoreStateType {
   removeLine: (lineKey: LineType['lineKey']) => void;
   remove: (key: SipConfigs['key']) => void;
   removeAll: () => void;
+  removeAllLines: () => void;
   // Getter
-  findLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
+  getLineByLineKey: (lineKey: LineType['lineKey']) => LineType | null;
   getSessionByLineKey: (lineKey: LineType['lineKey']) => LineType['sipSession'] | null;
+  getLineDataByLineKey: (lineKey: LineType['lineKey']) => LineType['data'] | null;
   getConfigKeyByLineKey: (lineKey: LineType['lineKey']) => SipConfigs['key'] | null;
   getConfigKeyByRemoteNumber_ConfigKey: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipSessionDataType['remoteNumber'];
+    remoteNumber: SipLineDataType['remoteNumber'];
     configKey: SipConfigs['key'];
   }) => SipConfigs['key'] | null;
   getLineKeyByRemoteNumber_ConfigKey: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipSessionDataType['remoteNumber'];
+    remoteNumber: SipLineDataType['remoteNumber'];
     configKey: SipConfigs['key'];
   }) => LineType['lineKey'] | null;
-  getLineBy: ({
-    remoteNumber,
-    configKey,
-  }: {
-    remoteNumber: SipSessionDataType['remoteNumber'];
-    configKey: SipConfigs['key'];
-  }) => LineType | null;
+  getLineBy: (
+    keys:
+      | { lineKey: string }
+      | {
+          remoteNumber: SipLineDataType['remoteNumber'];
+          configKey: SipConfigs['key'];
+        },
+  ) => LineType | null;
   remoteNumberConfigKeyResolver: ({
     remoteNumber,
     configKey,
   }: {
-    remoteNumber: SipSessionDataType['remoteNumber'];
+    remoteNumber: SipLineDataType['remoteNumber'];
     configKey: SipConfigs['key'];
   }) => `${typeof remoteNumber}:${typeof configKey}`;
   getNewLineKey: () => LineType['lineKey'];
 }
 
-export interface SipInvitationType
-  extends Omit<Invitation, 'incomingInviteRequest' | 'sessionDescriptionHandler'> {
-  data: Partial<SipSessionDataType>;
+export interface SipInvitationType extends Omit<
+  Invitation,
+  'incomingInviteRequest' | 'sessionDescriptionHandler'
+> {
+  // data: Partial<SipLineDataType>;
   incomingInviteRequest: IncomingInviteRequest;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
@@ -74,15 +80,16 @@ export interface SipInvitationType
 
 export interface InitiateMediaStreamsParams {
   videoEnabled?: boolean;
-  pc?: RTCPeerConnection;
   configs?: SipConfigs;
+  type?: 'audio' | 'video';
+  stopStream?: boolean;
 }
 
 export interface SipSessionDescriptionHandlerOptions extends SessionDescriptionHandlerOptions {
   hold: boolean;
 }
 export interface SipInviterType extends Inviter {
-  data: Partial<SipSessionDataType>;
+  // data: Partial<SipLineDataType>;
   sessionDescriptionHandler: SipSessionDescriptionHandler;
   sessionDescriptionHandlerOptionsReInvite: SipSessionDescriptionHandlerOptions;
   initiateLocalMediaStreams: (params?: InitiateMediaStreamsParams) => void;
@@ -99,15 +106,15 @@ export interface LineType {
   remoteNumber: string;
   configKey: SipConfigs['key'];
   sipSession: SipInvitationType | SipInviterType | null;
+  username: string;
+  data: SipLineDataType;
   localSoundMeter: any;
   remoteSoundMeter: any;
 }
 
-export interface SipSessionType extends Session {
-  data: SipSessionDataType;
-}
+export interface SipSessionType extends Session {}
 
-export interface SipSessionDataType {
+export interface SipLineDataType {
   configKey: SipConfigs['key'];
   lineKey: LineType['lineKey'];
   callDirection: 'inbound' | 'outbound';
@@ -129,15 +136,14 @@ export interface SipSessionDataType {
   remoteMediaStreamStatus: MediaStremStatus;
   videoAckReceived: boolean;
   transfer: Array<SipSessionTransferType>;
-  audioSourceTrack: MediaStreamTrack | null;
-  videoSourceTrack: MediaStreamTrack | null;
-  earlyMedia: any; //TODO
-  ringerObj: { [key: string]: any } | null;
+  audioSourceTrack: MediaStreamTrack | null | undefined;
+  videoSourceTrack: MediaStreamTrack | null | undefined;
+  screenSourceTrack: MediaStreamTrack | null | undefined;
+  videoSourceDevice: string | null | undefined;
+  audioSourceDevice: string | null | undefined;
+  audioOutputDevice: string | null | undefined;
   confBridgeChannels: Array<any>; //TODO
-  confBridgeEvents: Array<any>; //TODO
-  videoSourceDevice: string | null;
-  audioSourceDevice: string | null;
-  audioOutputDevice: string | null;
+  confBridgeEvents: Array<any>;
   recordMedia: {
     recording: boolean;
     startTime: string | null;

@@ -1,5 +1,5 @@
 import { SipConfigs } from './configs/types';
-import { useWatchSessionData } from './hooks/useWatchSessionData';
+import { useWatchLineData } from './hooks';
 import { LineType, SipUserAgentStatus } from './store/types';
 import { GetAccountKey, GetMethodsKey, LineLookup, SipManagerConfig } from './types';
 export declare class SipManager {
@@ -10,10 +10,29 @@ export declare class SipManager {
      * Ensures multiple accounts (e.g., same username on different domains) can coexist.
      */
     private instances;
+    private channel;
+    private tabId;
+    private subscribedTabIds;
+    private isMasterManager;
+    private lastHeartbeat;
+    private broadcastEnabled;
+    constructor(options?: {
+        enableBroadcast?: boolean;
+    });
+    private initBroadcast;
+    private onTabClose;
+    private startHeartbeatSender;
+    private startHeartbeatMonitor;
+    private getSuccessorTabId;
+    private handleMasterElection;
+    private handleSessionCommand;
+    private handleCommand;
+    private broadcastStoreSubscription;
+    private broadcastStore;
     /**
      * Hook for reactively watching session data (delegates to Zustand store).
      */
-    useWatchSessionData: typeof useWatchSessionData;
+    useWatchLineData: typeof useWatchLineData;
     /**
      * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
      *
@@ -86,7 +105,9 @@ export declare class SipManager {
     /** Check if an instance exists for the given configKey. */
     has(configKey: string): boolean;
     /** Force reconnect transport for an existing SIP instance. */
-    reconnect(configKey: string): void;
+    reconnectTransport(configKey: string): void;
+    /** Force refresh registration for an existing SIP UserAgent. */
+    refreshRegistration(configKey: string): void;
     /**
      * Stop and remove a SIP instance.
      * Cleans up associated data from the global store.
@@ -94,10 +115,12 @@ export declare class SipManager {
     stop(configKey: string): Promise<void>;
     /** Stop and clear all SIP instances (e.g., on logout). */
     stopAll(): Promise<void>;
+    private stopAllInstances;
     /** Lookup a line by `lineKey` or `remoteNumber`. */
     getLineBy(key: LineLookup): LineType | null;
     /** Lookup a session by `lineKey` or `remoteNumber`. */
     getSessionBy(key: LineLookup): import("./store/types").SipInvitationType | import("./store/types").SipInviterType | null;
     /** Resolve the `configKey` for a given `lineKey` or `remoteNumber`. */
     getConfigKeyBy(key: LineLookup): string | null;
+    get isMaster(): boolean;
 }

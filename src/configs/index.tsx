@@ -8,7 +8,6 @@ import {
   SipRecordingConfig,
   SipRegistrationConfig,
   SipStorageConfig,
-  SipXmppConfig,
 } from './types';
 
 export const defaultAccountConfig: SipAccountConfig = {
@@ -62,7 +61,10 @@ export const defaultRegistrationConfig: SipRegistrationConfig = {
   ipInContact: false,
   bundlePolicy: 'balanced',
   peerConnectionConfiguration: {},
-  iceGatheringTimeout: 500,
+  hackIpInContact: true,
+  contactParams: {},
+  delegate: {},
+  iceGatheringTimeout: 5000,
   subscribeToYourself: false,
   voiceMailSubscribe: false,
   voicemailDid: '',

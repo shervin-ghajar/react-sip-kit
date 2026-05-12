@@ -4,3 +4,6 @@ export * from './deepMerge';
 export * from './utcDateNow';
 export * from './getMediaDevices';
 export * from './generateUUID';
+export * from './interval';
+export * from './serializeLines';
+export * from './makeSerializable';

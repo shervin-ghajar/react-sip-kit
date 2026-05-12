@@ -1,6 +1,6 @@
-import { IncomingResponse } from 'sip.js/lib/core';
 import { sessionMethods } from '.';
 import { LineType } from '../../store/types';
+import { IncomingResponse } from 'sip.js/lib/core';
 
 export enum SendMessageSessionEnum {
   'SOUND_TOGGLE' = 'SOUND_TOGGLE',
@@ -66,4 +66,4 @@ export type DialRequestDelegate = {
   onTrying?: (lineKey: LineType['lineKey'], response: DialResponse) => void;
 };
 
-export type DialResponse = IncomingResponse
+export type DialResponse = IncomingResponse;

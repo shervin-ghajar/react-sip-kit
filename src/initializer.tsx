@@ -7,6 +7,7 @@ import {
 } from './events/transport';
 import { sessionMethods } from './methods/session';
 import { getSipStore } from './store';
+import { SipInvitationType } from './store/types';
 import { SipUserAgent } from './types';
 import { getMediaDevices } from './utils';
 import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
@@ -36,10 +37,7 @@ export class SipInitializer {
   }
 
   private async createUserAgent() {
-    console.log({
-      domain: `sip:${this.username}@${this.configs.account.domain}`,
-      server: `wss://${this.configs.account.wssServer}:${this.configs.account.webSocketPort}${this.configs.account.serverPath}`,
-    });
+    const { onInvite, ...restDelegate } = this.configs.registration.delegate!;
 
     const ua = new UserAgent({
       uri: UserAgent.makeURI(`sip:${this.username}@${this.configs.account.domain}`),
@@ -55,12 +53,18 @@ export class SipInitializer {
         },
         iceGatheringTimeout: this.configs.registration.iceGatheringTimeout,
       },
+      authorizationUsername: this.username,
       authorizationPassword: this.configs.account.password,
-      hackIpInContact: true, // TODO better to be configurable
-      contactParams: {},
+      hackIpInContact: this.configs.registration.hackIpInContact,
+      contactParams: this.configs.registration.contactParams,
       delegate: {
-        onInvite: sessionMethods({ configKey: this.configKey }).receiveSession as any,
-        onMessage: () => console.log('Received message'),
+        onInvite: (invitation) => {
+          sessionMethods({ configKey: this.configKey }).receiveSession(
+            invitation as unknown as SipInvitationType,
+          );
+          onInvite?.(invitation);
+        },
+        ...(restDelegate ?? {}),
       } as UserAgentDelegate,
     }) as SipUserAgent;
 

@@ -1,3 +1,4 @@
+import { UserAgentDelegate } from 'sip.js';
 export interface SipConfigs {
     key: string;
     account: SipAccountConfig;
@@ -48,6 +49,11 @@ export interface SipRegistrationConfig {
     ipInContact: boolean;
     bundlePolicy: string;
     peerConnectionConfiguration: RTCConfiguration;
+    hackIpInContact?: string | boolean | undefined;
+    contactParams?: {
+        [name: string]: string;
+    } | undefined;
+    delegate?: UserAgentDelegate;
     iceGatheringTimeout: number;
     subscribeToYourself: boolean;
     voiceMailSubscribe: boolean;
