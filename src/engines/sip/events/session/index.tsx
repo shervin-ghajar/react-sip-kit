@@ -491,7 +491,7 @@ export const sessionEvents = () => {
         if (track.kind === 'audio') {
           currentLine.data.remoteMediaStreamData.audio = {
             track,
-            enabled: videoEnabled ?? track.enabled,
+            enabled: track.enabled,
           };
         }
         if (track.kind === 'video') {
