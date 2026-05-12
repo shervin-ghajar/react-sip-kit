@@ -1,11 +1,11 @@
-import { StrictMode, useState } from 'react';
-import { createRoot } from 'react-dom/client';
 import JanusApp from './AppJanus.tsx';
 import SipApp from './AppSip.tsx';
 import { RtcManager } from './manager.tsx';
+import { StrictMode, useState } from 'react';
+import { createRoot } from 'react-dom/client';
 
 /* -------------------------------------------------------------------------- */
-export const RtcConnection = new RtcManager({ enableBroadcast: false });
+export const RtcConnection = new RtcManager({ enableBroadcast: true });
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
@@ -46,25 +46,25 @@ export const sipAccountConfigs = {
 
 export const janusAccountConfigs = {
   '25': {
-    janusServer: "https://janus.1st.co.com/janus",
+    janusServer: 'https://janus.1st.co.com/janus',
     username: '25',
   },
   '6': {
-    janusServer: "https://janus.1st.co.com/janus",
+    janusServer: 'https://janus.1st.co.com/janus',
     username: '6',
   },
   '4': {
-    janusServer: "https://janus.1st.co.com/janus",
+    janusServer: 'https://janus.1st.co.com/janus',
     username: '4',
   },
   '37': {
-    janusServer: "https://janus.1st.co.com/janus",
+    janusServer: 'https://janus.1st.co.com/janus',
     username: '37',
   },
 } as const;
 
 const defaultSipFields = {
-  engine: "sip",
+  engine: 'sip',
   domain: 'teamserver.payamgostar.com',
   username: '',
   password: '',
@@ -74,15 +74,15 @@ const defaultSipFields = {
   iceTransportPolicy: 'all',
   iceCandidatePoolSize: 10,
   iceGatheringTimeout: 5000,
-}
+};
 const defaultJanusFields = {
-  engine: "janus",
-  janusServer: "https://janus.1st.co.com/janus",
-  username: ''
-}
+  engine: 'janus',
+  janusServer: 'https://janus.1st.co.com/janus',
+  username: '',
+};
 export const ConfigForm = () => {
   const [fields, setFields] = useState<any>({
-    engine: "",
+    engine: '',
   });
 
   const handleregister = () => {
@@ -96,7 +96,8 @@ export const ConfigForm = () => {
           fields.webSocketPort &&
           fields.wssServer
         ) {
-          const { iceCandidatePoolSize, iceGatheringTimeout, iceTransportPolicy, engine, ...rest } = fields;
+          const { iceCandidatePoolSize, iceGatheringTimeout, iceTransportPolicy, engine, ...rest } =
+            fields;
           RtcConnection.add({
             engine,
             account: rest as any,
@@ -112,9 +113,7 @@ export const ConfigForm = () => {
                     urls: ['stun:stun.1st.co.com:3478'],
                   },
                   {
-                    urls: [
-                      'turn:stun.1st.co.com:5349',
-                    ],
+                    urls: ['turn:stun.1st.co.com:5349'],
                     username: 'alovoip',
                     credential: '123',
                   },
@@ -130,10 +129,7 @@ export const ConfigForm = () => {
         break;
 
       case 'janus':
-        if (
-          fields.janusServer &&
-          fields.username
-        ) {
+        if (fields.janusServer && fields.username) {
           const { iceTransportPolicy, engine, ...rest } = fields;
           RtcConnection.add({
             engine,
@@ -146,9 +142,7 @@ export const ConfigForm = () => {
                     urls: ['stun:stun.1st.co.com:3478'],
                   },
                   {
-                    urls: [
-                      'turn:stun.1st.co.com:5349',
-                    ],
+                    urls: ['turn:stun.1st.co.com:5349'],
                     username: 'alovoip',
                     credential: '123',
                   },
@@ -158,11 +152,11 @@ export const ConfigForm = () => {
             },
           });
         }
-        break
+        break;
     }
   };
 
-  const accountConfigs = fields.engine === "sip" ? sipAccountConfigs : janusAccountConfigs
+  const accountConfigs = fields.engine === 'sip' ? sipAccountConfigs : janusAccountConfigs;
   return (
     <div
       style={{
@@ -174,20 +168,22 @@ export const ConfigForm = () => {
       }}
     >
       <p>v0.0.2</p>
-      {fields.engine && <div style={{ display: 'flex', gap: 4 }}>
-        Register:
-        {Object.keys(accountConfigs).map((acc) => (
-          <button
-            key={acc}
-            onClick={() => {
-              const key = acc as keyof typeof accountConfigs;
-              setFields((prev: any) => ({ ...prev, ...accountConfigs[key] }));
-            }}
-          >
-            {acc}
-          </button>
-        ))}
-      </div>}
+      {fields.engine && (
+        <div style={{ display: 'flex', gap: 4 }}>
+          Register:
+          {Object.keys(accountConfigs).map((acc) => (
+            <button
+              key={acc}
+              onClick={() => {
+                const key = acc as keyof typeof accountConfigs;
+                setFields((prev: any) => ({ ...prev, ...accountConfigs[key] }));
+              }}
+            >
+              {acc}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {Object.keys(fields).map((field) => {
           return (
@@ -196,25 +192,32 @@ export const ConfigForm = () => {
               style={{ display: 'flex', flexDirection: 'column', alignItems: 'start' }}
             >
               <label>{field}</label>
-              {field === 'engine' ?
-                <select name="" id="" value={fields[field]} onChange={(e) => setFields(() => {
-                  const engine = e.target.value
-                  if (engine === 'sip') return { ...defaultSipFields }
-                  if (engine === 'janus') return { ...defaultJanusFields }
-                  return { engine: '' }
-                })}>
+              {field === 'engine' ? (
+                <select
+                  name=""
+                  id=""
+                  value={fields[field]}
+                  onChange={(e) =>
+                    setFields(() => {
+                      const engine = e.target.value;
+                      if (engine === 'sip') return { ...defaultSipFields };
+                      if (engine === 'janus') return { ...defaultJanusFields };
+                      return { engine: '' };
+                    })
+                  }
+                >
                   <option value="">none</option>
                   <option value="sip">sip</option>
                   <option value="janus">janus</option>
                 </select>
-                :
+              ) : (
                 <input
                   value={(fields as any)[field]}
                   onChange={(e) => {
                     setFields((prev: any) => ({ ...prev, [field]: e.target.value }));
                   }}
                 />
-              }
+              )}
             </div>
           );
         })}
@@ -239,7 +242,6 @@ const Providers = () => {
             case 'sip':
               return <SipApp key={config.key} configKey={config.key} />;
           }
-
         })}
       </div>
     </StrictMode>

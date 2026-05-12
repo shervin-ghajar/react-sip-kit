@@ -3,9 +3,9 @@ import { HybridEngineInitializer } from './engines/hybrid/initializer';
 import { HybridInstance } from './engines/hybrid/types';
 import { JanusEngineInitializer } from './engines/janus/initializer';
 import { JanusInstance } from './engines/janus/types';
+import { reconnectTransport } from './engines/sip/events/transport';
 import { SipEngineInitializer } from './engines/sip/initializer';
 import { SipUserAgent } from './engines/sip/types';
-import { reconnectTransport } from './events/transport';
 import { LineDataType, LineType, RtcStoreStateType } from './store/types';
 
 

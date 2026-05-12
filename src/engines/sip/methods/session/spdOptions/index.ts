@@ -4,8 +4,6 @@ import { getRtcStore } from '../../../../../store';
 import { SPDOptionsType } from '../types';
 
 export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
-  // TODO configurable
-  const { audioInputDevices, videoInputDevices } = getRtcStore().devicesInfo;
   const {
     media: {
       audioInputDeviceId,
@@ -20,26 +18,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
     registration: { inviteExtraHeaders },
   } = getRtcStore().configs?.[configKey] ?? defaultRtcConfig;
   const getSupportedConstraints = () => navigator.mediaDevices.getSupportedConstraints();
-  const audioDeviceConfirmation = (currentAudioDevice: string) => {
-    let confirmedAudioDevice = false;
-    for (let i = 0; i < audioInputDevices.length; ++i) {
-      if (currentAudioDevice == audioInputDevices[i].deviceId) {
-        confirmedAudioDevice = true;
-        break;
-      }
-    }
-    return confirmedAudioDevice;
-  };
-  const videoDeviceConfirmation = (currentVideoDevice: string) => {
-    let confirmedVideoDevice = false;
-    for (let i = 0; i < videoInputDevices.length; ++i) {
-      if (currentVideoDevice === videoInputDevices[i].deviceId) {
-        confirmedVideoDevice = true;
-        break;
-      }
-    }
-    return confirmedVideoDevice;
-  };
+
   const options = {
     answerAudioSpdOptions: function ({ option: defaultOption }: { option?: SPDOptionsType } = {}) {
       console.log({ defaultOption });
@@ -55,16 +34,9 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
       const currentAudioDevice = audioInputDeviceId;
       if (typeof option.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
       if (currentAudioDevice && currentAudioDevice != 'default') {
-        let confirmedAudioDevice = audioDeviceConfirmation(currentAudioDevice);
-        if (confirmedAudioDevice) {
-          option.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-            exact: currentAudioDevice,
-          };
-        } else {
-          console.warn(
-            'The audio device you used before is no longer available, default settings applied.',
-          );
-        }
+        option.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
+          exact: currentAudioDevice,
+        };
       }
       // Add additional Constraints
       if (supportedConstraints.autoGainControl) {
@@ -111,7 +83,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
               option?.extraHeaders?.push(key + ': ' + value);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
       return option;
     },
@@ -133,16 +105,9 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
       const currentVideoDevice = videoInputDeviceId;
       if (typeof option.sessionDescriptionHandlerOptions.constraints.video !== 'object') return; // type checking assurance
       if (currentVideoDevice && currentVideoDevice != 'default') {
-        let confirmedVideoDevice = videoDeviceConfirmation(currentVideoDevice);
-        if (confirmedVideoDevice) {
-          option.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
-            exact: currentVideoDevice,
-          };
-        } else {
-          console.warn(
-            'The video device you used before is no longer available, default settings applied.',
-          );
-        }
+        option.sessionDescriptionHandlerOptions.constraints.video.deviceId = {
+          exact: currentVideoDevice,
+        };
       }
       // Add additional Constraints
       if (supportedConstraints.frameRate && !!maxFrameRate) {
@@ -189,7 +154,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
               option.extraHeaders.push(key + ': ' + value);
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       }
 
       return option;

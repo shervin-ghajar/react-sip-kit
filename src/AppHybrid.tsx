@@ -1,9 +1,8 @@
 import { AudioStream, VideoStream } from '.';
 import './App.css';
-import { SipSessionType } from './engines/sip/types';
 import { RtcConnection } from './main';
 import { LineType } from './store/types';
-import { memo, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 
 /* -------------------------------------------------------------------------- */
 export const accountConfigs = {
@@ -219,7 +218,6 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     isOnHold,
     recordMedia,
     localMediaStreamData,
-    remoteMediaStreamData,
     remoteNumber,
   ] = RtcConnection.useWatchLineData({
     key: { lineKey },
@@ -230,7 +228,6 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       'isHold',
       'recordMedia',
       'localMediaStreamData',
-      'remoteMediaStreamData',
       'remoteNumber',
     ],
   });
@@ -320,16 +317,6 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
           >
             {isRecording ? 'Recording...' : 'Record'}
-          </button>
-          <button
-            onClick={() => {
-              RtcConnection.getSessionBy<SipSessionType>({ lineKey })?.initiateLocalMediaStreams?.({
-                type: 'video',
-                stopStream: false,
-              });
-            }}
-          >
-            {'Initiate Media'}
           </button>
         </div>
       ) : (

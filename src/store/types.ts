@@ -13,7 +13,6 @@ export interface RtcStoreStateType {
   lines: Record<RtcConfig['key'], Record<LineType['lineKey'], LineType>>;
   configKeysByLineKey: Record<LineType['lineKey'], RtcConfig['key']>;
   lineKeyByRemoteNumber_ConfigKey: Record<LineDataType['remoteNumber'], LineType['lineKey']>;
-  devicesInfo: DevicesInfoType;
   // Setter
   setRtcStore: (state: Partial<RtcStoreStateType>) => void;
   setConfig: (key: RtcConfig['key'], engine: RtcConfig) => void;
@@ -110,15 +109,6 @@ export interface BaseLineDataType {
 }
 
 /* -------------------------------------------------------------------------- */
-interface DevicesInfoType {
-  hasVideoDevice: boolean;
-  hasAudioDevice: boolean;
-  hasSpeakerDevice: boolean;
-  audioInputDevices: any[];
-  videoInputDevices: any[];
-  speakerDevices: any[];
-}
-
 export type MediaStreamData = Record<"audio" | "video" | "screen", {
   track: MediaStreamTrack | null | undefined;
   enabled: boolean

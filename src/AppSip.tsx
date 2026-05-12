@@ -1,9 +1,8 @@
-import { memo, useState } from 'react';
 import { AudioStream, VideoStream } from '.';
 import './App.css';
-import { SipSessionType } from './engines/sip/types';
 import { RtcConnection } from './main';
 import { LineType } from './store/types';
+import { memo, useState } from 'react';
 
 function App({ configKey }: { configKey: string }) {
   const { dialByNumber } = RtcConnection.getSipSessionMethodsBy({ configKey }); // all session methods like dial, answer, toggle video, toggle share-screen and so on

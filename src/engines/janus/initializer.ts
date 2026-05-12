@@ -1,7 +1,7 @@
 import { JanusConfig, RtcConfig } from '../../configs/types';
 import { getRtcStore, setRtcStore } from '../../store';
-import adapter from 'webrtc-adapter';
 import Janus from './lib/janus.js';
+import adapter from 'webrtc-adapter';
 
 export class JanusEngineInitializer {
   private janus: any | null = null;
@@ -15,7 +15,6 @@ export class JanusEngineInitializer {
 
   async init() {
     const self = this;
-    console.log(222, 'init', self.config.account.janusServer, self.config.registration);
     Janus.init({
       debug: 'all',
       dependencies: Janus.useDefaultDependencies({ adapter: adapter }),
@@ -33,7 +32,10 @@ export class JanusEngineInitializer {
             const { engines, statuses } = getRtcStore();
             setRtcStore({
               engines: { ...engines, [self.configKey]: self.janus },
-              statuses: { ...statuses, [self.configKey]: self.janus.isConnected() ? "connected" : 'disconnected' },
+              statuses: {
+                ...statuses,
+                [self.configKey]: self.janus.isConnected() ? 'connected' : 'disconnected',
+              },
             });
           },
           destroyed: () => {
@@ -53,5 +55,4 @@ export class JanusEngineInitializer {
   stop() {
     this.janus?.destroy({});
   }
-
 }

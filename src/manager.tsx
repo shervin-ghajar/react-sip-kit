@@ -2,9 +2,16 @@ import isEqual from 'lodash.isequal';
 import { defaultRtcConfig } from './configs';
 import { RtcConfig } from './configs/types';
 import { HybridEngineInitializer } from './engines/hybrid/initializer';
+import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
+import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
 import { JanusEngineInitializer } from './engines/janus/initializer';
+import { refreshRegistration as janusReconnect } from './engines/janus/methods/registration';
+import { sessionMethods as janusSessionMethods } from './engines/janus/methods/session';
 import { JanusSessionType } from './engines/janus/types';
+import { reconnectTransport } from './engines/sip/events/transport';
 import { SipEngineInitializer } from './engines/sip/initializer';
+import { refreshRegistration as sipReconnect } from './engines/sip/methods/registration';
+import { sessionMethods as sipSessionMethods } from './engines/sip/methods/session';
 import { SipSessionType } from './engines/sip/types';
 import { useRtcManager, useWatchLineData } from './hooks';
 import { useWatchConfigs } from './hooks/useWatchConfigs';
@@ -17,14 +24,7 @@ import {
   RtcBroadcastMessage, RtcEngineStatus, RtcManagerConfig,
   RtcManagerInstance
 } from './types';
-import { deepMerge, serializeLines } from './utils';
-import { sessionMethods as janusSessionMethods } from './engines/janus/methods/session';
-import { sessionMethods as sipSessionMethods } from './engines/sip/methods/session';
-import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
-import { reconnectTransport } from './engines/sip/events/transport';
-import { refreshRegistration as sipReconnect } from './engines/sip/methods/registration';
-import { refreshRegistration as janusReconnect } from './engines/janus/methods/registration';
-import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
+import { deepMerge, generateUUID, serializeLines } from './utils';
 
 /* -------------------------------------------------------------------------- */
 /*  RTC Manager - Central orchestrator for multiple RTC accounts               */
@@ -43,7 +43,7 @@ export class RtcManager {
   private channel = new BroadcastChannel('react-sip-kit');
 
   // uniquely identifies this browser tab
-  private tabId = Math.random().toString(16);
+  private tabId = generateUUID()
 
   // list of all tabs currently participating
   private subscribedTabIds = new Set<string>([this.tabId]);

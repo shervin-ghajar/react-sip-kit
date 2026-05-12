@@ -1,6 +1,5 @@
 import { RtcConfig, SipAccountConfig, SipConfig } from '../../configs/types';
 import { getRtcStore } from '../../store';
-import { getMediaDevices } from '../../utils';
 import { onRegistered, onUnregistered } from './events/registration';
 import {
   onTransportConnected,
@@ -8,8 +7,8 @@ import {
   onTransportDisconnected,
 } from './events/transport';
 import { sessionMethods } from './methods/session';
-import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 import { SipInvitationType, SipUserAgent } from './types';
+import { Registerer, RegistererState, UserAgent, UserAgentDelegate } from 'sip.js';
 
 export class SipEngineInitializer {
   private ua?: SipUserAgent;
@@ -26,13 +25,7 @@ export class SipEngineInitializer {
   }
 
   public async init() {
-    await this.detectDevices();
     await this.createUserAgent();
-  }
-
-  private async detectDevices() {
-    const devices = await getMediaDevices(this.configKey);
-    getRtcStore().setRtcStore({ devicesInfo: devices });
   }
 
   private async createUserAgent() {
