@@ -4,8 +4,13 @@ import { CallbackFunction } from '../../../../types';
 import { utcDateNow } from '../../../../utils';
 import { sendMessageSession, teardownSession } from '../../methods/session';
 import { SendMessageRequestBody, SendMessageSessionEnum } from '../../methods/session/types';
-import { SipLineType, SipSessionDescriptionHandler, SipSessionType } from '../../types';
-import { SipMediaStream } from './types';
+import {
+  SipInvitationType,
+  SipInviterType,
+  SipLineType,
+  SipSessionDescriptionHandler,
+  SipSessionType,
+} from '../../types';
 import { Bye, Message } from 'sip.js';
 import { IncomingRequestMessage, IncomingResponse } from 'sip.js/lib/core';
 
@@ -58,25 +63,41 @@ export const sessionEvents = () => {
   }
   // // Both Incoming an outgoing INVITE
   async function onInviteAccepted(lineObj: SipLineType, isVideoEnabled: boolean) {
-    // Call in progress
     const session = lineObj.session;
-    console.log('onInviteAccepted', { lineObj, session: session });
     if (!session) return;
 
-    const pc = session.sessionDescriptionHandler.peerConnection;
-
     const lineData = getRtcStore().getLineDataByLineKey(lineObj?.lineKey!) ?? lineObj.data;
-    if (!session || !lineData) return;
+    if (!lineData) return;
 
+    const pc = session.sessionDescriptionHandler?.peerConnection;
+    if (!pc) return;
+
+    // 1) Attach local media according to current config / device ids
+    await attachLocalMediaToSession(lineObj, lineData, session, isVideoEnabled);
+
+    // 2) Wait for ICE connect (your original logic)
+    await waitForIceConnected(pc);
+
+    const startTime = utcDateNow();
+    lineObj.data.startTime = startTime;
+    lineObj.data.started = true;
+
+    updateLine(lineObj);
+  }
+
+  async function attachLocalMediaToSession(
+    lineObj: SipLineType,
+    lineData: LineDataType,
+    session: SipInvitationType | SipInviterType,
+    isVideoEnabled: boolean,
+  ) {
+    const pc: RTCPeerConnection | undefined = session?.sessionDescriptionHandler?.peerConnection;
     if (!pc) return;
 
     const videoSourceTrack = lineData.localMediaStreamData.video.track;
     const audioSourceTrack = lineData.localMediaStreamData.audio.track;
     const screenSourceTrack = lineData.localMediaStreamData.screen.track;
 
-    // ===============================
-    // Determine desired states
-    // ===============================
     const soundEnabled = lineData.localMediaStreamData.audio.enabled ?? true;
     const videoEnabled = lineData.localMediaStreamData.video.enabled ?? isVideoEnabled;
     const useScreen = !!lineData.localMediaStreamData.screen.enabled;
@@ -86,10 +107,9 @@ export const sessionEvents = () => {
       ? screenSourceTrack
       : videoSourceTrack;
 
-    console.log('initiateLocalMediaStreams 2');
-    // ===============================
+    // -------------------------------
     // AUDIO
-    // ===============================
+    // -------------------------------
     if (!newAudioTrack || newAudioTrack.readyState === 'ended') {
       try {
         const audioConstraints: MediaStreamConstraints['audio'] =
@@ -98,7 +118,6 @@ export const sessionEvents = () => {
             : lineObj.data?.audioInputDeviceId && lineObj.data.audioInputDeviceId !== 'default'
               ? { deviceId: { exact: lineObj.data.audioInputDeviceId } }
               : true;
-        console.log('initiateLocalMediaStreams 3');
 
         const audioStream = await navigator.mediaDevices.getUserMedia({
           audio: audioConstraints,
@@ -108,33 +127,28 @@ export const sessionEvents = () => {
         newAudioTrack = audioStream.getAudioTracks()[0];
         lineData.localMediaStreamData.audio.track = newAudioTrack;
       } catch (err) {
-        console.error('Failed to get audio track', err);
+        console.error('[attachLocalMediaToSession] Failed to get audio track', err);
+        newAudioTrack = undefined;
       }
     }
 
     if (newAudioTrack) {
-      console.log('initiateLocalMediaStreams 4');
       const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
-
-      // Apply your previous logic for enabling
       newAudioTrack.enabled = !!(soundEnabled ?? lineObj.data?.audioInputDeviceId);
+
       if (sender) {
         sender.track?.stop();
         sender.replaceTrack(newAudioTrack);
-      } else pc.addTrack(newAudioTrack);
+      } else {
+        pc.addTrack(newAudioTrack);
+      }
     }
 
-    // ===============================
-    // Update session flags
-    // ===============================
     lineData.localMediaStreamData.audio.enabled = !!soundEnabled;
 
-    // ===============================
+    // -------------------------------
     // VIDEO
-    // ===============================
-    console.log('initiateLocalMediaStreams 5', { videoEnabled }, lineObj.data?.videoInputDeviceId);
-
-    console.log({ videoEnabled });
+    // -------------------------------
     if (!newVideoTrack || newVideoTrack.readyState === 'ended') {
       if (!useScreen && (videoEnabled || lineObj.data?.videoInputDeviceId === null)) {
         try {
@@ -144,8 +158,6 @@ export const sessionEvents = () => {
               : lineObj.data?.videoInputDeviceId && lineObj.data.videoInputDeviceId !== 'default'
                 ? { deviceId: { exact: lineObj.data.videoInputDeviceId } }
                 : isVideoEnabled;
-          console.log({ videoConstraints });
-          console.log('initiateLocalMediaStreams 6');
 
           const cameraStream = await navigator.mediaDevices.getUserMedia({
             video: videoConstraints,
@@ -154,43 +166,26 @@ export const sessionEvents = () => {
           newVideoTrack = cameraStream.getVideoTracks()[0];
           lineData.localMediaStreamData.video.track = newVideoTrack;
         } catch (err) {
-          console.error('Failed to get camera track', err);
+          console.error('[attachLocalMediaToSession] Failed to get camera track', err);
           newVideoTrack = undefined;
         }
       }
     }
 
-    if (newVideoTrack) {
-      if (newVideoTrack.readyState === 'live') {
-        // console.log('initiateLocalMediaStreams 7', { newVideoTrack, stopStream });
+    if (newVideoTrack && newVideoTrack.readyState === 'live') {
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
 
-        const sender = pc.getSenders().find((s) => s.track?.kind === 'video');
-        // Enable logic: screen OR videoEnabled OR deviceId is null
-        newVideoTrack.enabled = !!((useScreen || videoEnabled) ?? lineObj.data?.videoInputDeviceId);
+      newVideoTrack.enabled = !!((useScreen || videoEnabled) ?? lineObj.data?.videoInputDeviceId);
 
-        if (sender) {
-          sender.track?.stop();
-          sender.replaceTrack(newVideoTrack);
-        } else pc.addTrack(newVideoTrack);
+      if (sender) {
+        sender.track?.stop();
+        sender.replaceTrack(newVideoTrack);
+      } else {
+        pc.addTrack(newVideoTrack);
       }
     }
 
-    // ===============================
-    // Update session flags
-    // ===============================
     lineData.localMediaStreamData.video.enabled = !!videoEnabled;
-    // ------------------------------------------------
-    // Wait for ICE before starting media
-    // ------------------------------------------------
-
-    await waitForIceConnected(pc);
-
-    const startTime = utcDateNow();
-
-    lineObj.data.startTime = startTime;
-    lineObj.data.started = true;
-
-    updateLine(lineObj);
   }
 
   function waitForIceConnected(pc: RTCPeerConnection) {
@@ -532,68 +527,7 @@ export const sessionEvents = () => {
     if (sdh) {
       if (sdh.peerConnection) {
         sdh.peerConnection.ontrack = function () {
-          const pc = sdh.peerConnection;
-
-          // Gets Remote Audio Track (Local audio is setup via initial GUM)
-          const remoteAudioStream = new MediaStream();
-          const remoteVideoStream = new MediaStream();
-
-          // Add tracks to MediaStreams
-          pc.getReceivers().forEach((receiver) => {
-            if (receiver.track) {
-              if (receiver.track.kind === 'audio') {
-                console.log('Adding Remote Audio Track');
-                remoteAudioStream.addTrack(receiver.track);
-              }
-              if (includeVideo && receiver.track.kind === 'video') {
-                console.log('Adding Remote Video Track', receiver.track.readyState);
-                remoteVideoStream.addTrack(receiver.track);
-              }
-            }
-          });
-
-          // Attach Audio Stream
-          const remoteAudio = document.createElement('audio');
-          remoteAudio.setAttribute('id', `line-${lineObj.lineKey}-transfer-remoteAudio`);
-          remoteAudio.srcObject = remoteAudioStream;
-          remoteAudio.onloadedmetadata = function () {
-            if (typeof remoteAudio.sinkId !== 'undefined' && lineObj?.data?.audioOutputDeviceId) {
-              remoteAudio
-                .setSinkId(lineObj.data.audioOutputDeviceId)
-                .then(function () {
-                  console.log('sinkId applied: ' + lineObj.data.audioOutputDeviceId);
-                })
-                .catch(function (e) {
-                  console.warn('Error using setSinkId: ', e);
-                });
-            }
-            remoteAudio.play();
-          };
-
-          // Attach Video Stream
-          if (includeVideo && remoteVideoStream.getVideoTracks().length > 0) {
-            const remoteVideo = document.createElement('video');
-            remoteVideoStream.getVideoTracks().forEach((remoteVideoStreamTrack: any, index) => {
-              const thisRemoteVideoStream = new MediaStream() as SipMediaStream;
-              thisRemoteVideoStream.trackId = remoteVideoStreamTrack.id;
-              thisRemoteVideoStream.mid = remoteVideoStreamTrack.mid;
-              thisRemoteVideoStream.addTrack(remoteVideoStreamTrack);
-              remoteVideo.id = `line-${lineObj.lineKey}-video-${index}`;
-              remoteVideo.srcObject = thisRemoteVideoStream;
-              remoteVideo.autoplay = true;
-              remoteVideo.playsInline = true;
-              remoteVideo.muted = true; // Ensure autoplay works in browsers
-              remoteVideo.className = 'video-element'; // Add styling class
-
-              remoteVideo.onloadedmetadata = () => {
-                remoteVideo.play().catch((error) => {
-                  console.error('Error playing video:', error);
-                });
-              };
-            });
-          } else {
-            console.warn('No Video Tracks Found');
-          }
+          onTrackAddedEvent(lineObj, includeVideo);
         };
       } else {
         console.warn('onSessionDescriptionHandler fired without a peerConnection');

@@ -1,8 +1,10 @@
 import { RtcConfig, SipConfig } from '../../../../configs/types';
 import { createLine } from '../../../../constructors';
-import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../../../events/session/types';
 import { getRtcStore } from '../../../../store';
+import { CallbackFunction, CallType } from '../../../../types';
+import { interval, utcDateNow } from '../../../../utils';
+import { sessionEvents } from '../../events/session';
 import {
   SipInvitationType,
   SipInviterType,
@@ -11,8 +13,6 @@ import {
   SipSessionType,
   SipUserAgent,
 } from '../../types';
-import { CallbackFunction, CallType } from '../../../../types';
-import { interval, utcDateNow } from '../../../../utils';
 import { spdOptions } from './spdOptions';
 import {
   DialRequestDelegate,
@@ -88,29 +88,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: false,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
     };
@@ -195,29 +195,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
 
@@ -287,29 +287,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       earlyReject: false,
@@ -394,29 +394,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: (enableVideo && !!configs.media.videoInputDeviceId) ?? true,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       videoInputDeviceId: configs.media.videoInputDeviceId,
@@ -497,29 +497,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: !!configs?.media.videoInputDeviceId,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       videoInputDeviceId: configs?.media.videoInputDeviceId,
@@ -597,7 +597,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
     if (!lineObj || !lineObj.session || lineObj.data.callType === 'audio') return;
 
-    const localMediaStreamData = lineObj.data.localMediaStreamData
+    const localMediaStreamData = lineObj.data.localMediaStreamData;
     const videoSourceTrack = localMediaStreamData.video.track;
     const session = lineObj.session;
 
@@ -650,10 +650,10 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     if (!pc) return;
 
     const localMediaStreamData = lineObj.data.localMediaStreamData;
-    const screenShareEnabled = localMediaStreamData.screen.enabled
-    const videoEnabled = localMediaStreamData.video.enabled
-    const videoSourceTrack = localMediaStreamData.video.track
-    const screenSourceTrack = localMediaStreamData.screen.track
+    const screenShareEnabled = localMediaStreamData.screen.enabled;
+    const videoEnabled = localMediaStreamData.video.enabled;
+    const videoSourceTrack = localMediaStreamData.video.track;
+    const screenSourceTrack = localMediaStreamData.screen.track;
     const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
     if (!videoSender) {
       console.warn('No video sender found');
@@ -1229,7 +1229,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       if (
         (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'object' &&
           Object.keys(spdOptions.sessionDescriptionHandlerOptions.constraints.video)?.length ==
-          0) ||
+            0) ||
         typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'boolean'
       )
         spdOptions.sessionDescriptionHandlerOptions.constraints.video = true;
@@ -1258,7 +1258,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         );
       },
     };
-    lineData.childsession = newSession as SipSessionType;
+    lineData.childSession = newSession as SipSessionType;
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
         onTrying: function (sip) {
@@ -1421,16 +1421,16 @@ export function teardownSession(lineObj: SipLineType, callback?: CallbackFunctio
     lineObj.data.recordMedia.recorder?.stop();
   }
 
-  // End any child calls
-  // if (session.data.childsession) {
-  //   session.data.childsession
+  // //End any child calls
+  // if (lineObj.childSession) {
+  //   session.data.childSession
   //     .dispose()
   //     .then(function () {
-  //       session.data.childsession = null;
+  //       session.data.childSession = null;
   //     })
   //     .catch(function (error) {
   //       console.error('teardownSession-dispose', { error });
-  //       session.data.childsession = null;
+  //       session.data.childSession = null;
   //       // Suppress message
   //     });
   // }

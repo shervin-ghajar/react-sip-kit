@@ -25,7 +25,7 @@ export function createLine<T extends LineType>(
       reasonCode: 0,
       reasonText: '',
       teardownComplete: false,
-      childsession: null,
+      childSession: null,
       startTime: '',
       started: false,
       hold: [],

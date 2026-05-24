@@ -1,11 +1,3 @@
-import {
-  Inviter,
-  InviterInviteOptions,
-  SessionReferOptions,
-  SessionState,
-  URI,
-  UserAgent,
-} from 'sip.js';
 import { RtcConfig, SipConfig } from '../../../../configs/types';
 import { createLine } from '../../../../constructors';
 import { getRtcStore } from '../../../../store';
@@ -19,6 +11,7 @@ import {
   SipInviterType,
   SipLineType,
   SipSessionDescriptionHandler,
+  SipSessionTransferType,
   SipSessionType,
   SipUserAgent,
 } from '../../types';
@@ -28,8 +21,15 @@ import {
   SendMessageSessionEnum,
   SendMessageSessionValueType,
   SPDOptionsType,
-  VideoSessionConstraints,
 } from './types';
+import {
+  Inviter,
+  InviterInviteOptions,
+  SessionReferOptions,
+  SessionState,
+  URI,
+  UserAgent,
+} from 'sip.js';
 
 /* -------------------------------------------------------------------------- */
 /*                            MAIN SESSION METHODS                            */
@@ -89,29 +89,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: false,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
     };
@@ -196,29 +196,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
 
@@ -288,29 +288,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       earlyReject: false,
@@ -395,29 +395,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: (enableVideo && !!configs.media.videoInputDeviceId) ?? true,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       videoInputDeviceId: configs.media.videoInputDeviceId,
@@ -498,29 +498,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       localMediaStreamData: {
         audio: {
           enabled: !!configs?.media.audioInputDeviceId,
-          track: null
+          track: null,
         },
         video: {
           enabled: !!configs?.media.videoInputDeviceId,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
-        }
+          track: null,
+        },
       },
       remoteMediaStreamData: {
         audio: {
           enabled: true,
-          track: null
+          track: null,
         },
         video: {
           enabled: false,
-          track: null
+          track: null,
         },
         screen: {
           enabled: false,
-          track: null
+          track: null,
         },
       },
       videoInputDeviceId: configs?.media.videoInputDeviceId,
@@ -598,7 +598,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
     if (!lineObj || !lineObj.session || lineObj.data.callType === 'audio') return;
 
-    const localMediaStreamData = lineObj.data.localMediaStreamData
+    const localMediaStreamData = lineObj.data.localMediaStreamData;
     const videoSourceTrack = localMediaStreamData.video.track;
     const session = lineObj.session;
 
@@ -651,10 +651,10 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     if (!pc) return;
 
     const localMediaStreamData = lineObj.data.localMediaStreamData;
-    const screenShareEnabled = localMediaStreamData.screen.enabled
-    const videoEnabled = localMediaStreamData.video.enabled
-    const videoSourceTrack = localMediaStreamData.video.track
-    const screenSourceTrack = localMediaStreamData.screen.track
+    const screenShareEnabled = localMediaStreamData.screen.enabled;
+    const videoEnabled = localMediaStreamData.video.enabled;
+    const videoSourceTrack = localMediaStreamData.video.track;
+    const screenSourceTrack = localMediaStreamData.screen.track;
     const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
     if (!videoSender) {
       console.warn('No video sender found');
@@ -1118,14 +1118,14 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
    * @param lineKey
    * @param transferNumber
    */
-  function makeTransferSession(
+  async function makeTransferSession(
+    type: SipSessionTransferType['type'],
     lineKey: SipLineType['lineKey'],
     transferNumber: SipLineType['lineKey'],
+    request?: DialRequestDelegate,
   ) {
-    toggleHoldSession(lineKey, true);
-    queueMicrotask(() => {
-      attendedTransferSession(lineKey, transferNumber);
-    });
+    await toggleHoldSession(lineKey, true);
+    await handleTransferSession(type, lineKey, transferNumber, request);
   }
 
   /**
@@ -1134,7 +1134,8 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
    * @param transferNumber
    * @returns
    */
-  function attendedTransferSession(
+  async function handleTransferSession(
+    type: SipSessionTransferType['type'],
     lineKey: SipLineType['lineKey'],
     transferNumber: SipLineType['remoteNumber'],
     request?: DialRequestDelegate,
@@ -1144,8 +1145,8 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       alert(`SIP userAgent for ${configKey} not registered`);
       return;
     }
-    const dstNo = String(transferNumber);
-    if (dstNo === '') {
+    const remoteNumber = String(transferNumber);
+    if (remoteNumber === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
@@ -1161,7 +1162,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     if (!session) return;
     if (!lineData.transfer) lineData.transfer = [];
     lineData.transfer.push({
-      type: 'Attended',
+      type: type,
       to: transferNumber,
       transferTime: utcDateNow(),
       disposition: 'invite',
@@ -1173,76 +1174,21 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       },
     });
     const transferId = lineData.transfer.length - 1;
+    const isVideoCall = lineData.callType === 'video';
 
     // SDP options
-    const supportedConstraints = navigator.mediaDevices.getSupportedConstraints();
-    const spdOptions: SPDOptionsType = {
-      earlyMedia: true,
-      sessionDescriptionHandlerOptions: {
-        constraints: {
-          audio: { deviceId: 'default' },
-          video: false,
-        },
-      },
-    };
-    console.log('attend1');
-    if (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.audio !== 'object') return; // type checking assurance
-    if (lineData.audioInputDeviceId && lineData.audioInputDeviceId != 'default') {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.deviceId = {
-        exact: lineData.audioInputDeviceId,
-      };
-    }
-    // Add additional Constraints
-    if (supportedConstraints.autoGainControl) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.autoGainControl =
-        configs?.media.autoGainControl;
-    }
-    if (supportedConstraints.echoCancellation) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.echoCancellation =
-        configs?.media.echoCancellation;
-    }
-    if (supportedConstraints.noiseSuppression) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.audio.noiseSuppression =
-        configs?.media.noiseSuppression;
-    }
-
-    // Not sure if its possible to transfer a Video call???
-    if (lineData.localMediaStreamData?.video.enabled) {
-      spdOptions.sessionDescriptionHandlerOptions.constraints.video = {} as any;
-      const video = spdOptions.sessionDescriptionHandlerOptions.constraints
-        .video as VideoSessionConstraints;
-      if (lineData.videoInputDeviceId && lineData.videoInputDeviceId != 'default') {
-        video.deviceId = {
-          exact: lineData.videoInputDeviceId,
-        };
-      }
-      // Add additional Constraints
-      if (supportedConstraints.frameRate && configs?.media.maxFrameRate !== '') {
-        video.frameRate = String(configs?.media.maxFrameRate);
-      }
-      if (supportedConstraints.height && configs?.media.videoHeight != '') {
-        video.height = String(configs?.media.videoHeight);
-      }
-      if (supportedConstraints.aspectRatio && configs?.media.videoAspectRatio != '') {
-        video.aspectRatio = String(configs?.media.videoAspectRatio);
-      }
-
-      if (
-        (typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'object' &&
-          Object.keys(spdOptions.sessionDescriptionHandlerOptions.constraints.video)?.length ==
-          0) ||
-        typeof spdOptions.sessionDescriptionHandlerOptions.constraints.video === 'boolean'
-      )
-        spdOptions.sessionDescriptionHandlerOptions.constraints.video = true;
-    }
+    const spdOptions: SPDOptionsType = isVideoCall ? makeVideoSpdOptions() : makeAudioSpdOptions();
 
     // Create new call session
     const targetURI = UserAgent.makeURI(
-      'sip:' + dstNo.replace(/#/g, '%23') + '@' + configs?.account.domain,
+      'sip:' + remoteNumber.replace(/#/g, '%23') + '@' + configs?.account.domain,
     ) as URI;
     const newSession = new Inviter(userAgent, targetURI, spdOptions);
 
     newSession.delegate = {
+      onRefer(referral) {
+        console.log('onRefer');
+      },
       onBye: function () {
         console.log('New call session ended with BYE');
         if (lineData.transfer) {
@@ -1255,11 +1201,11 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineObj,
           session as SipSessionType,
           sdh,
-          lineData?.localMediaStreamData?.video.enabled,
+          isVideoCall,
         );
       },
     };
-    lineData.childsession = newSession as SipSessionType;
+    lineObj.childSession = newSession as SipSessionType;
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
         onTrying: function (sip) {
@@ -1267,9 +1213,10 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineData.transfer[transferId].disposition = 'trying';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
           request?.onTrying?.(lineObj.lineKey, sip);
+          updateLine(lineObj);
         },
-        onProgress: function (sip) {
-          console.log('onProgress');
+        onProgress: async function (sip) {
+          console.log('onProgress', lineData.transfer);
           if (!lineData.transfer) return;
           lineData.transfer[transferId].disposition = 'progress';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
@@ -1281,9 +1228,12 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
             lineData.transfer[transferId].accept.complete = false;
             lineData.transfer[transferId].accept.disposition = 'cancel';
             lineData.transfer[transferId].accept.eventTime = utcDateNow();
+            updateLine(lineObj);
           };
           request?.onProgress?.(lineObj.lineKey, sip);
-          console.log('New call session canceled');
+          console.log('New call session onProgress');
+
+          updateLine(lineObj);
         },
         onRedirect: function (sip) {
           console.log('Redirect received:', sip);
@@ -1294,44 +1244,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineData.transfer[transferId].disposition = 'accepted';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
 
-          const transferOptions: SessionReferOptions = {
-            requestDelegate: {
-              onAccept: function (sip) {
-                console.log('Attended transfer Accepted');
-                if (!lineData.transfer) return;
-
-                lineData.terminateBy = 'us';
-                lineData.reasonCode = 202;
-                lineData.reasonText = 'Attended Transfer';
-
-                lineData.transfer[transferId].accept.complete = true;
-                lineData.transfer[transferId].accept.disposition = sip.message.reasonPhrase ?? '';
-                lineData.transfer[transferId].accept.eventTime = utcDateNow();
-
-                // We must end this session manually
-                session.bye().catch(function (error) {
-                  console.warn('Could not BYE after blind transfer:', error);
-                });
-                request?.onAccept?.(lineObj.lineKey, sip);
-
-                teardownSession(lineObj);
-              },
-              onReject: function (sip) {
-                console.warn('Attended transfer rejected:', sip);
-                if (!lineData.transfer) return;
-
-                lineData.transfer[transferId].accept.complete = false;
-                lineData.transfer[transferId].accept.disposition = sip.message.reasonPhrase ?? '';
-                lineData.transfer[transferId].accept.eventTime = utcDateNow();
-                request?.onReject?.(lineObj.lineKey, sip);
-              },
-            },
-          };
-
-          // Send REFER
-          session.refer(newSession, transferOptions).catch(function (error) {
-            console.warn('Failed to REFER', error);
-          });
+          onTransferRefer(lineKey, targetURI, transferId, request);
         },
         onReject: function (sip) {
           if (!lineData.transfer) return;
@@ -1339,14 +1252,75 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineData.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
           request?.onReject?.(lineObj.lineKey, sip);
+          updateLine(lineObj);
         },
       },
     };
-    newSession.invite(inviterOptions).catch(function (e) {
-      console.warn('Failed to send INVITE:', e);
-    });
+    if (type === 'blind') {
+      onTransferRefer(lineKey, targetURI, transferId, request);
+    } else
+      await newSession.invite(inviterOptions).catch(function (e) {
+        console.warn('Failed to send INVITE:', e);
+      });
     updateLine(lineObj);
   }
+
+  const onTransferRefer = (
+    lineKey: string,
+    targetURI: URI,
+    transferId: number,
+    request?: DialRequestDelegate,
+  ) => {
+    const lineObj = getLineByLineKey<SipLineType>(lineKey);
+    if (!lineObj?.session) {
+      console.warn('Null line or session');
+      return;
+    }
+
+    const session = lineObj.session;
+    const lineData = lineObj.data;
+    if (!lineObj.childSession) return;
+    const transferOptions: SessionReferOptions = {
+      requestDelegate: {
+        onAccept: async function (sip) {
+          console.log('Attended transfer Accepted');
+          if (!lineData.transfer) return;
+
+          lineData.terminateBy = 'us';
+          lineData.reasonCode = 202;
+          lineData.reasonText = 'Attended Transfer';
+
+          lineData.transfer[transferId].accept.complete = true;
+          lineData.transfer[transferId].accept.disposition = sip.message.reasonPhrase ?? '';
+          lineData.transfer[transferId].accept.eventTime = utcDateNow();
+
+          request?.onAccept?.(lineObj.lineKey, sip);
+          // We must end this session manually
+          endSession(lineKey);
+        },
+        onReject: function (sip) {
+          console.warn('Attended transfer rejected:', sip);
+          if (!lineData.transfer) return;
+
+          lineData.transfer[transferId].accept.complete = false;
+          lineData.transfer[transferId].accept.disposition = sip.message.reasonPhrase ?? '';
+          lineData.transfer[transferId].accept.eventTime = utcDateNow();
+          request?.onReject?.(lineObj.lineKey, sip);
+          updateLine(lineObj);
+        },
+      },
+    };
+
+    // Send REFER
+    session
+      .refer(
+        lineData.transfer[transferId].type === 'blind' ? targetURI : lineObj.childSession,
+        transferOptions,
+      )
+      .catch(function (error) {
+        console.warn('Failed to REFER', error);
+      });
+  };
 
   /**
    * Cancel Transfered Call Session
@@ -1354,14 +1328,12 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
    * @param transferNumber
    * @returns
    */
-  function cancelTransferSession(
+  async function cancelTransferSession(
     lineKey: SipLineType['lineKey'],
     transferNumber: SipLineType['lineKey'],
   ) {
-    if (userAgent == null) return;
-    if (!userAgent.isRegistered()) return;
-    const dstNo = String(transferNumber);
-    if (dstNo === '') {
+    const remoteNumber = String(transferNumber);
+    if (remoteNumber === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
@@ -1376,24 +1348,21 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       if (transfer.to === transferNumber) transfer.onCancle?.();
     });
 
-    toggleHoldSession(lineKey, false);
+    await toggleHoldSession(lineKey, false);
 
     updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
   async function setMediaStreamConfigs(
     lineKey: LineType['lineKey'],
-    configs: Partial<Pick<LineDataType,
-      'audioInputDeviceId' | 'audioOutputDeviceId' | 'videoInputDeviceId'
-    >>
+    configs: Partial<
+      Pick<LineDataType, 'audioInputDeviceId' | 'audioOutputDeviceId' | 'videoInputDeviceId'>
+    >,
   ) {
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
     if (!lineObj) return;
 
-    const {
-      audioInputDeviceId: newAudioInputId,
-      videoInputDeviceId: newVideoInputId,
-    } = configs;
+    const { audioInputDeviceId: newAudioInputId, videoInputDeviceId: newVideoInputId } = configs;
 
     // Previous device ids (before change)
     const prevAudioInputId = lineObj.data.audioInputDeviceId;
@@ -1407,8 +1376,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     updateLine(nextLineObj);
 
     // 2) Handle audio input device switching (during call)
-    if (typeof newAudioInputId !== 'undefined' &&
-      newAudioInputId !== prevAudioInputId) {
+    if (typeof newAudioInputId !== 'undefined' && newAudioInputId !== prevAudioInputId) {
       try {
         await switchAudioInputDevice(nextLineObj, newAudioInputId);
       } catch (err) {
@@ -1417,20 +1385,18 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     }
 
     // 3) Handle video input device switching (during call)
-    if (typeof newVideoInputId !== 'undefined' &&
-      newVideoInputId !== prevVideoInputId) {
+    if (typeof newVideoInputId !== 'undefined' && newVideoInputId !== prevVideoInputId) {
       try {
         await switchVideoInputDevice(nextLineObj, newVideoInputId);
       } catch (err) {
         console.error('[setMediaStreamConfigs] switchVideoInputDevice failed', err);
       }
     }
-
   }
 
   async function switchAudioInputDevice(
     line: SipLineType,
-    audioInputDeviceId: string | null | undefined
+    audioInputDeviceId: string | null | undefined,
   ) {
     const pc = line.session?.sessionDescriptionHandler.peerConnection;
     if (!pc) return;
@@ -1466,9 +1432,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const oldTrack = lineData.localMediaStreamData.audio?.track ?? null;
 
     // Set enabled flag (preserve previous state if possible)
-    const wasEnabled = soundEnabled
-      ? soundEnabled
-      : oldTrack?.enabled ?? true;
+    const wasEnabled = soundEnabled ? soundEnabled : (oldTrack?.enabled ?? true);
 
     newAudioTrack.enabled = wasEnabled;
 
@@ -1492,13 +1456,13 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
 
   async function switchVideoInputDevice(
     line: SipLineType,
-    videoInputDeviceId: string | null | undefined
+    videoInputDeviceId: string | null | undefined,
   ) {
     const pc = line.session?.sessionDescriptionHandler.peerConnection;
     if (!pc) return;
 
-    const lineObj = line
-    const lineData = lineObj.data
+    const lineObj = line;
+    const lineData = lineObj.data;
     const videoState = lineData.localMediaStreamData.video;
     const videoEnabled = !!videoState.enabled;
 
@@ -1595,15 +1559,15 @@ export function teardownSession(lineObj: SipLineType, callback?: CallbackFunctio
   }
 
   // End any child calls
-  // if (session.data.childsession) {
-  //   session.data.childsession
+  // if (session.data.childSession) {
+  //   session.data.childSession
   //     .dispose()
   //     .then(function () {
-  //       session.data.childsession = null;
+  //       session.data.childSession = null;
   //     })
   //     .catch(function (error) {
   //       console.error('teardownSession-dispose', { error });
-  //       session.data.childsession = null;
+  //       session.data.childSession = null;
   //       // Suppress message
   //     });
   // }

@@ -106,7 +106,7 @@ export const ConfigForm = () => {
               // audioInputDeviceId: null
             },
             registration: {
-              transportReconnectionAttempts: 5,
+              transportReconnectionAttempts: 100,
               peerConnectionConfiguration: {
                 iceServers: [
                   {

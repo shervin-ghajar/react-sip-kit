@@ -62,6 +62,7 @@ function App({ configKey }: { configKey: string }) {
 export default App;
 
 const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
+  const [transferNumber, setTransferNumber] = useState<string>();
   const {
     answerAudioSession,
     answerVideoSession,
@@ -83,9 +84,9 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     isOnHold,
     recordMedia,
     localMediaStreamData,
-    remoteMediaStreamData,
     remoteNumber,
-  ] = RtcConnection.useWatchLineData({
+    transfer,
+  ] = RtcConnection.useWatchSipLineData({
     key: { lineKey },
     name: [
       'callType',
@@ -94,8 +95,8 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       'isHold',
       'recordMedia',
       'localMediaStreamData',
-      'remoteMediaStreamData',
       'remoteNumber',
+      'transfer',
     ],
   });
   // const pc = RtcConnection.getSessionBy({ lineKey })?.sessionDescriptionHandler?.peerConnection;
@@ -173,18 +174,32 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
             Video {localVideoEnabled ? 'ON' : 'OFF'}
           </button>
           <button onClick={() => toggleHoldSession(lineKey)}>{isHold ? 'UnHold' : 'Hold'}</button>
-          <button onClick={() => makeTransferSession(lineKey, '3212')}>Transfer To 3212</button>
           <button onClick={async () => toggleShareScreen(lineKey)}>
             Share Screen {localScreenShareEnabled ? 'ON' : 'OFF'}
           </button>
-          <button onClick={() => cancelTransferSession(lineKey, '3212')}>
-            Cancel Transfer To 3213
-          </button>
+
           <button
             onClick={async () => (isRecording ? await recorder?.stop() : await recorder?.start())}
           >
             {isRecording ? 'Recording...' : 'Record'}
           </button>
+          <div>
+            <button onClick={() => makeTransferSession('attended', lineKey, transferNumber ?? '')}>
+              Attend Transfer To{' '}
+            </button>
+            <button onClick={() => makeTransferSession('blind', lineKey, transferNumber ?? '')}>
+              Blind Transfer To{' '}
+            </button>
+            <input
+              value={transferNumber}
+              onChange={(e) => setTransferNumber(e?.target?.value ?? undefined)}
+            ></input>
+            {transfer.length && (
+              <button onClick={() => cancelTransferSession(lineKey, transferNumber ?? '')}>
+                Cancel Transfer
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         // Incoming call actions

@@ -1,8 +1,6 @@
 import { useDeep } from '../../hooks/useDeep';
 import { useRtcStore } from '../../store';
-import { HTMLAttributes, useEffect, useRef } from 'react';
-
-// Global registry for remote audio elements
+import { HTMLAttributes, useEffect, useMemo, useRef } from 'react';
 
 interface AudioProps extends HTMLAttributes<HTMLDivElement> {
   lineKey: string;
@@ -10,12 +8,9 @@ interface AudioProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 export function Audio({ lineKey, type, ...rest }: AudioProps) {
-  const remoteAudioElementMap = useRef<HTMLAudioElement[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const remoteAudioElementMap = useRef<Map<string, HTMLAudioElement>>(new Map());
 
-  // ---------------------------------------------------------------------------
-  // Store selectors
-  // ---------------------------------------------------------------------------
   const audioDatas = useRtcStore(
     useDeep((state) => {
       const line = state.getLineDataByLineKey(lineKey);
@@ -33,30 +28,28 @@ export function Audio({ lineKey, type, ...rest }: AudioProps) {
     useDeep((state) => {
       const line = state.getLineDataByLineKey(lineKey);
       if (!line) return null;
-
       return type === 'remote' ? line.audioOutputDeviceId : null;
     }),
   );
 
-  // ---------------------------------------------------------------------------
-  // Imperative construction of <audio> tags inside containerRef
-  // ---------------------------------------------------------------------------
+  const supportsSetSinkId = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return typeof (HTMLMediaElement.prototype as any).setSinkId === 'function';
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Clear old <audio> children
-    container.innerHTML = '';
-
-    if (!audioDatas) return;
-
-    const supportsSetSinkId =
-      typeof (HTMLMediaElement.prototype as any).setSinkId === 'function';
-
     const sinkId = audioOutputDeviceId || 'default';
 
-    // Helper: create & wire audio element
+    const applySinkId = (el: HTMLAudioElement) => {
+      if (type !== 'remote' || !supportsSetSinkId) return;
+      el.setSinkId(sinkId).catch((err) => {
+        console.error('[Audio] setSinkId failed', err);
+      });
+    };
+
     const createAudioEl = (trackId: string, track: MediaStreamTrack) => {
       const audioEl = document.createElement('audio');
       audioEl.id = `line-${lineKey}-${type}-${trackId}`;
@@ -64,90 +57,64 @@ export function Audio({ lineKey, type, ...rest }: AudioProps) {
       audioEl.muted = type === 'local';
       audioEl.srcObject = new MediaStream([track]);
 
-      // Register remote audio elements
-      if (type === 'remote') {
-        remoteAudioElementMap.current.push(audioEl);
-      }
-
-      // Autoplay attempt
       audioEl.play().catch(() => {
-        console.warn(`Autoplay prevented for track ${trackId}`);
+        console.warn(`[Audio] Autoplay prevented for track ${trackId}`);
       });
+
+      applySinkId(audioEl);
 
       return audioEl;
     };
 
-    // MULTI REMOTE TRACKS (Janus)
+    // Clear previous DOM and registry before rebuilding
+    container.innerHTML = '';
+    if (type === 'remote') {
+      remoteAudioElementMap.current.clear();
+    }
+
+    if (!audioDatas) return;
+
     if (Array.isArray(audioDatas)) {
       audioDatas.forEach((d) => {
-        if (!d.track) return;
-
+        if (!d?.track) return;
         const el = createAudioEl(d.track.id, d.track);
 
-        // Apply sinkId immediately
-        if (type === 'remote' && supportsSetSinkId) {
-          el.setSinkId(sinkId).catch((err) => {
-            console.error('[Audio] setSinkId failed', err);
-          });
+        if (type === 'remote') {
+          remoteAudioElementMap.current.set(d.track.id, el);
         }
 
         container.appendChild(el);
       });
-    }
-
-    // SINGLE TRACK (local or SIP remote)
-    else if (audioDatas.track) {
+    } else if (audioDatas.track) {
       const el = createAudioEl(`${type}-single`, audioDatas.track);
 
-      if (type === 'remote' && supportsSetSinkId) {
-        el.setSinkId(sinkId).catch((err) => {
-          console.error('[Audio] setSinkId failed', err);
-        });
+      if (type === 'remote') {
+        remoteAudioElementMap.current.set(audioDatas.track.id, el);
       }
 
       container.appendChild(el);
     }
 
-    // Cleanup: remove children + unregister
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
+      container.innerHTML = '';
       if (type === 'remote') {
-        remoteAudioElementMap.current = [];
+        remoteAudioElementMap.current.clear();
       }
     };
-  }, [audioDatas, lineKey, type]);
+  }, [audioDatas, audioOutputDeviceId, lineKey, type, supportsSetSinkId]);
 
-  // ---------------------------------------------------------------------------
-  // Reactively apply sinkId to already‑mounted remote audio elements
-  // ---------------------------------------------------------------------------
+  // Apply sinkId reactively to already-mounted remote audio elements
   useEffect(() => {
-    if (type !== 'remote') return;
-
-    const supports =
-      typeof (HTMLMediaElement.prototype as any).setSinkId === 'function';
-    if (!supports) return;
+    if (type !== 'remote' || !supportsSetSinkId) return;
 
     const sinkId = audioOutputDeviceId || 'default';
 
-    const audioEls = remoteAudioElementMap.current;
-    if (!audioEls) return;
-
-    audioEls.forEach((el) => {
-      el.setSinkId(sinkId).catch((err) => {
-        console.error('[Audio] Failed to setSinkId (reactive)', err);
+    remoteAudioElementMap.current.forEach((audioEl) => {
+      audioEl.setSinkId(sinkId).catch((err) => {
+        console.error('[Audio] Failed to setSinkId reactively', err);
       });
     });
-  }, [audioOutputDeviceId, lineKey, type]);
+  }, [audioOutputDeviceId, type, supportsSetSinkId]);
 
-  // ---------------------------------------------------------------------------
-
-  return (
-    <div
-      {...rest}
-      ref={containerRef}
-      data-audio-container={`${lineKey}-${type}`}
-    />
-  );
+  return <div {...rest} ref={containerRef} data-audio-container={`${lineKey}-${type}`} />;
 }

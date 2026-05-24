@@ -1,4 +1,3 @@
-import isEqual from 'lodash.isequal';
 import { defaultRtcConfig } from './configs';
 import { RtcConfig } from './configs/types';
 import { HybridEngineInitializer } from './engines/hybrid/initializer';
@@ -13,7 +12,7 @@ import { SipEngineInitializer } from './engines/sip/initializer';
 import { refreshRegistration as sipReconnect } from './engines/sip/methods/registration';
 import { sessionMethods as sipSessionMethods } from './engines/sip/methods/session';
 import { SipSessionType } from './engines/sip/types';
-import { useRtcManager, useWatchLineData } from './hooks';
+import { useRtcManager, useWatchJanusLineData, useWatchSipLineData } from './hooks';
 import { useWatchConfigs } from './hooks/useWatchConfigs';
 import { getRtcStore, setRtcStore, useRtcStore } from './store';
 import { LineType } from './store/types';
@@ -21,10 +20,13 @@ import {
   GetAccountKey,
   GetMethodsKey,
   LineLookup,
-  RtcBroadcastMessage, RtcEngineStatus, RtcManagerConfig,
-  RtcManagerInstance
+  RtcBroadcastMessage,
+  RtcEngineStatus,
+  RtcManagerConfig,
+  RtcManagerInstance,
 } from './types';
 import { deepMerge, generateUUID, serializeLines } from './utils';
+import isEqual from 'lodash.isequal';
 
 /* -------------------------------------------------------------------------- */
 /*  RTC Manager - Central orchestrator for multiple RTC accounts               */
@@ -43,7 +45,7 @@ export class RtcManager {
   private channel = new BroadcastChannel('react-sip-kit');
 
   // uniquely identifies this browser tab
-  private tabId = generateUUID()
+  private tabId = generateUUID();
 
   // list of all tabs currently participating
   private subscribedTabIds = new Set<string>([this.tabId]);
@@ -248,21 +250,21 @@ export class RtcManager {
   // ------------------------------------------------------------
   private handleSessionCommand(msg: Extract<RtcBroadcastMessage, { type: 'SESSION_COMMAND' }>) {
     const { method, configKey, args } = msg;
-    this.instances.get(configKey)?.config.engine
-    let session = null
+    this.instances.get(configKey)?.config.engine;
+    let session = null;
     switch (this.instances.get(configKey)?.config.engine) {
-      case "hybrid":
+      case 'hybrid':
         session = this.getHybridSessionMethodsBy({ configKey });
         break;
-      case "janus":
+      case 'janus':
         session = this.getJanusSessionMethodsBy({ configKey });
         break;
-      case "sip":
+      case 'sip':
         session = this.getSipSessionMethodsBy({ configKey });
         break;
       default:
         session = this.getSipSessionMethodsBy({ configKey });
-        break
+        break;
     }
 
     if (session && (session as any)[method]) {
@@ -314,7 +316,11 @@ export class RtcManager {
   /**
    * Hook for reactively watching session data (delegates to Zustand store).
    */
-  public useWatchLineData = useWatchLineData;
+  public useWatchJanusLineData = useWatchJanusLineData;
+  /**
+   * Hook for reactively watching session data (delegates to Zustand store).
+   */
+  public useWatchSipLineData = useWatchSipLineData;
 
   /**
    * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
@@ -375,7 +381,7 @@ export class RtcManager {
     }
 
     let instance = null;
-    console.log(111, { mergedConfig })
+    console.log(111, { mergedConfig });
     switch (mergedConfig.engine) {
       case 'sip':
         instance = new SipEngineInitializer(mergedConfig, configKey);
@@ -531,10 +537,10 @@ export class RtcManager {
         sipReconnect(configKey);
         break;
       case 'janus':
-        janusReconnect(configKey)
+        janusReconnect(configKey);
         break;
       case 'hybrid':
-        hybridReconnect(configKey)
+        hybridReconnect(configKey);
         break;
     }
   }
@@ -596,7 +602,7 @@ export class RtcManager {
 
     if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
       const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
-      return lineKey ? store.getSessionByLineKey(lineKey) as T : null;
+      return lineKey ? (store.getSessionByLineKey(lineKey) as T) : null;
     }
 
     return null;
