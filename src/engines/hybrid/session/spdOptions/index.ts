@@ -52,7 +52,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
       }
       return option;
     },
-    makeAudioSpdOptions: function ({ extraHeaders }: { extraHeaders?: string[] }) {
+    makeAudioSpdOptions: function ({ extraHeaders }: { extraHeaders?: string[] } = {}) {
       let option: SPDOptionsType & {
         earlyMedia: boolean;
         extraHeaders?: string[];
@@ -83,7 +83,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
               option?.extraHeaders?.push(key + ': ' + value);
             }
           }
-        } catch (e) { }
+        } catch (e) {}
       }
       return option;
     },
@@ -122,7 +122,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
       }
       return option;
     },
-    makeVideoSpdOptions: function ({ extraHeaders }: { extraHeaders?: string[] }) {
+    makeVideoSpdOptions: function ({ extraHeaders }: { extraHeaders?: string[] } = {}) {
       const option: SPDOptionsType & {
         earlyMedia: boolean;
         extraHeaders?: string[];
@@ -154,7 +154,7 @@ export const spdOptions = ({ configKey }: { configKey: RtcConfig['key'] }) => {
               option.extraHeaders.push(key + ': ' + value);
             }
           }
-        } catch (e) { }
+        } catch (e) {}
       }
 
       return option;

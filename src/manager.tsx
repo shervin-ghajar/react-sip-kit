@@ -12,7 +12,7 @@ import { SipEngineInitializer } from './engines/sip/initializer';
 import { refreshRegistration as sipReconnect } from './engines/sip/methods/registration';
 import { sessionMethods as sipSessionMethods } from './engines/sip/methods/session';
 import { SipSessionType } from './engines/sip/types';
-import { useRtcManager, useWatchLineData } from './hooks';
+import { useRtcManager, useWatchJanusLineData, useWatchSipLineData } from './hooks';
 import { useWatchConfigs } from './hooks/useWatchConfigs';
 import { getRtcStore, setRtcStore, useRtcStore } from './store';
 import { LineType } from './store/types';
@@ -253,9 +253,10 @@ export class RtcManager {
     this.instances.get(configKey)?.config.engine;
     let session = null;
     switch (this.instances.get(configKey)?.config.engine) {
-      case 'hybrid':
-        // session = this.getHybridSessionMethodsBy({ configKey });
-        break;
+      // TODO Hybrid
+      // case 'hybrid':
+      //   session = this.getHybridSessionMethodsBy({ configKey });
+      //   break;
       case 'janus':
         session = this.getJanusSessionMethodsBy({ configKey });
         break;
@@ -316,7 +317,11 @@ export class RtcManager {
   /**
    * Hook for reactively watching session data (delegates to Zustand store).
    */
-  public useWatchLineData = useWatchLineData;
+  public useWatchJanusLineData = useWatchJanusLineData;
+  /**
+   * Hook for reactively watching session data (delegates to Zustand store).
+   */
+  public useWatchSipLineData = useWatchSipLineData;
 
   /**
    * Hook for reactively watching added configs and line rendering (delegates to Zustand store).
@@ -453,6 +458,8 @@ export class RtcManager {
       },
     });
   }
+
+  // TODO Hybrid
   // public getHybridSessionMethodsBy(key: GetMethodsKey) {
   //   const store = getRtcStore();
   //   let configKey: string = '';
@@ -535,9 +542,10 @@ export class RtcManager {
       case 'janus':
         janusReconnect(configKey);
         break;
-      case 'hybrid':
-        // hybridReconnect(configKey);
-        break;
+      // TODO Hybrid
+      // case 'hybrid':
+      //   hybridReconnect(configKey);
+      //   break;
     }
   }
 
@@ -582,6 +590,22 @@ export class RtcManager {
     if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
       const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.getLineByLineKey(lineKey) : null;
+    }
+
+    return null;
+  }
+
+  /** Lookup a line data by `lineKey` or `remoteNumber`. */
+  public getLineDataBy(key: LineLookup) {
+    const store = getRtcStore();
+
+    if ('lineKey' in key && key?.lineKey) {
+      return store.getLineDataByLineKey(key.lineKey);
+    }
+
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
+      return lineKey ? store.getLineDataByLineKey(lineKey) : null;
     }
 
     return null;

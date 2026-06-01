@@ -1,8 +1,8 @@
 import { RtcConfig, SipAccountConfig } from '../configs/types';
-// import { HybridLineDataType, HybridLineType } from '../engines/hybrid/types';
+import { HybridLineDataType, HybridLineType } from '../engines/hybrid/types';
 import { JanusLineDataType, JanusLineType } from '../engines/janus/types';
 import { SipLineDataType, SipLineType } from '../engines/sip/types';
-import { CallbackFunction, CallType, EngineInstance, RtcEngineStatus } from '../types';
+import { CallbackFunction, CallType, EngineInstance, RtcEngineStatus, } from '../types';
 
 /* -------------------------------------------------------------------------- */
 export interface RtcStoreStateType {
@@ -46,9 +46,9 @@ export interface RtcStoreStateType {
     keys:
       | { lineKey: string }
       | {
-          remoteNumber: LineDataType['remoteNumber'];
-          configKey: RtcConfig['key'];
-        },
+        remoteNumber: LineDataType['remoteNumber'];
+        configKey: RtcConfig['key'];
+      },
   ) => LineType | null;
   remoteNumberConfigKeyResolver: ({
     remoteNumber,
@@ -59,6 +59,8 @@ export interface RtcStoreStateType {
   }) => `${typeof remoteNumber}:${typeof configKey}`;
 }
 
+
+
 export interface InitiateMediaStreamsParams {
   videoEnabled?: boolean;
   configs?: RtcConfig;
@@ -66,12 +68,14 @@ export interface InitiateMediaStreamsParams {
   stopStream?: boolean;
 }
 
-/* -------------------------------------------------------------------------- */
-export type LineType = SipLineType | JanusLineType;
-// | HybridLineType;
 
-export type LineDataType = SipLineDataType | JanusLineDataType;
-// | HybridLineDataType
+
+
+/* -------------------------------------------------------------------------- */
+export type LineType = SipLineType | JanusLineType | HybridLineType;
+
+
+export type LineDataType = SipLineDataType | JanusLineDataType | HybridLineDataType
 export interface BaseLineDataType {
   configKey: RtcConfig['key'];
   lineKey: LineType['lineKey'];
@@ -105,13 +109,10 @@ export interface BaseLineDataType {
 }
 
 /* -------------------------------------------------------------------------- */
-export type MediaStreamData = Record<
-  'audio' | 'video' | 'screen',
-  {
-    track: MediaStreamTrack | null | undefined;
-    enabled: boolean;
-  }
->;
+export type MediaStreamData = Record<"audio" | "video" | "screen", {
+  track: MediaStreamTrack | null | undefined;
+  enabled: boolean
+}>
 
 export type RemoteMediaStreamData = {
   audio: Map<string, { track: MediaStreamTrack; enabled: boolean }>;

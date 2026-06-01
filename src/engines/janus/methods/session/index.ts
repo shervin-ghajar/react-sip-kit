@@ -4,8 +4,8 @@ import { getRtcStore, getRtcUsernameConfigs } from '../../../../store';
 import { LineDataType, LineType } from '../../../../store/types';
 import { CallType } from '../../../../types';
 import { utcDateNow } from '../../../../utils';
-import { JanusInstance, JanusLineDataType, JanusLineType, JanusMediaStreamData, JanusSessionType } from '../../types';
-import { JanusPublisher, JanusRoomSecurity, StartSessionOptions, VRCreateRequest, } from './types';
+import { JanusInstance, JanusLineType, JanusSessionType } from '../../types';
+import { JanusPublisher, JanusRoomSecurity, StartSessionOptions, VRCreateRequest } from './types';
 
 export const sessionMethods = ({ configKey }: { configKey: string }) => {
   const store = getRtcStore();
@@ -20,61 +20,71 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
   /* -------------------------------------------------------------------------- */
   /*                                START SESSION                               */
   /* -------------------------------------------------------------------------- */
-  function startSession(type: Extract<CallType, 'audio' | 'video'>, roomNumber: string, opt?: StartSessionOptions) {
-    const defaultOptions = { autoCreate: false, ...getDefaultRoomSecurity(Number(roomNumber)), ...opt }
-    const { autoCreate, ...rest } = defaultOptions
-    const securityOptions = rest
+  function startSession(
+    type: Extract<CallType, 'audio' | 'video'>,
+    roomNumber: string,
+    opt?: StartSessionOptions,
+  ) {
+    const defaultOptions = {
+      autoCreate: false,
+      ...getDefaultRoomSecurity(Number(roomNumber)),
+      ...opt,
+    };
+    const { autoCreate, ...rest } = defaultOptions;
+    const securityOptions = rest;
     const lineObj = createLine(configKey, username, roomNumber) as JanusLineType;
     lineObj.data.callType = type;
-    lineObj.data.localMediaStreamData = {
+    ((lineObj.data.localMediaStreamData = {
       audio: {
         enabled: true,
-        track: null
+        track: null,
       },
       video: {
         enabled: false,
-        track: null
+        track: null,
       },
       screen: {
         enabled: false,
-        track: null
-      }
-    },
-      lineObj.data.remoteMediaStreamData = {
+        track: null,
+      },
+    }),
+      (lineObj.data.remoteMediaStreamData = {
         audio: new Map(),
         video: new Map(),
         screen: new Map(),
-      }
+      }));
     const isVideoCall = lineObj.data.callType === 'video';
     const media = getRtcUsernameConfigs(configKey)?.media!;
-    const hasAudio = media?.audioInputDeviceId === null
-      ? true
-      : media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
-        ? { deviceId: media.audioInputDeviceId }
-        : true
-    const hasVideo = media?.videoInputDeviceId === null && isVideoCall
-      ? true
-      : media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
-        ? { deviceId: media.videoInputDeviceId }
-        : isVideoCall
+    const hasAudio =
+      media?.audioInputDeviceId === null
+        ? true
+        : media?.audioInputDeviceId && media.audioInputDeviceId !== 'default'
+          ? { deviceId: media.audioInputDeviceId }
+          : true;
+    const hasVideo =
+      media?.videoInputDeviceId === null && isVideoCall
+        ? true
+        : media?.videoInputDeviceId && media.videoInputDeviceId !== 'default'
+          ? { deviceId: media.videoInputDeviceId }
+          : isVideoCall;
 
     // let session: JanusSessionType|null = null;
     janus.attach({
-      plugin: "janus.plugin.videoroom",
+      plugin: 'janus.plugin.videoroom',
       success: (pluginHandle) => {
         const session: JanusSessionType = {
           pluginHandle,
           subscribers: new Map([]),
-        }
+        };
         lineObj.session = session;
 
         store.addLine(lineObj);
 
-        joinRoom(lineObj.lineKey, roomNumber, securityOptions)
+        joinRoom(lineObj.lineKey, roomNumber, securityOptions);
       },
 
       onmessage: async (msg, jsep) => {
-        console.log("onmessage", { msg, jsep })
+        console.log('onmessage', { msg, jsep });
         const event = msg['videoroom'];
         const session = lineObj.session as JanusSessionType;
 
@@ -85,19 +95,19 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
           session.pluginHandle.createOffer({
             tracks: [
               {
-                type: "audio",
+                type: 'audio',
                 capture: hasAudio,
                 recv: false,
                 add: true,
               },
               {
-                type: "video",
+                type: 'video',
                 capture: hasVideo,
                 recv: false,
                 add: true,
                 simulcast: true,
               },
-              { type: 'data' } as any
+              { type: 'data' } as any,
               // {
               //   type:"screen" //TODO separate screen share
               // }
@@ -108,7 +118,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
                 message: {
                   request: 'publish',
                   audio: hasAudio,
-                  video: hasVideo
+                  video: hasVideo,
                 },
                 jsep: jsep,
                 success(data) {
@@ -118,10 +128,9 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
                   store.updateLine(lineObj);
                 },
                 error(error) {
-                  console.error("SEND PUBLISH ERROR", { error })
+                  console.error('SEND PUBLISH ERROR', { error });
                 },
               });
-
             },
             error: (error) => {
               console.error('createOffer error:', error);
@@ -137,7 +146,6 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
             });
           }
         } else if (event === 'event') {
-
           // Handle SDP (publisher answer)
           if (jsep) {
             session.pluginHandle.handleRemoteJsep({ jsep });
@@ -158,7 +166,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
           // LEAVING
           // =========================
           if (msg.leaving) {
-            console.log("status leaving")
+            console.log('status leaving');
             cleanupPublisher(lineObj, msg.leaving);
           }
 
@@ -166,38 +174,37 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
           // UNPUBLISHED
           // =========================
           if (msg.unpublished && msg.unpublished !== 'ok') {
-            console.log("status unpublished")
+            console.log('status unpublished');
             cleanupPublisher(lineObj, msg.unpublished);
           }
 
-
-          if ((msg?.error?.includes("No such room") || msg.error_code === 426)) {
+          if (msg?.error?.includes('No such room') || msg.error_code === 426) {
             if (opt?.autoCreate) {
               try {
                 await createRoom(lineObj.lineKey, roomNumber, securityOptions);
                 return joinRoom(lineObj.lineKey, roomNumber, securityOptions);
               } catch (error) {
-                console.error("onmessage join error", msg)
-                teardownSession(lineObj.lineKey)
+                console.error('onmessage join error', msg);
+                teardownSession(lineObj.lineKey);
               }
             } else {
-              teardownSession(lineObj.lineKey)
+              teardownSession(lineObj.lineKey);
             }
           }
 
           if (msg?.error) {
-            console.error("onmessage error", msg)
-            session.pluginHandle.hangup()
+            console.error('onmessage error', msg);
+            session.pluginHandle.hangup();
           }
         }
       },
 
       onlocaltrack: (track, on) => {
-        console.log("onlocaltrack", { track, on })
+        console.log('onlocaltrack', { track, on });
 
         if (!on) return;
 
-        const currentLine = getLineByLineKey(lineObj.lineKey)
+        const currentLine = getLineByLineKey(lineObj.lineKey);
         if (!currentLine) return;
         // Store local tracks
         if (track.kind === 'audio') {
@@ -217,19 +224,19 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
         updateLine(currentLine);
       },
       onremotetrack: function (track, mid, on) {
-        console.log("onremotetrack", { track, mid, on })
+        console.log('onremotetrack', { track, mid, on });
         // The publisher stream is sendonly, we don't expect anything here
       },
       ondataopen: function (data: any) {
-        console.log(333, "DataChannel opened", { data });
+        console.log(333, 'DataChannel opened', { data });
       },
       ondata: function (data: any) {
-        console.log(333, "Received data:", { data });
+        console.log(333, 'Received data:', { data });
       },
       oncleanup: () => {
-        console.log("oncleanup")
+        console.log('oncleanup');
         if (lineObj) {
-          checkAutoDestroyRoom(lineObj.lineKey, securityOptions)
+          checkAutoDestroyRoom(lineObj.lineKey, securityOptions);
           teardownSession(lineObj.lineKey);
         }
       },
@@ -240,141 +247,138 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     });
   }
 
-
   /* -------------------------------------------------------------------------- */
   /*                                ROOM METHODS                                */
   /* -------------------------------------------------------------------------- */
 
   function getRoomsList(lineKey: LineType['lineKey']) {
-    const session = store.getSessionByLineKey(lineKey) as JanusSessionType
+    const session = store.getSessionByLineKey(lineKey) as JanusSessionType;
     const message = {
-      request: "list",
-      admin_key: "my-admin-key",
-    }
+      request: 'list',
+      admin_key: 'my-admin-key',
+    };
     session.pluginHandle.send({
       message,
       success(data) {
-        console.log(999, "getRoomsList", { data })
+        console.log(999, 'getRoomsList', { data });
       },
-    })
+    });
   }
 
-  function createRoom(lineKey: LineType['lineKey'], room: LineDataType['remoteNumber'], security?: JanusRoomSecurity) {
-    const session = store.getSessionByLineKey(lineKey) as JanusSessionType
+  function createRoom(
+    lineKey: LineType['lineKey'],
+    room: LineDataType['remoteNumber'],
+    security?: JanusRoomSecurity,
+  ) {
+    const session = store.getSessionByLineKey(lineKey) as JanusSessionType;
     const message = {
       request: 'create',
       room: Number(room),
-      description: "Room " + room,
+      description: 'Room ' + room,
       publishers: 6,
-      data_channels: "true",
+      data_channels: 'true',
       ...getDefaultRoomSecurity(Number(room), security),
-    } as VRCreateRequest
+    } as VRCreateRequest;
     return new Promise<void>((resolve, reject) => {
       session.pluginHandle.send({
         message,
         success: () => resolve(),
-        error: reject
+        error: reject,
       });
     });
   }
 
-  function joinRoom(
-    lineKey: string,
-    roomNumber: string,
-    security: JanusRoomSecurity
-  ) {
+  function joinRoom(lineKey: string, roomNumber: string, security: JanusRoomSecurity) {
     const session = store.getSessionByLineKey(lineKey) as JanusSessionType;
-    if (!session) throw new Error("Session not ready");
+    if (!session) throw new Error('Session not ready');
 
     session.pluginHandle.send({
       message: {
-        request: "join",
+        request: 'join',
         room: Number(roomNumber),
-        ptype: "publisher",
+        ptype: 'publisher',
         display: username,
         pin: roomNumber,
-        secret: "room-secret",
-        ...security
-      }
+        secret: 'room-secret',
+        ...security,
+      },
     });
   }
 
   function checkAutoDestroyRoom(lineKey: LineType['lineKey'], security: JanusRoomSecurity) {
-    const lineObj = getLineByLineKey(lineKey) as JanusLineType
-    if (!lineObj) return
+    const lineObj = getLineByLineKey(lineKey) as JanusLineType;
+    if (!lineObj) return;
     const session = lineObj.session!;
     if (session.subscribers.size > 0) return;
 
     // destroy room
     session.pluginHandle.send({
       message: {
-        request: "destroy",
+        request: 'destroy',
         room: Number(lineObj.remoteNumber),
-        admin_key: "my-admin-key",
-        secret: "room-secret",
-        ...security
-      }
+        admin_key: 'my-admin-key',
+        secret: 'room-secret',
+        ...security,
+      },
     });
   }
-
 
   function subscribeToPublisher(lineObj: JanusLineType, publisher: JanusPublisher) {
     const session = lineObj.session as JanusSessionType;
     const publisherId = publisher.id;
-    const room = Number(lineObj.remoteNumber)
+    const room = Number(lineObj.remoteNumber);
     if (session.subscribers?.has(publisherId)) {
-      console.log("Already subscribed", publisherId);
+      console.log('Already subscribed', publisherId);
       return;
     }
 
-    console.log("Subscribing to", publisherId);
+    console.log('Subscribing to', publisherId);
 
     janus.attach({
-      plugin: "janus.plugin.videoroom",
+      plugin: 'janus.plugin.videoroom',
 
       success: (subscriberHandle) => {
-
         // ✅ store handle
         session.subscribers.set(publisherId, subscriberHandle);
 
         subscriberHandle.send({
           message: {
-            request: "join",
+            request: 'join',
             room,
-            ptype: "subscriber",
+            ptype: 'subscriber',
             feed: publisherId,
             pin: String(room),
-            secret: "room-secret",
+            secret: 'room-secret',
             data: true,
             streams: publisher.streams.map((s) => ({
               feed: publisher.id,
-              mid: s.mid
-            }))
+              mid: s.mid,
+            })),
           },
           success(data) {
-            console.log("subscriberHandle JOIN", { data })
+            console.log('subscriberHandle JOIN', { data });
           },
         });
-        updateLine(lineObj)
+        updateLine(lineObj);
       },
       ondataopen: function (data: any) {
-        console.log(333, "DataChannel opened", { data });
+        console.log(333, 'DataChannel opened', { data });
       },
       ondata: function (data: any) {
-        console.log(333, "Received data:", { data });
+        console.log(333, 'Received data:', { data });
       },
 
       onmessage: (msg, jsep) => {
         const event = msg.videoroom;
-        if (msg["error"]) {
-          alert(msg["error"]);
+        if (msg['error']) {
+          alert(msg['error']);
         } else if (event) {
-          if (event === "attached") {
-            console.log("Subscriber attached for feed", publisherId);
+          if (event === 'attached') {
+            console.log('Subscriber attached for feed', publisherId);
             // optional: mark subscriber active in state
           }
 
-          if (event === "event") {
+          if (event === 'event') {
             // OPTIONAL: simulcast/SVC handling
           }
         }
@@ -384,23 +388,21 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
 
           subscriberHandle.createAnswer({
             jsep,
-            tracks: [
-              { type: "data" } as any
-            ],
+            tracks: [{ type: 'data' } as any],
             success: (jsepAnswer) => {
               subscriberHandle.send({
-                message: { request: "start", room },
+                message: { request: 'start', room },
                 jsep: jsepAnswer,
               });
             },
 
-            error: console.error
+            error: console.error,
           });
         }
       },
 
       onremotetrack: (track, mid, on) => {
-        console.log("subscriber onremotetrack", track, mid, on)
+        console.log('subscriber onremotetrack', track, mid, on);
         const currentLine = getLineByLineKey(lineObj.lineKey) as JanusLineType;
         if (!currentLine) return;
 
@@ -428,12 +430,12 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
         updateLine(currentLine);
       },
       oncleanup: () => {
-        removePublisherTracks(lineObj, publisherId)
+        removePublisherTracks(lineObj, publisherId);
       },
 
       error: (err) => {
-        console.error("Subscriber error", err);
-      }
+        console.error('Subscriber error', err);
+      },
     });
   }
 
@@ -447,7 +449,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     const lineObj = store.getLineByLineKey(lineKey);
     if (!lineObj) return;
     const session = lineObj.session as JanusSessionType;
-    session.pluginHandle.hangup()
+    session.pluginHandle.hangup();
   }
 
   /*
@@ -501,7 +503,6 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
       // Screen sharing active, toggle camera track
       videoSourceTrack.enabled = toggledLocalVideo;
     } else if (videoSender?.track) {
-
       // Toggle existing video track
       videoSender.track.enabled = toggledLocalVideo;
     } else if (videoSourceTrack && toggledLocalVideo) {
@@ -512,7 +513,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
         } else {
           // If no sender exists, use Janus API to add track
           await session.pluginHandle.replaceTracks({
-            tracks: [{ type: 'video', capture: videoSourceTrack }]
+            tracks: [{ type: 'video', capture: videoSourceTrack }],
           });
         }
       } catch (error) {
@@ -527,7 +528,6 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     // Update store
     updateLine({ ...lineObj, data: lineData, session } as JanusLineType);
   };
-
 
   async function toggleShareScreen(lineKey: JanusLineType['lineKey']) {
     const lineObj = getLineByLineKey<JanusLineType>(lineKey);
@@ -557,7 +557,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
         // Restore camera if exists
         if (videoSourceTrack) {
           await session.pluginHandle.replaceTracks({
-            tracks: [{ type: 'video', capture: videoSourceTrack }]
+            tracks: [{ type: 'video', capture: videoSourceTrack }],
           });
           videoSourceTrack.enabled = videoEnabled ?? true;
         }
@@ -608,7 +608,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
 
       // Use Janus replaceTracks API
       await session.pluginHandle.replaceTracks({
-        tracks: [{ type: 'video', capture: newScreenTrack }]
+        tracks: [{ type: 'video', capture: newScreenTrack }],
       });
 
       lineData.localMediaStreamData.screen.enabled = true;
@@ -638,11 +638,11 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     // lineObj.session?.pluginHandle.unmuteAudio()
     // const audioTrack = lineObj.data.localMediaStreamData.audio.track;
     // if (!audioTrack) return;
-    const publisherHandle = lineObj.session?.pluginHandle!
+    const publisherHandle = lineObj.session?.pluginHandle!;
 
     const toggled = !lineObj.data.localMediaStreamData.audio.enabled;
-    toggled ? publisherHandle.unmuteAudio() : publisherHandle.muteAudio()
-    console.log("toggle tracks", lineObj.session?.pluginHandle.getLocalTracks())
+    toggled ? publisherHandle.unmuteAudio() : publisherHandle.muteAudio();
+    console.log('toggle tracks', lineObj.session?.pluginHandle.getLocalTracks());
     // audioTrack.enabled = toggled;
     lineObj.data.localMediaStreamData.audio.enabled = toggled;
 
@@ -663,14 +663,12 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     //   },
     // });
     publisherHandle.data({
-      text: "test",
-      error: (err) => console.error("DATA ERROR:", err),
-      success: () => console.log("DATA SUCCESS")
+      text: 'test',
+      error: (err) => console.error('DATA ERROR:', err),
+      success: () => console.log('DATA SUCCESS'),
     });
 
-
     store.updateLine(lineObj);
-
   }
 
   function recordSession(lineKey: JanusLineType['lineKey']) {
@@ -812,7 +810,6 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     return { start, stop };
   }
 
-
   /*
   ================================
   CANCEL OUTGOING
@@ -835,7 +832,7 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     const subscriberHandle = session.subscribers.get(publisherId);
     if (!subscriberHandle) return;
 
-    console.log("Detaching subscriber", publisherId);
+    console.log('Detaching subscriber', publisherId);
 
     session.subscribers.delete(publisherId);
 
@@ -865,8 +862,8 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
   }
 
   function teardownSession(lineKey: LineType['lineKey'], callback?: () => void) {
-    const lineObj = getLineByLineKey(lineKey)
-    if (!lineObj) return
+    const lineObj = getLineByLineKey(lineKey);
+    if (!lineObj) return;
     // Stop all local tracks
     lineObj.data.localMediaStreamData.audio.track?.stop();
     lineObj.data.localMediaStreamData.video.track?.stop();
@@ -884,11 +881,11 @@ export const sessionMethods = ({ configKey }: { configKey: string }) => {
     return {
       is_private: false,
       pin: String(room),
-      admin_key: "my-admin-key",
-      secret: "room-secret",
-      ...security
-    }
-  }
+      admin_key: 'my-admin-key',
+      secret: 'room-secret',
+      ...security,
+    };
+  };
 
   return {
     startSession,

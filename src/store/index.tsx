@@ -154,7 +154,7 @@ export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
     return get().lines?.[configKey]?.[lineKey]?.data ?? null;
   },
   getConfigKeyByLineKey: (lineKey) => {
-    return get().configKeysByLineKey[lineKey] ?? null;
+    return get().configKeysByLineKey?.[lineKey] ?? null;
   },
   getConfigKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
     const lineKey =

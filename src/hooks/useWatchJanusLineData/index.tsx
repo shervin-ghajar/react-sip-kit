@@ -1,6 +1,7 @@
 import { RtcConfig } from '../../configs/types';
+import { JanusLineDataType } from '../../engines/janus/types';
 import { getRtcStore, useRtcStore } from '../../store';
-import { LineType, LineDataType } from '../../store/types';
+import { LineType } from '../../store/types';
 import { useDeep } from '../useDeep';
 
 /* -------------------------------------------------------------------------- */
@@ -23,7 +24,7 @@ type PathValue<T, P extends string> = P extends `${infer K}.${infer Rest}`
     : never;
 
 /** Runtime helper to walk down a dot-path. */
-function getByPath<T extends LineDataType, P extends Path<T>>(
+function getByPath<T extends JanusLineDataType, P extends Path<T>>(
   obj: T,
   path: P,
 ): PathValue<T, P> | undefined {
@@ -32,7 +33,7 @@ function getByPath<T extends LineDataType, P extends Path<T>>(
 
 type UseWatchSessionKey =
   | { lineKey: LineType['lineKey'] }
-  | { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
+  | { remoteNumber: JanusLineDataType['remoteNumber']; configKey: RtcConfig['key'] };
 
 /* -------------------------------------------------------------------------- */
 /*  Overloads                                                                 */
@@ -51,63 +52,63 @@ type UseWatchSessionKey =
  * @param {string | string[]} [params.name] - Optional dot-path string (e.g., 'localMediaStreamStatus.videoEnabled')
  *                                            or array of dot-paths to select specific data from the session.
  *
- * @returns {LineDataType | any | any[]}
+ * @returns {JanusLineDataType | any | any[]}
  * Returns the full session data if `name` is undefined,
  * a single property if `name` is a string,
  * or an array of properties if `name` is an array.
  *
  * @example
  * // Watch full session data by lineKey
- * const sessionData = useWatchLineData({ key: { lineKey: 1 } });
+ * const sessionData = useWatchJanusLineData({ key: { lineKey: 1 } });
  *
  * // Watch a specific property by lineKey
- * const videoEnabled = useWatchLineData({ key: { lineKey: 1 }, name: 'localMediaStreamStatus.videoEnabled' });
+ * const videoEnabled = useWatchJanusLineData({ key: { lineKey: 1 }, name: 'localMediaStreamStatus.videoEnabled' });
  *
  * // Watch full session data by remoteNumber
- * const sessionData = useWatchLineData({ key: { remoteNumber: '1001' } });
+ * const sessionData = useWatchJanusLineData({ key: { remoteNumber: '1001' } });
  *
  * // Watch multiple properties by remoteNumber
- * const [videoEnabled, audioEnabled] = useWatchLineData({
+ * const [videoEnabled, audioEnabled] = useWatchJanusLineData({
  *   key: { remoteNumber: '1001' },
  *   name: ['localMediaStreamStatus.videoEnabled', 'localMediaStreamStatus.audioEnabled']
  * });
  */
-export function useWatchLineData(props: {
+export function useWatchJanusLineData(props: {
   key: { lineKey: LineType['lineKey'] };
   name?: undefined;
-}): LineDataType;
-export function useWatchLineData(props: {
-  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
+}): JanusLineDataType;
+export function useWatchJanusLineData(props: {
+  key: { remoteNumber: JanusLineDataType['remoteNumber']; configKey: RtcConfig['key'] };
   name?: undefined;
-}): LineDataType;
+}): JanusLineDataType;
 
 // String typed name
-export function useWatchLineData<P extends Path<LineDataType>>(props: {
+export function useWatchJanusLineData<P extends Path<JanusLineDataType>>(props: {
   key: { lineKey: LineType['lineKey'] };
   name: P;
-}): PathValue<LineDataType, P>;
-export function useWatchLineData<P extends Path<LineDataType>>(props: {
-  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
+}): PathValue<JanusLineDataType, P>;
+export function useWatchJanusLineData<P extends Path<JanusLineDataType>>(props: {
+  key: { remoteNumber: JanusLineDataType['remoteNumber']; configKey: RtcConfig['key'] };
 
   name: P;
-}): PathValue<LineDataType, P>;
+}): PathValue<JanusLineDataType, P>;
 
 // Array typed name
-export function useWatchLineData<const P extends readonly Path<LineDataType>[]>(props: {
+export function useWatchJanusLineData<const P extends readonly Path<JanusLineDataType>[]>(props: {
   key: { lineKey: LineType['lineKey'] };
   name: P;
-}): { [K in keyof P]: PathValue<LineDataType, P[K] & string> };
+}): { [K in keyof P]: PathValue<JanusLineDataType, P[K] & string> };
 
-export function useWatchLineData<const P extends readonly Path<LineDataType>[]>(props: {
-  key: { remoteNumber: LineDataType['remoteNumber']; configKey: RtcConfig['key'] };
+export function useWatchJanusLineData<const P extends readonly Path<JanusLineDataType>[]>(props: {
+  key: { remoteNumber: JanusLineDataType['remoteNumber']; configKey: RtcConfig['key'] };
   name: P;
-}): { [K in keyof P]: PathValue<LineDataType, P[K] & string> };
+}): { [K in keyof P]: PathValue<JanusLineDataType, P[K] & string> };
 
 /* -------------------------------------------------------------------------- */
 /*  Implementation                                                            */
 /* -------------------------------------------------------------------------- */
 
-export function useWatchLineData({
+export function useWatchJanusLineData({
   key,
   name,
 }: {
@@ -117,9 +118,8 @@ export function useWatchLineData({
   const store = getRtcStore();
 
   // Resolve the lineKey internally
-  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key);
-
-  if (!lineKey) return undefined;
+  const lineKey =
+    ('lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key)) ?? '';
 
   const configKey = store.getConfigKeyByLineKey(lineKey);
 
@@ -127,16 +127,16 @@ export function useWatchLineData({
     useDeep((state) => {
       try {
         const line = configKey ? state.lines?.[configKey]?.[lineKey] : null;
-        const data = line?.data as LineDataType;
+        const data = line?.data as JanusLineDataType;
 
-        if (!data) return undefined;
+        if (!data) return null;
 
         if (Array.isArray(name)) return name.map((path) => getByPath(data, path as any));
         if (typeof name === 'string') return getByPath(data, name as any);
 
         return data;
       } catch (error) {
-        console.error('useWatchLineData', error);
+        console.error('useWatchSipLineData', error);
       }
     }),
   );
