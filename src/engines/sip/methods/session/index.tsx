@@ -2,7 +2,7 @@ import { RtcConfig, SipConfig } from '../../../../configs/types';
 import { createLine } from '../../../../constructors';
 import { getRtcStore } from '../../../../store';
 import { LineDataType, LineType } from '../../../../store/types';
-import { CallbackFunction, CallType } from '../../../../types';
+import { CallType } from '../../../../types';
 import { utcDateNow } from '../../../../utils';
 import { sessionEvents } from '../../events/session';
 import { MediaStreamTrackType } from '../../events/session/types';
@@ -17,12 +17,7 @@ import {
 } from '../../types';
 import { sendMessageSession, sendVideoActivationWithAckRetry, teardownSession } from './shared';
 import { spdOptions } from './spdOptions';
-import {
-  DialRequestDelegate,
-  SendMessageSessionEnum,
-  SendMessageSessionValueType,
-  SPDOptionsType,
-} from './types';
+import { DialRequestDelegate, SendMessageSessionEnum, SPDOptionsType } from './types';
 import {
   Inviter,
   InviterInviteOptions,
@@ -626,16 +621,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     }
 
     await sendMessageSession(session, SendMessageSessionEnum.VIDEO_TOGGLE, toggledLocalVideo);
-    !localMediaStreamData.screen.enabled &&
-      toggledLocalVideo &&
-      // interval(
-      //   () => {
-      //     session.initiateLocalMediaStreams({ type: 'video', stopStream: true });
-      //   },
-      //   2,
-      //   200,
-      // );
-      updateLine(lineObj);
+    !localMediaStreamData.screen.enabled && toggledLocalVideo && updateLine(lineObj);
   };
 
   /**
@@ -690,13 +676,6 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
 
       sendMessageSession(session, SendMessageSessionEnum.SCREEN_SHARE_TOGGLE, false);
 
-      // interval(
-      //   () => {
-      //     session.initiateLocalMediaStreams({ type: 'video', stopStream: true });
-      //   },
-      //   2,
-      //   200,
-      // );
       updateLine(lineObj);
       return;
     }
@@ -740,13 +719,6 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       };
 
       sendMessageSession(session, SendMessageSessionEnum.SCREEN_SHARE_TOGGLE, true);
-      // interval(
-      //   () => {
-      //     session.initiateLocalMediaStreams({ type: 'video', stopStream: false });
-      //   },
-      //   2,
-      //   200,
-      // );
     } catch (err) {
       console.error('Screen share failed:', err);
       return;
@@ -920,14 +892,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     }
     const session = lineObj.session;
     if (!session) return;
-    // session?.initiateLocalMediaStreams &&
-    //   interval(
-    //     () => {
-    //       session.initiateLocalMediaStreams({ type: 'video', stopStream: true });
-    //     },
-    //     2,
-    //     100,
-    //   );
+
     switch (session.state) {
       case SessionState.Initial:
       case SessionState.Establishing:
@@ -1111,6 +1076,99 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     }
 
     return { start, stop };
+  }
+
+  /**
+   * Send DTMF tones to the active SIP session.
+   *
+   * Uses the session's `sessionDescriptionHandler.sendDtmf()` which internally
+   * uses WebRTC's `RTCDTMFSender.insertDTMF()` API.
+   *
+   * If the call is currently on hold and a `childSession` exists (for example
+   * during attended transfer scenarios), the DTMF tones will be sent through
+   * the child session instead of the primary session.
+   *
+   * Tone timing configuration:
+   * - duration: 100ms per tone
+   * - interToneGap: 70ms pause between tones
+   *
+   * Example:
+   * sendDTMF(lineKey, "123#")
+   *
+   * @param lineKey Unique identifier of the SIP line
+   * @param tones DTMF characters to send (0-9, *, #, A-D)
+   * @returns void
+   */
+  async function sendDTMF(lineKey: SipLineType['lineKey'], tones: string) {
+    const lineObj = getLineByLineKey<SipLineType>(lineKey);
+
+    if (!lineObj?.session) {
+      console.warn('Cannot send DTMF: line or session not found');
+      return;
+    }
+
+    const session = lineObj.session;
+    const lineData = lineObj.data;
+
+    const options = {
+      duration: 100,
+      interToneGap: 70,
+    };
+
+    const send = (targetSession: SipInvitationType | SipInviterType) => {
+      const sdh = targetSession.sessionDescriptionHandler as SipSessionDescriptionHandler;
+
+      if (!sdh) {
+        console.warn('DTMF failed: no sessionDescriptionHandler');
+        return false;
+      }
+
+      try {
+        const result = sdh.sendDtmf(tones, options);
+
+        if (result) {
+          console.log(`Sent DTMF (${tones})`);
+        } else {
+          console.warn(`Failed to send DTMF (${tones})`);
+        }
+
+        return result;
+      } catch (err) {
+        console.warn('DTMF send error', err);
+        return false;
+      }
+    };
+
+    // If call is on hold use child session
+    if (lineData.isHold) {
+      if (lineObj.childSession) {
+        const child = lineObj.childSession;
+
+        if (child.state === SessionState.Established) {
+          console.log(`Sending DTMF (${tones}) via child session`);
+          send(child);
+        } else {
+          console.warn(`Cannot send DTMF (${tones}): child session not established`);
+        }
+      } else {
+        console.warn(`Cannot send DTMF (${tones}): call is on hold and no child session exists`);
+      }
+
+      return;
+    }
+
+    // Normal call session
+    if (session.state === SessionState.Established || session.state === SessionState.Establishing) {
+      console.log(`Sending DTMF (${tones})`);
+
+      const result = send(session);
+
+      if (!result) {
+        throw new Error(`SendDTMF error result: ${result}`);
+      }
+    } else {
+      console.warn(`Cannot send DTMF (${tones}): session not establishing or established`);
+    }
   }
 
   /* -------------------------------- TRANSFER -------------------------------- */
@@ -1533,6 +1591,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     toggleMuteSession,
     toggleHoldSession,
     makeTransferSession,
+    sendDTMF,
     cancelTransferSession,
     cancelSession,
     teardownSession,

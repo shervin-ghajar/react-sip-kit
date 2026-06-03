@@ -271,7 +271,6 @@ export const sessionEvents = () => {
   function onSessionReinvited(lineObj: SipLineType, response: IncomingRequestMessage) {
     // This may be used to include video streams
     const sdp = response.body;
-    const session = lineObj.session;
     const lineData = lineObj.data;
     if (!lineData) return;
     // All the possible streams will get
