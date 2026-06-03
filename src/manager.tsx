@@ -1,8 +1,8 @@
 import { defaultRtcConfig } from './configs';
 import { RtcConfig } from './configs/types';
-import { HybridEngineInitializer } from './engines/hybrid/initializer';
-import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
-import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
+// import { HybridEngineInitializer } from './engines/hybrid/initializer';
+// import { refreshRegistration as hybridReconnect } from './engines/hybrid/methods/registration';
+// import { sessionMethods as hybridSessionMethods } from './engines/hybrid/methods/session';
 import { JanusEngineInitializer } from './engines/janus/initializer';
 import { refreshRegistration as janusReconnect } from './engines/janus/methods/registration';
 import { sessionMethods as janusSessionMethods } from './engines/janus/methods/session';
@@ -253,9 +253,10 @@ export class RtcManager {
     this.instances.get(configKey)?.config.engine;
     let session = null;
     switch (this.instances.get(configKey)?.config.engine) {
-      case 'hybrid':
-        session = this.getHybridSessionMethodsBy({ configKey });
-        break;
+      // TODO Hybrid
+      // case 'hybrid':
+      //   session = this.getHybridSessionMethodsBy({ configKey });
+      //   break;
       case 'janus':
         session = this.getJanusSessionMethodsBy({ configKey });
         break;
@@ -389,9 +390,9 @@ export class RtcManager {
       case 'janus':
         instance = new JanusEngineInitializer(mergedConfig, configKey);
         break;
-      case 'hybrid':
-        instance = new HybridEngineInitializer(mergedConfig, configKey);
-        break;
+      // case 'hybrid':
+      //   instance = new HybridEngineInitializer(mergedConfig, configKey);
+      //   break;
       default:
         throw new Error('RTC-Kit engine must be defined!');
     }
@@ -457,32 +458,34 @@ export class RtcManager {
       },
     });
   }
-  public getHybridSessionMethodsBy(key: GetMethodsKey) {
-    const store = getRtcStore();
-    let configKey: string = '';
 
-    if ('configKey' in key && key.configKey) {
-      configKey = key.configKey;
-    } else if ('lineKey' in key && key.lineKey) {
-      configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
-    }
+  // TODO Hybrid
+  // public getHybridSessionMethodsBy(key: GetMethodsKey) {
+  //   const store = getRtcStore();
+  //   let configKey: string = '';
 
-    const methods = hybridSessionMethods({ configKey });
-    if (this.isMasterManager) return methods;
+  //   if ('configKey' in key && key.configKey) {
+  //     configKey = key.configKey;
+  //   } else if ('lineKey' in key && key.lineKey) {
+  //     configKey = store.getConfigKeyByLineKey(key.lineKey) ?? '';
+  //   }
 
-    return new Proxy(methods, {
-      get: (_, prop: string) => {
-        return (...args: any[]) => {
-          this.channel.postMessage({
-            type: 'SESSION_COMMAND',
-            method: prop,
-            configKey,
-            args,
-          });
-        };
-      },
-    });
-  }
+  //   const methods = hybridSessionMethods({ configKey });
+  //   if (this.isMasterManager) return methods;
+
+  //   return new Proxy(methods, {
+  //     get: (_, prop: string) => {
+  //       return (...args: any[]) => {
+  //         this.channel.postMessage({
+  //           type: 'SESSION_COMMAND',
+  //           method: prop,
+  //           configKey,
+  //           args,
+  //         });
+  //       };
+  //     },
+  //   });
+  // }
 
   /**
    * Get RTC account state.
@@ -539,9 +542,10 @@ export class RtcManager {
       case 'janus':
         janusReconnect(configKey);
         break;
-      case 'hybrid':
-        hybridReconnect(configKey);
-        break;
+      // TODO Hybrid
+      // case 'hybrid':
+      //   hybridReconnect(configKey);
+      //   break;
     }
   }
 
@@ -586,6 +590,22 @@ export class RtcManager {
     if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
       const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
       return lineKey ? store.getLineByLineKey(lineKey) : null;
+    }
+
+    return null;
+  }
+
+  /** Lookup a line data by `lineKey` or `remoteNumber`. */
+  public getLineDataBy(key: LineLookup) {
+    const store = getRtcStore();
+
+    if ('lineKey' in key && key?.lineKey) {
+      return store.getLineDataByLineKey(key.lineKey);
+    }
+
+    if ('remoteNumber' in key && key?.remoteNumber && 'configKey' in key && key?.configKey) {
+      const lineKey = store.getLineKeyByRemoteNumber_ConfigKey(key);
+      return lineKey ? store.getLineDataByLineKey(lineKey) : null;
     }
 
     return null;

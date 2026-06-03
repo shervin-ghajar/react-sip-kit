@@ -19,7 +19,7 @@ export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
     set((state) => ({ ...state, configs: { ...state.configs, [configKey]: config } }));
   },
   setEngine: (configKey: RtcConfig['key'], engine: EngineInstance) => {
-    console.log("setEngine", { configKey, engine })
+    console.log('setEngine', { configKey, engine });
     set((state) => ({ ...state, engines: { ...state.engines, [configKey]: engine } }));
   },
   addLine: (newLine: LineType) => {
@@ -154,12 +154,12 @@ export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
     return get().lines?.[configKey]?.[lineKey]?.data ?? null;
   },
   getConfigKeyByLineKey: (lineKey) => {
-    return get().configKeysByLineKey[lineKey] ?? null;
+    return get().configKeysByLineKey?.[lineKey] ?? null;
   },
   getConfigKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
     const lineKey =
       get().lineKeyByRemoteNumber_ConfigKey[
-      get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
       ] ?? null;
     if (!lineKey) return null;
     return get().getConfigKeyByLineKey(lineKey);
@@ -167,7 +167,7 @@ export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
   getLineKeyByRemoteNumber_ConfigKey: ({ configKey, remoteNumber }) => {
     const lineKey =
       get().lineKeyByRemoteNumber_ConfigKey[
-      get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
       ] ?? null;
     return lineKey;
   },
@@ -179,7 +179,7 @@ export const useRtcStore = create<RtcStoreStateType>((set, get) => ({
       const { configKey, remoteNumber } = keys;
       lineKey =
         get().lineKeyByRemoteNumber_ConfigKey[
-        get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
+          get().remoteNumberConfigKeyResolver({ configKey, remoteNumber })
         ] ?? null;
     }
     return get().getLineByLineKey(lineKey);
