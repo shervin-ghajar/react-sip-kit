@@ -9,7 +9,7 @@ interface AudioProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Audio({ lineKey, type, ...rest }: AudioProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const remoteAudioElementMap = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const remoteElementMap = useRef<Map<string, HTMLMediaElement>>(new Map());
 
   const audioDatas = useRtcStore(
     useDeep((state) => {
@@ -24,11 +24,21 @@ export function Audio({ lineKey, type, ...rest }: AudioProps) {
     }),
   );
 
+  // Retrieve selected output device (desktop fallback)
   const audioOutputDeviceId = useRtcStore(
     useDeep((state) => {
       const line = state.getLineDataByLineKey(lineKey);
       if (!line) return null;
       return type === 'remote' ? line.audioOutputDeviceId : null;
+    }),
+  );
+
+  // Retrieve loudspeaker vs. earpiece flag reactively
+  const speakerEnabled = useRtcStore(
+    useDeep((state) => {
+      const line = state.getLineDataByLineKey(lineKey);
+      if (!line) return false;
+      return type === 'remote' ? (line.speakerEnabled ?? false) : false;
     }),
   );
 
@@ -43,33 +53,54 @@ export function Audio({ lineKey, type, ...rest }: AudioProps) {
 
     const sinkId = audioOutputDeviceId || 'default';
 
-    const applySinkId = (el: HTMLAudioElement) => {
-      if (type !== 'remote' || !supportsSetSinkId) return;
-      el.setSinkId(sinkId).catch((err) => {
+    const applySinkId = (el: HTMLMediaElement) => {
+      if (type !== 'remote' || !supportsSetSinkId || !(el instanceof HTMLAudioElement)) return;
+
+      (el as any).setSinkId(sinkId).catch((err: any) => {
         console.error('[Audio] setSinkId failed', err);
       });
     };
 
-    const createAudioEl = (trackId: string, track: MediaStreamTrack) => {
-      const audioEl = document.createElement('audio');
-      audioEl.id = `line-${lineKey}-${type}-${trackId}`;
-      audioEl.autoplay = true;
-      audioEl.muted = type === 'local';
-      audioEl.srcObject = new MediaStream([track]);
+    const createMediaEl = (trackId: string, track: MediaStreamTrack) => {
+      // remote + speakerEnabled = 'audio' (loudspeaker)
+      // remote + earpiece = 'video' (earpiece routing trick)
+      const tag = type === 'remote' ? (speakerEnabled ? 'audio' : 'video') : 'audio';
 
-      audioEl.play().catch(() => {
+      const el = document.createElement(tag) as HTMLMediaElement;
+
+      el.id = `line-${lineKey}-${type}-${trackId}`;
+      el.autoplay = true;
+      el.muted = type === 'local';
+      el.srcObject = new MediaStream([track]);
+
+      // Hide the dummy video element if it's used for mobile routing
+      if (tag === 'video') {
+        const video = el as HTMLVideoElement;
+        video.style.display = 'none';
+        video.style.position = 'absolute';
+        video.style.width = '1px';
+        video.style.height = '1px';
+        video.style.opacity = '0';
+      }
+
+      el.play().catch(() => {
         console.warn(`[Audio] Autoplay prevented for track ${trackId}`);
       });
 
-      applySinkId(audioEl);
+      applySinkId(el);
 
-      return audioEl;
+      return el;
     };
 
-    // Clear previous DOM and registry before rebuilding
+    // Safely pause and stop streams before teardown to prevent audio context leaks
+    remoteElementMap.current.forEach((el) => {
+      el.pause();
+      el.srcObject = null;
+    });
+
     container.innerHTML = '';
     if (type === 'remote') {
-      remoteAudioElementMap.current.clear();
+      remoteElementMap.current.clear();
     }
 
     if (!audioDatas) return;
@@ -77,42 +108,48 @@ export function Audio({ lineKey, type, ...rest }: AudioProps) {
     if (Array.isArray(audioDatas)) {
       audioDatas.forEach((d) => {
         if (!d?.track) return;
-        const el = createAudioEl(d.track.id, d.track);
+
+        const el = createMediaEl(d.track.id, d.track);
 
         if (type === 'remote') {
-          remoteAudioElementMap.current.set(d.track.id, el);
+          remoteElementMap.current.set(d.track.id, el);
         }
 
         container.appendChild(el);
       });
     } else if (audioDatas.track) {
-      const el = createAudioEl(`${type}-single`, audioDatas.track);
+      const el = createMediaEl(`${type}-single`, audioDatas.track);
 
       if (type === 'remote') {
-        remoteAudioElementMap.current.set(audioDatas.track.id, el);
+        remoteElementMap.current.set(audioDatas.track.id, el);
       }
 
       container.appendChild(el);
     }
 
     return () => {
+      remoteElementMap.current.forEach((el) => {
+        el.pause();
+        el.srcObject = null;
+      });
       container.innerHTML = '';
       if (type === 'remote') {
-        remoteAudioElementMap.current.clear();
+        remoteElementMap.current.clear();
       }
     };
-  }, [audioDatas, audioOutputDeviceId, lineKey, type, supportsSetSinkId]);
+  }, [audioDatas, audioOutputDeviceId, lineKey, type, supportsSetSinkId, speakerEnabled]);
 
-  // Apply sinkId reactively to already-mounted remote audio elements
   useEffect(() => {
     if (type !== 'remote' || !supportsSetSinkId) return;
 
     const sinkId = audioOutputDeviceId || 'default';
 
-    remoteAudioElementMap.current.forEach((audioEl) => {
-      audioEl.setSinkId(sinkId).catch((err) => {
-        console.error('[Audio] Failed to setSinkId reactively', err);
-      });
+    remoteElementMap.current.forEach((el) => {
+      if (el instanceof HTMLAudioElement) {
+        (el as any).setSinkId(sinkId).catch((err: any) => {
+          console.error('[Audio] Failed to setSinkId reactively', err);
+        });
+      }
     });
   }, [audioOutputDeviceId, type, supportsSetSinkId]);
 

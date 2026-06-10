@@ -23,18 +23,18 @@ export function teardownSession(lineObj: SipLineType, callback?: CallbackFunctio
   }
 
   // End any child calls
-  // if (session.data.childSession) {
-  //   session.data.childSession
-  //     .dispose()
-  //     .then(function () {
-  //       session.data.childSession = null;
-  //     })
-  //     .catch(function (error) {
-  //       console.error('teardownSession-dispose', { error });
-  //       session.data.childSession = null;
-  //       // Suppress message
-  //     });
-  // }
+  if (lineObj.childSession) {
+    lineObj.childSession
+      .dispose()
+      .then(function () {
+        lineObj.childSession = null;
+      })
+      .catch(function (error) {
+        console.error('teardownSession-dispose', { error });
+        lineObj.childSession = null;
+        // Suppress message
+      });
+  }
 
   // Mixed Tracks
   if (lineData.localMediaStreamData.audio.track) {

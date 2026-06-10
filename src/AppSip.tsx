@@ -70,10 +70,11 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     toggleLocalVideoTrack,
     toggleMuteSession,
     toggleHoldSession,
-    cancelTransferSession,
     makeTransferSession,
     toggleShareScreen,
     recordSession,
+    conferenceBridge,
+    setMediaStreamConfigs,
   } = RtcConnection.getSipSessionMethodsBy({ lineKey });
 
   // Watch session data reactively
@@ -86,6 +87,9 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
     localMediaStreamData,
     remoteNumber,
     transfer,
+    speakerEnabled,
+    confBridgeChannels,
+    confBridgeLineKey,
   ] = RtcConnection.useWatchSipLineData({
     key: { lineKey },
     name: [
@@ -97,8 +101,12 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
       'localMediaStreamData',
       'remoteNumber',
       'transfer',
+      'speakerEnabled',
+      'confBridgeChannels',
+      'confBridgeLineKey',
     ],
   });
+  console.log({ confBridgeChannels, confBridgeLineKey });
   // const pc = RtcConnection.getSessionBy({ lineKey })?.sessionDescriptionHandler?.peerConnection;
   // console.log('getSenders', pc?.getSenders?.());
 
@@ -120,6 +128,8 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
   console.log({ localMediaStreamData });
   // Recorder instance
   const recorder = recordSession(lineKey);
+
+  const transferer = makeTransferSession(lineKey, transferNumber ?? '');
 
   /* ------------------------- Auto-initiate streams ------------------------- */
   // useEffect(() => {
@@ -183,21 +193,40 @@ const SipLine = memo(({ lineKey }: { lineKey: LineType['lineKey'] }) => {
           >
             {isRecording ? 'Recording...' : 'Record'}
           </button>
+          <button
+            onClick={() => setMediaStreamConfigs(lineKey, { speakerEnabled: !speakerEnabled })}
+          >
+            Speaker {speakerEnabled ? 'On' : 'Off'}
+          </button>
+          <button
+            onClick={() => {
+              const lines = RtcConnection.getAccountBy({ lineKey }).lines;
+              const otherLineKeys = lines
+                .filter((l) => l.lineKey !== lineKey)
+                .map((l) => l.lineKey);
+              console.log({ lines, otherLineKeys });
+              conferenceBridge({
+                type: 'audio',
+                hostLineKey: lineKey,
+                otherLineKeys: otherLineKeys,
+              });
+            }}
+          >
+            conferenceBridge
+          </button>
+
           <div>
-            <button onClick={() => makeTransferSession('attended', lineKey, transferNumber ?? '')}>
-              Attend Transfer To{' '}
-            </button>
-            <button onClick={() => makeTransferSession('blind', lineKey, transferNumber ?? '')}>
-              Blind Transfer To{' '}
-            </button>
+            <button onClick={() => transferer.attend()}>Attend Transfer To </button>
+            <button onClick={() => transferer.blind()}>Blind Transfer To </button>
+            <button onClick={() => transferer.attendAccept()}>Attend Accepted </button>
+            <button onClick={() => transferer.attendReject()}>Attend Rejected </button>
             <input
               value={transferNumber}
               onChange={(e) => setTransferNumber(e?.target?.value ?? undefined)}
             ></input>
+
             {transfer.length && (
-              <button onClick={() => cancelTransferSession(lineKey, transferNumber ?? '')}>
-                Cancel Transfer
-              </button>
+              <button onClick={() => transferer.attendReject()}>Cancel Transfer</button>
             )}
           </div>
         </div>

@@ -65,7 +65,11 @@ export interface SipLineType {
 }
 
 export interface SipLineDataType extends BaseLineDataType {
-  transfer: Array<SipSessionTransferType>;
+  transfer: Record<SipSessionTransferType['to'], SipSessionTransferType>;
+  videoChannelNames: Array<Record<'mid' | 'channel', string>>;
+  confBridgeLineKey: string;
+  confBridgeChannels: Array<string>;
+  confBridgeEvents: Array<any>;
 }
 
 export interface SipSessionTransferType {
@@ -80,4 +84,5 @@ export interface SipSessionTransferType {
     disposition: string;
   };
   onCancle?: Function;
+  onAccept?: Function;
 }

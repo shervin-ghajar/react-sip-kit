@@ -5,7 +5,7 @@ import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 /* -------------------------------------------------------------------------- */
-export const RtcConnection = new RtcManager({ enableBroadcast: true });
+export const RtcConnection = new RtcManager({ enableBroadcast: false });
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
