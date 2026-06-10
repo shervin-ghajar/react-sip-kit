@@ -322,83 +322,83 @@ export const sessionEvents = () => {
         if (!session.data) return;
         if (!lineObj.data?.confBridgeChannels) lineObj.data.confBridgeChannels = [];
         if (!lineObj.data?.confBridgeEvents) lineObj.data.confBridgeEvents = [];
-
-        if (msgJson.type == 'ConfbridgeStart') {
-          console.log('ConfbridgeStart!');
-        } else if (msgJson.type == 'ConfbridgeWelcome') {
-          console.log('Welcome to the Asterisk Conference');
-          console.log('Bridge ID:', msgJson.bridge.id);
-          console.log('Bridge Name:', msgJson.bridge.name);
-          console.log('Created at:', msgJson.bridge.creationtime);
-          console.log('Video Mode:', msgJson.bridge.video_mode);
-
-          lineObj.data.confBridgeChannels = msgJson.channels; // Write over this
-          lineObj.data.confBridgeChannels.forEach(function (chan) {
-            // The mute and unmute status doesn't appear to be a realtime state, only what the
-            // startmuted= setting of the default profile is.
-            console.log(
-              chan.caller.name,
-              'Is in the conference. Muted:',
-              chan.muted,
-              'Admin:',
-              chan.admin,
-            );
-          });
-        } else if (msgJson.type == 'ConfbridgeJoin') {
-          msgJson.channels.forEach(function (chan) {
-            let found = false;
-            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
-              if (existingChan.id == chan.id) found = true;
-            });
-            if (!found) {
-              lineObj.data.confBridgeChannels?.push(chan);
-              lineObj.data.confBridgeEvents?.push({
-                event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
-                eventTime: utcDateNow(),
-              });
-              console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
-            }
-          });
-        } else if (msgJson.type == 'ConfbridgeLeave') {
-          msgJson.channels.forEach(function (chan) {
-            lineObj.data.confBridgeChannels?.forEach(function (existingChan, i) {
-              if (existingChan.id == chan.id) {
-                lineObj.data.confBridgeChannels?.splice(i, 1);
-                console.log(chan.caller.name, 'Left the conference');
-                lineObj.data.confBridgeEvents?.push({
-                  event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
-                  eventTime: utcDateNow(),
-                });
-              }
-            });
-          });
-        } else if (msgJson.type === 'ConfbridgeTalking') {
-          const videoContainer = false; //$('#line-' + lineObj.LineKey + '-remote-videos'); TODO #SH
-          if (videoContainer) {
-            //TODO #SH
-          }
-        } else if (msgJson.type == 'ConfbridgeMute') {
-          msgJson.channels.forEach(function (chan) {
-            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
-              if (existingChan.id == chan.id) {
-                console.log(existingChan.caller.name, 'is now muted');
-                existingChan.muted = true;
-              }
-            });
-          });
-          //   RedrawStage(lineObj.LineKey, false); TODO #SH
-        } else if (msgJson.type === 'ConfbridgeUnmute') {
-          msgJson.channels.forEach(function (chan) {
-            lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
-              if (existingChan.id == chan.id) {
-                console.log(existingChan.caller.name, 'is now unmuted');
-                existingChan.muted = false;
-              }
-            });
-          });
-        } else if (msgJson.type == 'ConfbridgeEnd') {
-          console.log('The Asterisk Conference has ended, bye!');
-        } else {
+        //TODO
+        // if (msgJson.type == 'ConfbridgeStart') {
+        //   console.log('ConfbridgeStart!');
+        // } else if (msgJson.type == 'ConfbridgeWelcome') {
+        //   console.log('Welcome to the Asterisk Conference');
+        //   console.log('Bridge ID:', msgJson.bridge.id);
+        //   console.log('Bridge Name:', msgJson.bridge.name);
+        //   console.log('Created at:', msgJson.bridge.creationtime);
+        //   console.log('Video Mode:', msgJson.bridge.video_mode);
+        //   lineObj.data.confBridgeChannels = msgJson.channels; // Write over this
+        //   lineObj.data.confBridgeChannels.forEach(function (chan) {
+        //     // The mute and unmute status doesn't appear to be a realtime state, only what the
+        //     // startmuted= setting of the default profile is.
+        //     console.log(
+        //       chan.caller.name,
+        //       'Is in the conference. Muted:',
+        //       chan.muted,
+        //       'Admin:',
+        //       chan.admin,
+        //     );
+        //   });
+        // } else if (msgJson.type == 'ConfbridgeJoin') {
+        //   msgJson.channels.forEach(function (chan) {
+        //     let found = false;
+        //     lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
+        //       if (existingChan.id == chan.id) found = true;
+        //     });
+        //     if (!found) {
+        //       lineObj.data.confBridgeChannels?.push(chan);
+        //       lineObj.data.confBridgeEvents?.push({
+        //         event: chan.caller.name + ' (' + chan.caller.number + ') joined the conference',
+        //         eventTime: utcDateNow(),
+        //       });
+        //       console.log(chan.caller.name, 'Joined the conference. Muted: ', chan.muted);
+        //     }
+        //   });
+        // } else if (msgJson.type == 'ConfbridgeLeave') {
+        //   msgJson.channels.forEach(function (chan) {
+        //     lineObj.data.confBridgeChannels?.forEach(function (existingChan, i) {
+        //       if (existingChan.id == chan.id) {
+        //         lineObj.data.confBridgeChannels?.splice(i, 1);
+        //         console.log(chan.caller.name, 'Left the conference');
+        //         lineObj.data.confBridgeEvents?.push({
+        //           event: chan.caller.name + ' (' + chan.caller.number + ') left the conference',
+        //           eventTime: utcDateNow(),
+        //         });
+        //       }
+        //     });
+        //   });
+        // } else if (msgJson.type === 'ConfbridgeTalking') {
+        //   const videoContainer = false; //$('#line-' + lineObj.LineKey + '-remote-videos'); TODO #SH
+        //   if (videoContainer) {
+        //     //TODO #SH
+        //   }
+        // } else if (msgJson.type == 'ConfbridgeMute') {
+        //   msgJson.channels.forEach(function (chan) {
+        //     lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
+        //       if (existingChan.id == chan.id) {
+        //         console.log(existingChan.caller.name, 'is now muted');
+        //         existingChan.muted = true;
+        //       }
+        //     });
+        //   });
+        //   //   RedrawStage(lineObj.LineKey, false); TODO #SH
+        // } else if (msgJson.type === 'ConfbridgeUnmute') {
+        //   msgJson.channels.forEach(function (chan) {
+        //     lineObj.data.confBridgeChannels?.forEach(function (existingChan) {
+        //       if (existingChan.id == chan.id) {
+        //         console.log(existingChan.caller.name, 'is now unmuted');
+        //         existingChan.muted = false;
+        //       }
+        //     });
+        //   });
+        // } else if (msgJson.type == 'ConfbridgeEnd') {
+        //   console.log('The Asterisk Conference has ended, bye!');
+        // }
+        else {
           console.warn('Unknown Asterisk Conference Event:', msgJson.type, msgJson);
         }
         response.accept();

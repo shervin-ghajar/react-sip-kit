@@ -1,7 +1,7 @@
 import { RtcConfig, SipConfig } from '../../../../configs/types';
 import { createLine } from '../../../../constructors';
-import { getRtcStore } from '../../../../store';
-import { LineDataType, LineType } from '../../../../store/types';
+import { getRtcStore, useRtcStore } from '../../../../store';
+import { LineDataType, LineType, MediaStreamData } from '../../../../store/types';
 import { CallType } from '../../../../types';
 import { utcDateNow } from '../../../../utils';
 import { sessionEvents } from '../../events/session';
@@ -9,6 +9,7 @@ import { MediaStreamTrackType } from '../../events/session/types';
 import {
   SipInvitationType,
   SipInviterType,
+  SipLineDataType,
   SipLineType,
   SipSessionDescriptionHandler,
   SipSessionTransferType,
@@ -28,12 +29,22 @@ import {
 } from 'sip.js';
 
 /* -------------------------------------------------------------------------- */
+const activeAudioMixers = new Map<
+  string,
+  {
+    audioCtx: AudioContext;
+    confBridgeChannels: Array<string>;
+    originalMicTrack: MediaStreamTrack;
+  }
+>();
+/* -------------------------------------------------------------------------- */
 /*                            MAIN SESSION METHODS                            */
 /* -------------------------------------------------------------------------- */
 export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) => {
   const configs = getRtcStore().configs?.[configKey] as SipConfig;
   const username = configs?.account.username ?? '';
   const getLineByLineKey = getRtcStore().getLineByLineKey;
+  const getLineDataByLineKey = getRtcStore().getLineDataByLineKey;
   const addLine = getRtcStore().addLine;
   const updateLine = getRtcStore().updateLine;
   const userAgent = getRtcStore().engines?.[configKey] as SipUserAgent;
@@ -884,7 +895,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
    * @param lineKey
    * @returns
    */
-  function endSession(lineKey: SipLineType['lineKey']) {
+  async function endSession(lineKey: SipLineType['lineKey']) {
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
     if (lineObj == null) {
       console.warn('Unable to find line (' + lineKey + ')');
@@ -893,6 +904,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const session = lineObj.session;
     if (!session) return;
 
+    await clearConfferenceBridge(lineKey);
     switch (session.state) {
       case SessionState.Initial:
       case SessionState.Establishing:
@@ -1177,14 +1189,29 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
    * @param lineKey
    * @param transferNumber
    */
-  async function makeTransferSession(
-    type: SipSessionTransferType['type'],
+  function makeTransferSession(
     lineKey: SipLineType['lineKey'],
     transferNumber: SipLineType['lineKey'],
     request?: DialRequestDelegate,
   ) {
-    await toggleHoldSession(lineKey, true);
-    await handleTransferSession(type, lineKey, transferNumber, request);
+    return {
+      blind: async () => {
+        await toggleHoldSession(lineKey, true);
+        await handleTransferSession('blind', lineKey, transferNumber, request);
+      },
+      attend: async () => {
+        await toggleHoldSession(lineKey, true);
+        await handleTransferSession('attended', lineKey, transferNumber, request);
+      },
+      attendAccept: () => {
+        const lineData = getLineDataByLineKey(lineKey) as SipLineDataType;
+        if (lineData?.transfer?.[transferNumber].type === 'blind') return;
+        lineData?.transfer?.[transferNumber].onAccept?.();
+      },
+      attendReject: () => {
+        cancelTransferSession(lineKey, transferNumber);
+      },
+    };
   }
 
   /**
@@ -1219,8 +1246,9 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const session = lineObj.session;
     const lineData = lineObj.data;
     if (!session) return;
-    if (!lineData.transfer) lineData.transfer = [];
-    lineData.transfer.push({
+    if (!lineData.transfer) lineData.transfer = {};
+    const transferId = transferNumber;
+    lineData.transfer[transferNumber] = {
       type: type,
       to: transferNumber,
       transferTime: utcDateNow(),
@@ -1231,8 +1259,9 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         eventTime: null,
         disposition: '',
       },
-    });
-    const transferId = lineData.transfer.length - 1;
+      onCancle: () => {},
+      onAccept: () => {},
+    };
     const isVideoCall = lineData.callType === 'video';
 
     // SDP options
@@ -1268,7 +1297,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     const inviterOptions: InviterInviteOptions = {
       requestDelegate: {
         onTrying: function (sip) {
-          if (!lineData.transfer) return;
+          if (!lineData.transfer?.[transferId]) return;
           lineData.transfer[transferId].disposition = 'trying';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
           request?.onTrying?.(lineObj.lineKey, sip);
@@ -1276,14 +1305,14 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         },
         onProgress: async function (sip) {
           console.log('onProgress', lineData.transfer);
-          if (!lineData.transfer) return;
+          if (!lineData.transfer?.[transferId]) return;
           lineData.transfer[transferId].disposition = 'progress';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
           lineData.transfer[transferId].onCancle = () => {
             newSession.cancel().catch(function (error) {
               console.warn('Failed to CANCEL', error);
             });
-            if (!lineData.transfer) return;
+            if (!lineData.transfer?.[transferId]) return;
             lineData.transfer[transferId].accept.complete = false;
             lineData.transfer[transferId].accept.disposition = 'cancel';
             lineData.transfer[transferId].accept.eventTime = utcDateNow();
@@ -1299,14 +1328,16 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           request?.onRedirect?.(lineObj.lineKey, sip);
         },
         onAccept: function (sip) {
-          if (!lineData.transfer) return;
-          lineData.transfer[transferId].disposition = 'accepted';
-          lineData.transfer[transferId].dispositionTime = utcDateNow();
-
-          onTransferRefer(lineKey, targetURI, transferId, request);
+          if (!lineData.transfer?.[transferId]) return;
+          lineData.transfer[transferId].onAccept = () => {
+            lineData.transfer[transferId].disposition = 'accepted';
+            lineData.transfer[transferId].dispositionTime = utcDateNow();
+            onTransferRefer(lineKey, targetURI, transferId, request);
+          };
+          updateLine(lineObj);
         },
         onReject: function (sip) {
-          if (!lineData.transfer) return;
+          if (!lineData.transfer?.[transferId]) return;
           console.log('New call session rejected: ', sip.message.reasonPhrase);
           lineData.transfer[transferId].disposition = sip.message.reasonPhrase ?? '';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
@@ -1327,7 +1358,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
   const onTransferRefer = (
     lineKey: string,
     targetURI: URI,
-    transferId: number,
+    transferId: string,
     request?: DialRequestDelegate,
   ) => {
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
@@ -1343,7 +1374,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       requestDelegate: {
         onAccept: async function (sip) {
           console.log('Attended transfer Accepted');
-          if (!lineData.transfer) return;
+          if (!lineData.transfer?.[transferId]) return;
 
           lineData.terminateBy = 'us';
           lineData.reasonCode = 202;
@@ -1359,7 +1390,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         },
         onReject: function (sip) {
           console.warn('Attended transfer rejected:', sip);
-          if (!lineData.transfer) return;
+          if (!lineData.transfer?.[transferId]) return;
 
           lineData.transfer[transferId].accept.complete = false;
           lineData.transfer[transferId].accept.disposition = sip.message.reasonPhrase ?? '';
@@ -1391,8 +1422,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     lineKey: SipLineType['lineKey'],
     transferNumber: SipLineType['lineKey'],
   ) {
-    const remoteNumber = String(transferNumber);
-    if (remoteNumber === '') {
+    if (transferNumber === '') {
       console.warn('Cannot transfer, no number');
       return;
     }
@@ -1402,27 +1432,225 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
       return;
     }
 
-    if (!lineObj.data.transfer) return;
-    lineObj.data.transfer.forEach((transfer) => {
-      if (transfer.to === transferNumber) transfer.onCancle?.();
-    });
+    if (!lineObj.data.transfer?.[transferNumber]) return;
+    lineObj.data.transfer[transferNumber].onCancle?.();
 
     await toggleHoldSession(lineKey, false);
 
     updateLine(lineObj);
   }
   /* -------------------------------------------------------------------------- */
+  async function conferenceBridge({
+    type,
+    hostLineKey,
+    otherLineKeys,
+  }: {
+    type: keyof MediaStreamData;
+    hostLineKey: string;
+    otherLineKeys: string[];
+  }) {
+    const hostLine = getLineDataByLineKey(hostLineKey) as SipLineDataType;
+    if (!hostLine) return;
+
+    const existing = hostLine.confBridgeChannels ?? [];
+
+    const allKeys = [...new Set([hostLineKey, ...existing, ...otherLineKeys])];
+
+    const allLines = allKeys
+      .map((k) => getLineDataByLineKey(k))
+      .filter(Boolean) as SipLineDataType[];
+
+    if (allLines.length < 2) return;
+
+    // Unhold all participants
+    for (const line of allLines) {
+      if (line.isHold) {
+        await toggleHoldSession(line.lineKey);
+      }
+    }
+
+    const audioCtx = new AudioContext();
+
+    const getTrack = (key: keyof MediaStreamData, media: MediaStreamData) =>
+      media[key]?.track || null;
+
+    const remoteTracks = new Map<string, MediaStreamTrack>();
+
+    for (const line of allLines) {
+      const track = getTrack(type, line.remoteMediaStreamData);
+      if (track) remoteTracks.set(line.lineKey, track);
+    }
+
+    const localMicTrack = getTrack(type, hostLine.localMediaStreamData);
+    if (!localMicTrack) return;
+
+    // ------------------------------
+    // HOST SPEAKER MIX
+    // ------------------------------
+
+    const speakerDest = audioCtx.createMediaStreamDestination();
+
+    for (const track of remoteTracks.values()) {
+      const src = audioCtx.createMediaStreamSource(new MediaStream([track]));
+      src.connect(speakerDest);
+    }
+
+    const speakerTrack = speakerDest.stream.getAudioTracks()[0];
+
+    // ------------------------------
+    // OUTBOUND MIX PER PARTICIPANT
+    // ------------------------------
+
+    for (const line of allLines) {
+      const session = getLineByLineKey(line.lineKey)?.session as SipInvitationType | SipInviterType;
+
+      const pc = session?.sessionDescriptionHandler?.peerConnection;
+      if (!pc) continue;
+
+      const sender = pc.getSenders().find((s) => s.track?.kind === 'audio');
+      if (!sender) continue;
+
+      const dest = audioCtx.createMediaStreamDestination();
+
+      // mic
+      const micSrc = audioCtx.createMediaStreamSource(new MediaStream([localMicTrack]));
+      micSrc.connect(dest);
+
+      // others except self
+      for (const [key, track] of remoteTracks.entries()) {
+        if (key === line.lineKey) continue;
+
+        const src = audioCtx.createMediaStreamSource(new MediaStream([track]));
+        src.connect(dest);
+      }
+
+      const outboundTrack = dest.stream.getAudioTracks()[0];
+
+      await sender.replaceTrack(outboundTrack);
+    }
+
+    // ------------------------------
+    // SUBSCRIBE TO SESSIONS LEAVE
+    // ------------------------------
+    for (const key of otherLineKeys) {
+      const session = getLineByLineKey(key)?.session as SipInvitationType | SipInviterType;
+
+      session?.stateChange.addListener((state) => {
+        if (state === SessionState.Terminated) {
+          removeFromConference(key);
+        }
+      });
+    }
+
+    // ------------------------------
+    // Zustand batch update
+    // ------------------------------
+
+    const updates: Record<string, Partial<SipLineDataType>> = {};
+
+    updates[hostLineKey] = {
+      confBridgeChannels: allKeys.filter((k) => k !== hostLineKey),
+      remoteMediaStreamData: {
+        ...hostLine.remoteMediaStreamData,
+        audio: {
+          track: speakerTrack,
+          enabled: speakerTrack.enabled,
+        },
+      },
+    };
+
+    for (const key of allKeys) {
+      if (key === hostLineKey) continue;
+
+      updates[key] = {
+        confBridgeLineKey: hostLineKey,
+      };
+    }
+    useRtcStore.setState((state) => {
+      const lines = { ...state.lines };
+
+      for (const [key, update] of Object.entries(updates)) {
+        const lineData = lines[configKey][key].data as SipLineDataType;
+        if (!lineData) continue;
+
+        lines[configKey][key].data = {
+          ...lineData,
+          ...update,
+        };
+      }
+
+      return { lines };
+    });
+
+    activeAudioMixers.set(hostLineKey, {
+      audioCtx,
+      confBridgeChannels: allKeys.filter((k) => k !== hostLineKey),
+      originalMicTrack: localMicTrack,
+    });
+  }
+
+  async function removeFromConference(lineKey: string) {
+    const line = getLineDataByLineKey(lineKey) as SipLineDataType;
+    if (!line?.confBridgeLineKey) return;
+
+    const hostKey = line.confBridgeLineKey;
+    const host = getLineDataByLineKey(hostKey) as SipLineDataType;
+
+    if (!host) return;
+
+    const newChannels = (host.confBridgeChannels ?? []).filter((k) => k !== lineKey);
+
+    useRtcStore.setState((state) => {
+      const lines = { ...state.lines };
+
+      if (lines[configKey][hostKey]) {
+        lines[configKey][hostKey].data = {
+          ...lines[configKey][hostKey].data,
+          confBridgeChannels: newChannels,
+        };
+      }
+
+      if (lines[configKey][lineKey]) {
+        lines[configKey][lineKey].data = {
+          ...lines[configKey][lineKey].data,
+          confBridgeLineKey: '',
+        };
+      }
+
+      return { lines };
+    });
+
+    const mixer = activeAudioMixers.get(hostKey);
+    if (mixer) {
+      mixer.confBridgeChannels = newChannels;
+    }
+  }
+
+  async function clearConfferenceBridge(hostLineKey: string) {
+    const mixer = activeAudioMixers.get(hostLineKey);
+    if (!mixer) return;
+    for (const key of mixer.confBridgeChannels) {
+      await endSession(key);
+    }
+    mixer.audioCtx.close();
+    activeAudioMixers.delete(hostLineKey);
+  }
+
+  /* -------------------------------------------------------------------------- */
   async function setMediaStreamConfigs(
     lineKey: LineType['lineKey'],
     configs: Partial<
-      Pick<LineDataType, 'audioInputDeviceId' | 'audioOutputDeviceId' | 'videoInputDeviceId'>
+      Pick<
+        LineDataType,
+        'audioInputDeviceId' | 'audioOutputDeviceId' | 'videoInputDeviceId' | 'speakerEnabled'
+      >
     >,
   ) {
     const lineObj = getLineByLineKey<SipLineType>(lineKey);
     if (!lineObj) return;
 
-    const { audioInputDeviceId: newAudioInputId, videoInputDeviceId: newVideoInputId } = configs;
-
+    const newAudioInputId = configs?.audioInputDeviceId;
+    const newVideoInputId = configs?.videoInputDeviceId;
     // Previous device ids (before change)
     const prevAudioInputId = lineObj.data.audioInputDeviceId;
     const prevVideoInputId = lineObj.data.videoInputDeviceId;
@@ -1430,7 +1658,10 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     // 1) Persist the config change onto the line
     const nextLineObj: SipLineType = {
       ...lineObj,
-      ...configs,
+      data: {
+        ...lineObj.data,
+        ...configs,
+      },
     };
     updateLine(nextLineObj);
 
@@ -1592,7 +1823,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
     toggleHoldSession,
     makeTransferSession,
     sendDTMF,
-    cancelTransferSession,
+    conferenceBridge,
     cancelSession,
     teardownSession,
   };

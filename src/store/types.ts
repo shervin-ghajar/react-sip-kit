@@ -2,7 +2,7 @@ import { RtcConfig, SipAccountConfig } from '../configs/types';
 import { HybridLineDataType, HybridLineType } from '../engines/hybrid/types';
 import { JanusLineDataType, JanusLineType } from '../engines/janus/types';
 import { SipLineDataType, SipLineType } from '../engines/sip/types';
-import { CallbackFunction, CallType, EngineInstance, RtcEngineStatus, } from '../types';
+import { CallbackFunction, CallType, EngineInstance, RtcEngineStatus } from '../types';
 
 /* -------------------------------------------------------------------------- */
 export interface RtcStoreStateType {
@@ -46,9 +46,9 @@ export interface RtcStoreStateType {
     keys:
       | { lineKey: string }
       | {
-        remoteNumber: LineDataType['remoteNumber'];
-        configKey: RtcConfig['key'];
-      },
+          remoteNumber: LineDataType['remoteNumber'];
+          configKey: RtcConfig['key'];
+        },
   ) => LineType | null;
   remoteNumberConfigKeyResolver: ({
     remoteNumber,
@@ -59,8 +59,6 @@ export interface RtcStoreStateType {
   }) => `${typeof remoteNumber}:${typeof configKey}`;
 }
 
-
-
 export interface InitiateMediaStreamsParams {
   videoEnabled?: boolean;
   configs?: RtcConfig;
@@ -68,14 +66,10 @@ export interface InitiateMediaStreamsParams {
   stopStream?: boolean;
 }
 
-
-
-
 /* -------------------------------------------------------------------------- */
 export type LineType = SipLineType | JanusLineType | HybridLineType;
 
-
-export type LineDataType = SipLineDataType | JanusLineDataType | HybridLineDataType
+export type LineDataType = SipLineDataType | JanusLineDataType | HybridLineDataType;
 export interface BaseLineDataType {
   configKey: RtcConfig['key'];
   lineKey: LineType['lineKey'];
@@ -92,15 +86,13 @@ export interface BaseLineDataType {
   started: boolean;
   hold: Array<{ event: 'hold' | 'unhold'; eventTime: string }>;
   isHold: boolean;
-  videoChannelNames: Array<Record<'mid' | 'channel', string>>;
   localMediaStreamData: MediaStreamData;
   remoteMediaStreamData: MediaStreamData;
   videoAckReceived: boolean;
   videoInputDeviceId: string | null | undefined;
   audioInputDeviceId: string | null | undefined;
   audioOutputDeviceId: string | null | undefined;
-  confBridgeChannels: Array<any>; //TODO
-  confBridgeEvents: Array<any>;
+  speakerEnabled: boolean;
   recordMedia: {
     recording: boolean;
     startTime: string | null;
@@ -109,10 +101,13 @@ export interface BaseLineDataType {
 }
 
 /* -------------------------------------------------------------------------- */
-export type MediaStreamData = Record<"audio" | "video" | "screen", {
-  track: MediaStreamTrack | null | undefined;
-  enabled: boolean
-}>
+export type MediaStreamData = Record<
+  'audio' | 'video' | 'screen',
+  {
+    track: MediaStreamTrack | null | undefined;
+    enabled: boolean;
+  }
+>;
 
 export type RemoteMediaStreamData = {
   audio: Map<string, { track: MediaStreamTrack; enabled: boolean }>;
