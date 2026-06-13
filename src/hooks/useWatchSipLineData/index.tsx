@@ -118,9 +118,8 @@ export function useWatchSipLineData({
   const store = getRtcStore();
 
   // Resolve the lineKey internally
-  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key);
-
-  if (!lineKey) return undefined;
+  const lineKey =
+    ('lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key)) ?? '';
 
   const configKey = store.getConfigKeyByLineKey(lineKey);
 
@@ -130,7 +129,7 @@ export function useWatchSipLineData({
         const line = configKey ? state.lines?.[configKey]?.[lineKey] : null;
         const data = line?.data as SipLineDataType;
 
-        if (!data) return undefined;
+        if (!data) return null;
 
         if (Array.isArray(name)) return name.map((path) => getByPath(data, path as any));
         if (typeof name === 'string') return getByPath(data, name as any);

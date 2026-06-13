@@ -1329,10 +1329,13 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         },
         onAccept: function (sip) {
           if (!lineData.transfer?.[transferId]) return;
+          lineData.transfer[transferId].disposition = 'approval';
+          lineData.transfer[transferId].dispositionTime = utcDateNow();
           lineData.transfer[transferId].onAccept = () => {
             lineData.transfer[transferId].disposition = 'accepted';
             lineData.transfer[transferId].dispositionTime = utcDateNow();
             onTransferRefer(lineKey, targetURI, transferId, request);
+            updateLine(lineObj);
           };
           updateLine(lineObj);
         },
