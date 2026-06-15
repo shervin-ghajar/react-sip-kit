@@ -1208,7 +1208,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
         if (lineData?.transfer?.[transferNumber].type === 'blind') return;
         lineData?.transfer?.[transferNumber].onAccept?.();
       },
-      attendReject: () => {
+      attendCancel: () => {
         cancelTransferSession(lineKey, transferNumber);
       },
     };
@@ -1283,6 +1283,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineData.transfer[transferId].disposition = 'bye';
           lineData.transfer[transferId].dispositionTime = utcDateNow();
         }
+        updateLine(lineObj);
       },
       onSessionDescriptionHandler: function (sdh: SipSessionDescriptionHandler) {
         onTransferSessionDescriptionHandlerCreated(
@@ -1310,7 +1311,7 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
           lineData.transfer[transferId].dispositionTime = utcDateNow();
           lineData.transfer[transferId].onCancle = () => {
             newSession.cancel().catch(function (error) {
-              console.warn('Failed to CANCEL', error);
+              console.warn('Failed to Cancel', error);
             });
             if (!lineData.transfer?.[transferId]) return;
             lineData.transfer[transferId].accept.complete = false;
@@ -1335,6 +1336,16 @@ export const sessionMethods = ({ configKey }: { configKey: RtcConfig['key'] }) =
             lineData.transfer[transferId].disposition = 'accepted';
             lineData.transfer[transferId].dispositionTime = utcDateNow();
             onTransferRefer(lineKey, targetURI, transferId, request);
+            updateLine(lineObj);
+          };
+          lineData.transfer[transferId].onCancle = () => {
+            newSession.bye().catch(function (error) {
+              console.warn('Failed to End', error);
+            });
+            if (!lineData.transfer?.[transferId]) return;
+            lineData.transfer[transferId].accept.complete = false;
+            lineData.transfer[transferId].accept.disposition = 'by';
+            lineData.transfer[transferId].accept.eventTime = utcDateNow();
             updateLine(lineObj);
           };
           updateLine(lineObj);
