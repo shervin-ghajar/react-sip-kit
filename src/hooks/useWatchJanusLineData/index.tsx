@@ -118,9 +118,8 @@ export function useWatchJanusLineData({
   const store = getRtcStore();
 
   // Resolve the lineKey internally
-  const lineKey = 'lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key);
-
-  if (!lineKey) return undefined;
+  const lineKey =
+    ('lineKey' in key ? key.lineKey : store.getLineKeyByRemoteNumber_ConfigKey(key)) ?? '';
 
   const configKey = store.getConfigKeyByLineKey(lineKey);
 
@@ -130,14 +129,14 @@ export function useWatchJanusLineData({
         const line = configKey ? state.lines?.[configKey]?.[lineKey] : null;
         const data = line?.data as JanusLineDataType;
 
-        if (!data) return undefined;
+        if (!data) return null;
 
         if (Array.isArray(name)) return name.map((path) => getByPath(data, path as any));
         if (typeof name === 'string') return getByPath(data, name as any);
 
         return data;
       } catch (error) {
-        console.error('useWatchJanusLineData', error);
+        console.error('useWatchSipLineData', error);
       }
     }),
   );
